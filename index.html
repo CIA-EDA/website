@@ -10,67 +10,86 @@
     
     <style>
         body { margin: 0; font-family: 'Noto Sans TC', sans-serif; background-color: var(--secondary-color); color: var(--text-dark); display: flex; flex-direction: column; min-height: 100vh; }
-        h1, h2, h3, .serif-text { font-family: 'Noto Serif TC', serif; }
+        h1, h2, h3 { font-family: 'Noto Serif TC', serif; color: var(--ink-navy); }
         main { flex: 1; }
 
-        #preloader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--secondary-color); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 99999; transition: 0.8s; }
-        .preloader-brand { font-family: 'Cormorant Garamond', serif; font-size: 32px; color: var(--ink-navy); letter-spacing: 0.15em; animation: pulse 2s infinite; }
-        .preloader-text { margin-top: 10px; font-size: 14px; color: var(--taupe); letter-spacing: 0.1em; }
-        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+        /* =========================================
+           終極防呆預載入畫面 (CSS 強制驅動，絕不卡死)
+           ========================================= */
+        #preloader { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background-color: var(--secondary-color); 
+            display: flex; justify-content: center; align-items: center; 
+            z-index: 99999; 
+            /* 核心破解：3.5秒後強制執行 forceHide 動畫，完全不需依賴 JS */
+            animation: forceHide 3.5s forwards; 
+        }
         
-        header { padding: 15px 50px; display: flex; justify-content: space-between; align-items: center; background-color: #050505; box-shadow: 0 2px 10px rgba(0,0,0,0.5); position: sticky; top: 0; z-index: 9000; }
-        .brand-logo-img { height: 60px; width: auto; display: block; transition: transform 0.3s; }
+        /* 鑲嵌 Logo 並加上呼吸燈特效 */
+        .preloader-logo { 
+            width: 150px; height: auto; 
+            animation: pulseFade 1.5s ease-in-out infinite; 
+        }
+        
+        /* 呼吸燈深淺變化動畫 */
+        @keyframes pulseFade { 
+            0% { opacity: 0.3; transform: scale(0.95); } 
+            50% { opacity: 1; transform: scale(1.05); } 
+            100% { opacity: 0.3; transform: scale(0.95); } 
+        }
+        
+        /* 強制隱藏與釋放點擊權限的動畫 */
+        @keyframes forceHide {
+            0% { opacity: 1; visibility: visible; }
+            80% { opacity: 1; visibility: visible; } /* 前 2.8 秒保持顯示 */
+            100% { opacity: 0; visibility: hidden; pointer-events: none; z-index: -100; } /* 瞬間隱藏並沉入底層 */
+        }
+        
+        /* 導覽列 */
+        header { padding: 15px 40px; display: flex; justify-content: space-between; align-items: center; background-color: #050505; box-shadow: 0 2px 10px rgba(0,0,0,0.5); position: sticky; top: 0; z-index: 9000; flex-wrap: wrap; gap: 15px; }
+        .brand-logo-img { height: 50px; width: auto; display: block; transition: transform 0.3s; }
         .brand-logo-img:hover { transform: scale(1.05); }
 
-        .main-nav { display: flex; gap: 20px; align-items: center; }
-        .main-nav a { color: var(--champagne); text-decoration: none; font-size: 15px; font-weight: 500; letter-spacing: 0.08em; transition: color 0.3s; }
+        /* 全站獨立分頁按鍵 */
+        .main-nav { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        .main-nav a { color: var(--champagne); text-decoration: none; font-size: 14px; font-weight: 500; letter-spacing: 0.05em; transition: color 0.3s; }
         .main-nav a:hover, .main-nav a.active { color: #ffffff; }
         .nav-btn-highlight { color: #ffffff !important; background-color: var(--primary-color); padding: 8px 15px; border-radius: 5px; font-weight: 700 !important; }
         .nav-btn-highlight:hover { background-color: #967a4a; }
 
-        .hero-section { padding: 100px 50px; text-align: center; background-color: var(--secondary-color); }
-        .hero-title { font-size: 36px; margin-bottom: 20px; letter-spacing: 0.15em; color: var(--ink-navy); }
-        .content-section { padding: 50px 10%; background-color: #ffffff; }
+        /* 主視覺與內容區塊 */
+        .hero-section { padding: 80px 40px; text-align: center; background-color: var(--secondary-color); }
+        .hero-title { font-size: 32px; margin-bottom: 15px; letter-spacing: 0.15em; }
+        .content-section { padding: 50px 8%; background-color: #ffffff; }
 
-        .course-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; margin-top: 30px; }
-        .course-card { border: 1px solid #eee; border-radius: 10px; overflow: hidden; background: #fff; transition: 0.3s; }
+        /* 動態資料卡片設計 */
+        .course-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; margin-top: 30px; }
+        .course-card { border: 1px solid #eee; border-radius: 10px; overflow: hidden; background: #fff; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
         .course-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
-        .course-img { width: 100%; height: 220px; object-fit: cover; }
-        .course-info { padding: 25px; }
-        .course-title { margin-top: 0; color: var(--ink-navy); font-size: 20px; letter-spacing: 0.05em; }
-        .course-desc { color: var(--text-light); font-size: 14px; line-height: 1.6; margin-bottom: 15px; }
-        .course-teacher { font-size: 13px; color: var(--taupe); margin-bottom: 20px; }
-        .course-btn { display: block; text-align: center; background: var(--primary-color); color: white; padding: 12px; text-decoration: none; border-radius: 6px; font-size: 15px; transition: 0.3s; }
-        .course-btn:hover { background: #967a4a; }
+        .course-img { width: 100%; height: 200px; object-fit: cover; }
+        .course-info { padding: 20px; }
 
-        .floating-contact-btn { position: fixed; bottom: 40px; right: 40px; background-color: var(--primary-color); color: #ffffff; padding: 15px 25px; border-radius: 50px; font-size: 16px; font-weight: 500; cursor: pointer; z-index: 9998; transition: 0.3s; box-shadow: 0 4px 15px rgba(184, 149, 90, 0.4); }
+        /* 浮動聯絡按鈕 */
+        .floating-contact-btn { position: fixed; bottom: 30px; right: 30px; background-color: var(--primary-color); color: #ffffff; padding: 15px 25px; border-radius: 50px; font-size: 15px; font-weight: bold; cursor: pointer; z-index: 9998; transition: 0.3s; box-shadow: 0 4px 15px rgba(184, 149, 90, 0.4); }
         .floating-contact-btn:hover { transform: translateY(-5px); }
-        
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(31, 45, 74, 0.8); display: none; justify-content: center; align-items: center; z-index: 9999; opacity: 0; transition: 0.3s; }
-        .modal-overlay.active { display: flex; opacity: 1; }
-        .modal-content { background: #ffffff; padding: 40px; border-radius: 12px; width: 90%; max-width: 450px; position: relative; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; font-size: 14px; margin-bottom: 5px; color: var(--ink-navy); }
-        .input-field, .select-field, .textarea-field { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-        .btn-submit { width: 100%; padding: 15px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; transition: 0.3s; }
-        .btn-close-modal { position: absolute; top: 15px; right: 20px; background: none; border: none; font-size: 24px; color: #aaa; cursor: pointer; }
 
+        /* 統一頁尾 */
         footer { background-color: #050505; padding: 40px 50px; text-align: center; border-top: 1px solid #222; margin-top: auto; }
         .footer-links { display: flex; justify-content: center; gap: 30px; margin-bottom: 20px; }
-        .footer-links a { color: var(--champagne); text-decoration: none; font-size: 15px; transition: 0.3s; }
+        .footer-links a { color: var(--champagne); text-decoration: none; font-size: 14px; transition: 0.3s; }
         .footer-links a:hover { color: #fff; }
     </style>
 </head>
 <body>
 
+    <!-- 更新後的 Logo 預載入畫面 -->
     <div id="preloader">
-        <div class="preloader-brand">CLA-EDA</div>
-        <div class="preloader-text">以人為本・美麗展現</div>
+        <img src="images/CIAEDA_直式標準_標準彩色.png" alt="CLA-EDA Loading" class="preloader-logo">
     </div>
 
+    <!-- 全站導覽列 -->
     <header>
         <a href="index.html">
-            <!-- 已精準修正為 .png -->
             <img src="images/CIAEDA_直式標準_標準彩色.png" alt="CLA-EDA Logo" class="brand-logo-img">
         </a>
         <nav class="main-nav">
@@ -79,6 +98,7 @@
             <a href="team.html">專業師資</a>
             <a href="gallery.html">活動花絮</a>
             <a href="join.html">入會申請</a>
+            <!-- 金流獨立轉跳 -->
             <a href="https://api.payuni.com.tw/api/uop/receive_info/2/1/CCAT968310880001/hQjvQe2jfYEAWXlu2K21X" target="_blank" class="nav-btn-highlight">💳 線上付款</a>
         </nav>
     </header>
@@ -86,47 +106,28 @@
     <main>
         <section class="hero-section">
             <h1 class="hero-title">重新定義美學與專業</h1>
-            <p style="color: var(--text-light); letter-spacing: 0.08em;">從技術教育到品牌經營，打造全方位美業人才的孵化平台。</p>
+            <p style="color: var(--text-light); letter-spacing: 0.08em;">打造全方位美業人才的孵化平台</p>
         </section>
 
         <section class="content-section">
-            <h2 style="text-align: center; font-weight: 500; color: var(--ink-navy);">精選課程與活動</h2>
-            <div id="data-container" data-sheet="課程介紹" data-layout="course"></div>
+            <h2 style="text-align: center;">最新精選</h2>
+            <!-- 資料抓取核心 -->
+            <div id="data-container" data-sheet="課程介紹" data-layout="card"></div>
         </section>
     </main>
 
-    <div class="floating-contact-btn" id="open-contact-btn">💬 聯絡專業顧問</div>
-
-    <div id="lead-popup" class="modal-overlay">
-        <div class="modal-content">
-            <button class="btn-close-modal" id="close-modal-btn">&times;</button>
-            <h3 style="text-align:center; color:var(--ink-navy); margin-top:0;">期待與您進一步交流</h3>
-            <div class="form-group"><label>姓名 Name</label><input type="text" id="lead-name" class="input-field"></div>
-            <div class="form-group"><label>手機 Phone</label><input type="tel" id="lead-phone" class="input-field"></div>
-            <div class="form-group"><label>LINE ID</label><input type="text" id="lead-line" class="input-field"></div>
-            <div class="form-group"><label>有興趣的項目</label>
-                <select id="lead-course" class="select-field">
-                    <option value="">請選擇...</option>
-                    <option value="藝術美甲/問題指甲">藝術美甲 / 問題指甲護理</option>
-                    <option value="美睫/採耳/熱蠟">美睫 / 採耳 / 熱蠟服務</option>
-                    <option value="TNL/TNA/CIP證照">TNL / TNA / CIP 專業證照</option>
-                    <option value="其他">其他疑問</option>
-                </select>
-            </div>
-            <button id="submit-lead-btn" class="btn-submit">確認送出</button>
-        </div>
-    </div>
+    <div class="floating-contact-btn" onclick="window.location.href='join.html'">💬 聯絡顧問 / 入會</div>
 
     <footer>
         <div class="footer-links">
             <a href="https://lin.ee/p4GvYng" target="_blank">LINE 官方帳號</a>
             <a href="https://www.facebook.com/CIAEDA/" target="_blank">Facebook</a>
             <a href="https://www.instagram.com/ciaeda111" target="_blank">Instagram</a>
+            <a href="admin.html">管理員登入</a>
         </div>
         <p style="color: var(--taupe); font-size: 13px; margin: 0;">&copy; 2026 中華國際美學教育發展協會 CLA-EDA. All Rights Reserved.</p>
     </footer>
 
-    <script src="js/tracking.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
