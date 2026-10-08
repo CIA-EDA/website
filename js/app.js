@@ -1,77 +1,60 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：負責在網頁載入時，向 GAS 獲取試算表中的課程資料，並動態產生 HTML 網頁卡片
+ * 職責：全站通用動態渲染引擎 (去除了容易卡死的預載邏輯，交由 CSS 處理)
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec'; 
 
-document.addEventListener('DOMContentLoaded', loadCourses);
-
-async function loadCourses() {
-    const courseContainer = document.getElementById('course-list');
-    const preloader = document.getElementById('preloader'); // 取得預載入畫面元素
+document.addEventListener('DOMContentLoaded', () => {
+    const container = document.getElementById('data-container');
     
-    try {
-        const response = await fetch(GAS_URL + '?sheetName=工作表1');
-        const result = await response.json();
+    // 如果該分頁沒有需要動態載入的資料，直接結束
+    if (!container) return; 
 
-        if (result.status === 'success') {
-            const rawData = result.data;
-            if (rawData.length <= 1) {
-                courseContainer.innerHTML = '<p style="text-align:center; color: var(--text-light);">目前尚無開放的課程資訊。</p>';
-                return;
+    const targetSheet = container.getAttribute('data-sheet');
+
+    // 啟動資料庫抓取
+    fetch(`${GAS_URL}?sheetName=${targetSheet}`)
+        .then(response => response.json())
+        .then(result => {
+            if (result.status === 'success' && result.data.length > 1) {
+                renderData(result.data, container);
+            } else {
+                container.innerHTML = '<p style="text-align:center; color:#7A7A7A;">目前資料庫尚無發佈資訊。</p>';
             }
+        })
+        .catch(error => {
+            console.error('資料載入失敗:', error);
+            container.innerHTML = '<p style="text-align:center; color:red;">資料載入異常，請稍後再試。</p>';
+        });
+});
 
-            const headers = rawData[0];
-            const courses = [];
-            for (let i = 1; i < rawData.length; i++) {
-                let obj = {};
-                for (let j = 0; j < headers.length; j++) {
-                    obj[headers[j]] = rawData[i][j];
-                }
-                courses.push(obj);
-            }
-            renderCourses(courses, courseContainer);
-        } else {
-            throw new Error(result.message);
-        }
-    } catch (error) {
-        console.error('課程載入失敗:', error);
-        courseContainer.innerHTML = '<p style="text-align:center; color: red;">資料載入失敗，請稍後再試。</p>';
-    } finally {
-        // 無論載入成功或失敗，最終都將預載入畫面柔和地淡出
-        if (preloader) {
-            preloader.style.opacity = '0';
-            preloader.style.visibility = 'hidden';
-            // 等待 CSS 的 0.8s 淡出動畫結束後，將元素完全移除以釋放空間
-            setTimeout(() => {
-                preloader.style.display = 'none';
-            }, 800);
-        }
-    }
-}
-
-function renderCourses(courses, container) {
+// 通用卡片渲染邏輯 (對應所有 Google Sheet 分頁)
+function renderData(rawData, container) {
+    const headers = rawData[0];
     let html = '<div class="course-grid">';
-    courses.forEach(course => {
-        const title = course['課程名稱'] || '未命名課程';
-        const desc = course['簡介'] || '暫無說明';
-        const teacher = course['講師'] || 'CLA-EDA 專業團隊';
-        const img = course['圖片網址'] || 'https://via.placeholder.com/600x400/E8D3CB/1F2D4A?text=CLA-EDA+Course';
-        const link = course['報名連結'] || '#';
-
+    
+    for (let i = 1; i < rawData.length; i++) {
+        let item = {};
+        for (let j = 0; j < headers.length; j++) {
+            item[headers[j]] = rawData[i][j];
+        }
+        
+        // 智慧判斷欄位名稱，相容多種資料庫格式
+        const title = item['課程名稱'] || item['講師姓名'] || item['活動名稱'] || item['名稱'] || '未命名項目';
+        const desc = item['簡介'] || item['個人簡介'] || item['專長項目'] || '尚無詳細說明';
+        const img = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || 'https://via.placeholder.com/600x400/E8D3CB/1F2D4A?text=CLA-EDA';
+        
         html += `
             <div class="course-card">
                 <img src="${img}" alt="${title}" class="course-img">
                 <div class="course-info">
-                    <h3 class="course-title">${title}</h3>
-                    <p class="course-desc">${desc}</p>
-                    <div class="course-teacher">👨‍🏫 講師：${teacher}</div>
-                    <a href="${link}" target="_blank" class="course-btn">了解更多 / 立即報名</a>
+                    <h3 style="margin-top:0; color:var(--ink-navy);">${title}</h3>
+                    <p style="color:var(--text-light); font-size:14px; line-height:1.5;">${desc}</p>
                 </div>
             </div>
         `;
-    });
+    }
     html += '</div>';
     container.innerHTML = html;
 }
