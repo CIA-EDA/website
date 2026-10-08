@@ -1,6 +1,6 @@
 /**
  * 檔案名稱：js/admin.js
- * 職責：負責管理後台的密碼驗證、切換頁籤，及將各分類資料寫入對應的 Sheet
+ * 職責：負責管理後台的密碼驗證、切換頁籤，及將各分類資料安全寫入對應的 Sheet
  */
 
 const ADMIN_PASSWORD = '6668888';
@@ -33,45 +33,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
     tabBtns.forEach(btn => {
         btn.addEventListener('click', () => {
-            // 移除所有啟動狀態
             tabBtns.forEach(b => b.classList.remove('active'));
             containers.forEach(c => c.classList.remove('active'));
             
-            // 啟動點擊的目標
             btn.classList.add('active');
             const targetId = btn.getAttribute('data-target');
             document.getElementById(targetId).classList.add('active');
         });
     });
 
-    // --- 3. 發佈資料至對應的資料庫 ---
+    // --- 3. 動態表單資料上傳邏輯 ---
     const publishBtns = document.querySelectorAll('.btn-publish');
     
     publishBtns.forEach(btn => {
         btn.addEventListener('click', async () => {
-            const targetSheet = btn.getAttribute('data-sheet'); // 取得要寫入的工作表名稱
+            const targetSheet = btn.getAttribute('data-sheet'); 
             const container = btn.parentElement;
             
-            // 抓取該區塊內所有的 input 欄位資料 (按順序排列)
-            const inputs = container.querySelectorAll('.input-field');
+            // 抓取該區塊內所有的 data-input 欄位 (包含 input 與 textarea)
+            const inputs = container.querySelectorAll('.data-input');
             const newRowData = [];
-            let isComplete = true;
+            let isFirstFieldEmpty = false;
 
             inputs.forEach((input, index) => {
-                newRowData.push(input.value.trim());
+                const val = input.value.trim();
+                newRowData.push(val);
                 // 假設第一個欄位必填
-                if (index === 0 && input.value.trim() === '') {
-                    isComplete = false;
+                if (index === 0 && val === '') {
+                    isFirstFieldEmpty = true;
                 }
             });
 
-            if (!isComplete) {
-                alert('請至少填寫第一個標題欄位！');
+            if (isFirstFieldEmpty) {
+                alert('請至少填寫第一個標題/名稱欄位！');
                 return;
             }
 
             const originalBtnText = btn.innerText;
-            btn.innerText = '上傳中...';
+            btn.innerText = '上傳中，請稍候...';
             btn.disabled = true;
 
             try {
@@ -80,20 +79,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify({
                         token: API_SECRET_TOKEN,
-                        sheetName: targetSheet, // 動態指定寫入的工作表
+                        sheetName: targetSheet, // 精準送到對應的工作表
                         newRowData: newRowData
                     })
                 });
 
                 const result = await response.json();
+                
                 if (result.status === 'success') {
-                    alert(`成功發佈至【${targetSheet}】資料庫！`);
-                    inputs.forEach(input => input.value = ''); // 清空表單
+                    alert(`成功發佈至【${targetSheet}】！前台網頁已同步更新。`);
+                    inputs.forEach(input => input.value = ''); // 成功後清空表單
                 } else {
                     throw new Error(result.message);
                 }
             } catch (error) {
-                alert('上傳失敗：' + error.message);
+                alert('上傳失敗，請確認網路或 API 設定：\n' + error.message);
             } finally {
                 btn.innerText = originalBtnText;
                 btn.disabled = false;
