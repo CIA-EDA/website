@@ -14,13 +14,46 @@
     <style>
         body {
             margin: 0;
-            font-family: 'Noto Sans TC', sans-serif; /* 內文預設字體 */
+            font-family: 'Noto Sans TC', sans-serif;
             background-color: var(--secondary-color);
             color: var(--text-dark);
         }
         
         h1, h2, h3, .serif-text {
-            font-family: 'Noto Serif TC', serif; /* 標題專用字體 */
+            font-family: 'Noto Serif TC', serif;
+        }
+
+        /* =========================================
+           新增：柔和預載入畫面 (Preloader) 樣式
+           ========================================= */
+        #preloader {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--secondary-color); /* 珍珠白底色 */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 99999; /* 確保在最上層 */
+            transition: opacity 0.8s ease, visibility 0.8s ease;
+        }
+        .preloader-brand {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 32px;
+            color: var(--ink-navy);
+            letter-spacing: 0.15em;
+            animation: pulse 2s infinite; /* 柔和的呼吸燈動畫 */
+        }
+        .preloader-text {
+            margin-top: 10px;
+            font-size: 14px;
+            color: var(--taupe);
+            letter-spacing: 0.1em;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
         }
         
         header {
@@ -29,7 +62,7 @@
         }
 
         .brand-logo {
-            font-family: 'Cormorant Garamond', serif; /* 英文專屬字體 */
+            font-family: 'Cormorant Garamond', serif;
             font-size: 28px; font-weight: 600; color: var(--ink-navy);
             letter-spacing: 0.1em; text-decoration: none;
         }
@@ -70,7 +103,7 @@
             color: white; padding: 12px; text-decoration: none; border-radius: 6px;
             font-size: 15px; transition: 0.3s;
         }
-        .course-btn:hover { background: #967a4a; } /* 香檳金加深 */
+        .course-btn:hover { background: #967a4a; }
 
         /* 浮動按鈕與彈出視窗 */
         .floating-contact-btn {
@@ -86,7 +119,7 @@
 
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(31, 45, 74, 0.8); /* 墨藍半透明底 */
+            background: rgba(31, 45, 74, 0.8);
             display: none; justify-content: center; align-items: center; z-index: 9999;
             opacity: 0; transition: opacity 0.3s ease;
         }
@@ -118,6 +151,12 @@
 </head>
 <body>
 
+    <!-- 新增：柔和預載入過場畫面 -->
+    <div id="preloader">
+        <div class="preloader-brand">CLA-EDA</div>
+        <div class="preloader-text">以人為本・美麗展現</div>
+    </div>
+
     <header>
         <a href="index.html" class="brand-logo">CLA-EDA</a>
         <nav><span style="color: var(--text-light); font-size: 14px; font-weight: 500;">以人為本・美麗展現</span></nav>
@@ -134,7 +173,7 @@
     <section class="content-section" id="dynamic-content">
         <h2 style="text-align: center; font-weight: 500; color: var(--ink-navy);">最新課程與活動</h2>
         <div id="course-list">
-            <p style="text-align: center; color: var(--text-light);">資料建構中...</p>
+            <!-- 由於有了 Preloader，這裡不再顯示醜醜的文字 -->
         </div>
     </section>
 
@@ -142,7 +181,7 @@
         <span>💬 聯絡專業顧問</span>
     </div>
 
-    <!-- 優化後的業務收集表單 -->
+    <!-- 業務收集表單 -->
     <div id="lead-popup" class="modal-overlay">
         <div class="modal-content">
             <button class="btn-close-modal" id="close-modal-btn">&times;</button>
@@ -154,7 +193,6 @@
             <div class="form-group"><label>LINE ID</label><input type="text" id="lead-line" class="input-field" placeholder="請輸入以便顧問與您聯繫"></div>
             <div class="form-group">
                 <label>有興趣的項目</label>
-                <!-- 對應品牌規劃書的主力業務 -->
                 <select id="lead-course" class="select-field">
                     <option value="">請選擇...</option>
                     <option value="藝術美甲/問題指甲">藝術美甲 / 問題指甲護理</option>
@@ -170,7 +208,6 @@
         </div>
     </div>
 
-    <!-- 引入追蹤表單與動態渲染課程邏輯 -->
     <script src="js/tracking.js"></script>
     <script src="js/app.js"></script>
 
