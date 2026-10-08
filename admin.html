@@ -28,7 +28,9 @@
     </style>
 </head>
 <body>
-    <header><img src="images/CIAEDA_直式標準_標準彩色.png" alt="CIA-EDA Logo" class="brand-logo-img"></header>
+    <header>
+        <img src="images/CIAEDA_直式標準_標準彩色.png" alt="CIA-EDA Logo" class="brand-logo-img">
+    </header>
 
     <div id="login-section">
         <div class="login-box">
@@ -47,16 +49,18 @@
             <button class="tab-btn" data-target="form-brands">品牌推廣管理</button>
         </div>
         
+        <!-- 表單 1：課程管理 -->
         <div class="dashboard-container active" id="form-courses">
             <h2 style="color:var(--primary-color); margin-top:0;">新增課程</h2>
             <div class="form-group"><label>課程名稱</label><input type="text" class="input-field data-input"></div>
             <div class="form-group"><label>簡介</label><input type="text" class="input-field data-input"></div>
             <div class="form-group"><label>講師</label><input type="text" class="input-field data-input"></div>
             <div class="form-group"><label>上傳圖片 (可選多張進行輪播)</label><input type="file" class="input-field data-input" accept="image/*" multiple><div class="file-hint">系統將自動上傳至您的 Google Drive</div></div>
-            <div class="form-group"><label>報名連結</label><input type="text" class="input-field data-input"></div>
+            <div class="form-group"><label>專屬線上付款網址 (若填寫，卡片下方將出現付款按鈕)</label><input type="text" class="input-field data-input"></div>
             <button class="btn-submit btn-publish" data-sheet="課程介紹">發佈至資料庫</button>
         </div>
 
+        <!-- 表單 2：師資管理 -->
         <div class="dashboard-container" id="form-team">
             <h2 style="color:var(--primary-color); margin-top:0;">新增師資</h2>
             <div class="form-group"><label>講師姓名</label><input type="text" class="input-field data-input"></div>
@@ -67,6 +71,7 @@
             <button class="btn-submit btn-publish" data-sheet="專業師資">發佈至資料庫</button>
         </div>
 
+        <!-- 表單 3：花絮管理 -->
         <div class="dashboard-container" id="form-gallery">
             <h2 style="color:var(--primary-color); margin-top:0;">新增活動花絮</h2>
             <div class="form-group"><label>活動名稱</label><input type="text" class="input-field data-input"></div>
@@ -75,6 +80,7 @@
             <button class="btn-submit btn-publish" data-sheet="活動花絮">發佈至資料庫</button>
         </div>
 
+        <!-- 表單 4：關於我們管理 -->
         <div class="dashboard-container" id="form-about">
             <h2 style="color:var(--primary-color); margin-top:0;">新增關於我們</h2>
             <div class="form-group"><label>段落標題</label><input type="text" class="input-field data-input"></div>
@@ -83,11 +89,12 @@
             <button class="btn-submit btn-publish" data-sheet="關於我們">發佈至資料庫</button>
         </div>
 
+        <!-- 表單 5：品牌推廣管理 -->
         <div class="dashboard-container" id="form-brands">
-            <h2 style="color:var(--primary-color); margin-top:0;">新增推廣品牌</h2>
-            <div class="form-group"><label>品牌名稱</label><input type="text" class="input-field data-input"></div>
-            <div class="form-group"><label>品牌簡介</label><input type="text" class="input-field data-input"></div>
-            <div class="form-group"><label>上傳品牌Logo</label><input type="file" class="input-field data-input" accept="image/*"></div>
+            <h2 style="color:var(--primary-color); margin-top:0;">新增推廣產品</h2>
+            <div class="form-group"><label>產品名稱</label><input type="text" class="input-field data-input"></div>
+            <div class="form-group"><label>產品簡介</label><input type="text" class="input-field data-input"></div>
+            <div class="form-group"><label>上傳產品logo及圖檔 (可選多張)</label><input type="file" class="input-field data-input" accept="image/*" multiple></div>
             <button class="btn-submit btn-publish" data-sheet="品牌推廣">發佈至資料庫</button>
         </div>
     </div>
