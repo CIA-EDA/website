@@ -18,7 +18,6 @@
         .preloader-text { margin-top: 10px; font-size: 14px; color: var(--taupe); letter-spacing: 0.1em; }
         @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
         
-        /* 導覽列：極致黑背景以完美融合 JPG Logo */
         header { padding: 15px 50px; display: flex; justify-content: space-between; align-items: center; background-color: #050505; box-shadow: 0 2px 10px rgba(0,0,0,0.5); position: sticky; top: 0; z-index: 9000; }
         .brand-logo-img { height: 60px; width: auto; display: block; transition: transform 0.3s; }
         .brand-logo-img:hover { transform: scale(1.05); }
@@ -56,7 +55,6 @@
         .btn-submit { width: 100%; padding: 15px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; transition: 0.3s; }
         .btn-close-modal { position: absolute; top: 15px; right: 20px; background: none; border: none; font-size: 24px; color: #aaa; cursor: pointer; }
 
-        /* 頁尾樣式 */
         footer { background-color: #050505; padding: 40px 50px; text-align: center; border-top: 1px solid #222; margin-top: auto; }
         .footer-links { display: flex; justify-content: center; gap: 30px; margin-bottom: 20px; }
         .footer-links a { color: var(--champagne); text-decoration: none; font-size: 15px; transition: 0.3s; }
@@ -72,7 +70,8 @@
 
     <header>
         <a href="index.html">
-            <img src="images/CIAEDA_直式標準_標準彩色.jpg" alt="CLA-EDA Logo" class="brand-logo-img">
+            <!-- 已精準修正為 .png -->
+            <img src="images/CIAEDA_直式標準_標準彩色.png" alt="CLA-EDA Logo" class="brand-logo-img">
         </a>
         <nav class="main-nav">
             <a href="index.html" class="active">首頁</a>
@@ -80,7 +79,6 @@
             <a href="team.html">專業師資</a>
             <a href="gallery.html">活動花絮</a>
             <a href="join.html">入會申請</a>
-            <!-- 金流專屬付款網址 -->
             <a href="https://api.payuni.com.tw/api/uop/receive_info/2/1/CCAT968310880001/hQjvQe2jfYEAWXlu2K21X" target="_blank" class="nav-btn-highlight">💳 線上付款</a>
         </nav>
     </header>
@@ -119,7 +117,6 @@
         </div>
     </div>
 
-    <!-- 統一的社群頁尾 -->
     <footer>
         <div class="footer-links">
             <a href="https://lin.ee/p4GvYng" target="_blank">LINE 官方帳號</a>
