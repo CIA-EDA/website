@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', loadCourses);
 
 async function loadCourses() {
     const courseContainer = document.getElementById('course-list');
+    const preloader = document.getElementById('preloader'); // 取得預載入畫面元素
     
     try {
         const response = await fetch(GAS_URL + '?sheetName=工作表1');
@@ -37,6 +38,16 @@ async function loadCourses() {
     } catch (error) {
         console.error('課程載入失敗:', error);
         courseContainer.innerHTML = '<p style="text-align:center; color: red;">資料載入失敗，請稍後再試。</p>';
+    } finally {
+        // 無論載入成功或失敗，最終都將預載入畫面柔和地淡出
+        if (preloader) {
+            preloader.style.opacity = '0';
+            preloader.style.visibility = 'hidden';
+            // 等待 CSS 的 0.8s 淡出動畫結束後，將元素完全移除以釋放空間
+            setTimeout(() => {
+                preloader.style.display = 'none';
+            }, 800);
+        }
     }
 }
 
