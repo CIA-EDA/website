@@ -1,3 +1,8 @@
+/**
+ * 檔案名稱：js/app.js
+ * 職責：全站通用動態渲染引擎、處理多圖輪播、專屬付款按鈕生成
+ */
+
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec'; 
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -25,13 +30,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function hidePreloader(el) { if (el) { el.style.opacity = '0'; el.style.visibility = 'hidden'; setTimeout(() => { el.style.display = 'none'; }, 800); } }
 
-// === 核心：處理多圖輪播 (Carousel) ===
 function generateImageHTML(imgString) {
     const urls = imgString.split(',').map(u => u.trim()).filter(u => u);
     if (urls.length === 0) return `<img src="https://via.placeholder.com/600x400/E8D3CB/1F2D4A?text=CIA-EDA" class="course-img" style="border-radius:12px;">`;
     if (urls.length === 1) return `<img src="${urls[0]}" class="course-img" style="border-radius:12px;">`;
     
-    // 如果有多張圖片，自動生成流暢的 CSS 滑動輪播區塊
     let html = `<div style="display:flex; overflow-x:auto; scroll-snap-type: x mandatory; border-radius:12px; margin-bottom:10px;">`;
     urls.forEach(url => { html += `<img src="${url}" style="flex: 0 0 100%; scroll-snap-align: start; width:100%; height:200px; object-fit:cover;">`; });
     html += `</div><div style="text-align:center; font-size:12px; color:var(--taupe); margin-top:-5px; margin-bottom:10px;">← 左右滑動查看多圖 →</div>`;
@@ -46,16 +49,26 @@ function renderData(rawData, layoutType, container) {
         let item = {};
         for (let j = 0; j < headers.length; j++) item[headers[j]] = rawData[i][j];
         
-        const title = item['課程名稱'] || item['講師姓名'] || item['活動名稱'] || item['名稱'] || item['標題'] || '未命名項目';
-        const desc = item['簡介'] || item['個人簡介'] || item['專長項目'] || item['內容'] || '尚無詳細說明';
-        const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || '';
+        // 支援新舊名稱判斷 (加入 "產品名稱", "產品簡介")
+        const title = item['課程名稱'] || item['講師姓名'] || item['活動名稱'] || item['產品名稱'] || item['名稱'] || item['標題'] || '未命名項目';
+        const desc = item['簡介'] || item['個人簡介'] || item['專長項目'] || item['產品簡介'] || item['內容'] || '尚無詳細說明';
+        const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || item['產品logo及圖檔'] || '';
+        const linkRaw = item['報名連結'] || item['專屬付款網址'] || ''; 
+        
         const imgHtml = generateImageHTML(imgRaw);
+        
+        // === 核心：產生專屬付款按鈕 ===
+        let paymentBtnHtml = '';
+        if (linkRaw !== '') {
+            paymentBtnHtml = `<a href="${linkRaw}" target="_blank" class="candy-btn" style="display:block; text-align:center; margin-top:20px; background:var(--champagne); color:#fff !important;">💳 專屬線上付款</a>`;
+        }
         
         if (layoutType === 'article') {
             html += `<div style="margin-bottom: 50px;">`;
             if (title) html += `<h3 style="color:var(--ink-navy); border-bottom: 2px solid var(--champagne); padding-bottom:10px; margin-bottom:20px; font-size:24px;">${title}</h3>`;
             html += imgHtml;
             if (desc) html += `<p style="color:var(--text-dark); font-size:16px; line-height:1.8; letter-spacing:0.05em;">${desc.replace(/\n/g, '<br>')}</p>`;
+            html += paymentBtnHtml; // 若文章版型有連結，同樣顯示在下方
             html += `</div>`;
         } else {
             html += `
@@ -64,6 +77,7 @@ function renderData(rawData, layoutType, container) {
                     <div class="course-info">
                         <h3 style="margin-top:0; color:var(--ink-navy);">${title}</h3>
                         <p style="color:var(--text-light); font-size:14px; line-height:1.5;">${desc}</p>
+                        ${paymentBtnHtml}
                     </div>
                 </div>`;
         }
