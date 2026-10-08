@@ -3,54 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CLA-EDA | 管理控制台</title>
+    <title>CIA-EDA | 管理控制台</title>
     <link rel="stylesheet" href="css/variables.css">
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=Noto+Sans+TC:wght@400;500&family=Noto+Serif+TC:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500&family=Noto+Serif+TC:wght@500;700&display=swap" rel="stylesheet">
     <style>
         body { margin: 0; font-family: 'Noto Sans TC', sans-serif; background-color: var(--secondary-color); display: flex; flex-direction: column; min-height: 100vh; }
-        
-        header { padding: 15px 40px; display: flex; justify-content: space-between; align-items: center; background-color: #050505; box-shadow: 0 2px 10px rgba(0,0,0,0.5); position: sticky; top: 0; z-index: 9000; flex-wrap: wrap; gap: 15px; }
-        .brand-logo-img { height: 50px; width: auto; display: block; }
-        .main-nav { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
-        .main-nav a { color: var(--champagne); text-decoration: none; font-size: 14px; font-weight: 500; letter-spacing: 0.05em; transition: color 0.3s; }
-        .main-nav a:hover { color: #ffffff; }
-
+        header { padding: 15px 40px; text-align: center; background-color: var(--mist-rose); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .brand-logo-img { height: 50px; width: auto; display: inline-block; }
         #login-section { flex: 1; display: flex; justify-content: center; align-items: center; margin-bottom: 50px; }
         .login-box { background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); text-align: center; width: 90%; max-width: 350px; }
-        
         #dashboard-section { display: none; padding: 30px 5%; flex: 1; margin-bottom: 50px; }
-        
-        /* 頁籤導覽設計 (支援多行換行) */
         .admin-nav { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; flex-wrap: wrap; }
-        .tab-btn { padding: 10px 20px; border: 1px solid var(--primary-color); background: transparent; color: var(--primary-color); border-radius: 50px; cursor: pointer; font-size: 14px; font-weight: 500; transition: 0.3s; }
+        .tab-btn { padding: 10px 20px; border: 1px solid var(--primary-color); background: transparent; color: var(--primary-color); border-radius: 20px; cursor: pointer; font-size: 14px; font-weight: 600; transition: 0.3s; }
         .tab-btn.active, .tab-btn:hover { background: var(--primary-color); color: white; }
-        
         .dashboard-container { background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); max-width: 700px; margin: 0 auto; display: none; }
         .dashboard-container.active { display: block; }
-        
         .form-group { margin-bottom: 20px; }
         .form-group label { display: block; font-size: 14px; margin-bottom: 8px; color: var(--ink-navy); font-weight: 500; }
-        .input-field, .textarea-field { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-family: inherit; }
+        .input-field, .textarea-field { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 12px; box-sizing: border-box; font-family: inherit; }
         .textarea-field { resize: vertical; height: 120px; }
-        .btn-submit { width: 100%; padding: 15px; background: var(--primary-color); color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; transition: 0.3s; font-weight: bold; }
+        .btn-submit { width: 100%; padding: 15px; background: var(--primary-color); color: white; border: none; border-radius: 12px; font-size: 16px; cursor: pointer; transition: 0.3s; font-weight: bold; }
         .btn-submit:hover { background: #967a4a; }
-
-        footer { background-color: #050505; padding: 40px 50px; text-align: center; border-top: 1px solid #222; margin-top: auto; }
-        .footer-links { display: flex; justify-content: center; gap: 30px; margin-bottom: 20px; }
-        .footer-links a { color: var(--champagne); text-decoration: none; font-size: 14px; transition: 0.3s; }
-        .footer-links a:hover { color: #fff; }
+        .file-hint { font-size: 12px; color: #888; margin-top: 5px; }
     </style>
 </head>
 <body>
-
-    <header>
-        <a href="index.html">
-            <img src="images/CIAEDA_直式標準_標準彩色.png" alt="CLA-EDA Logo" class="brand-logo-img">
-        </a>
-        <nav class="main-nav">
-            <a href="index.html">返回前台首頁</a>
-        </nav>
-    </header>
+    <header><img src="images/CIAEDA_直式標準_標準彩色.png" alt="CIA-EDA Logo" class="brand-logo-img"></header>
 
     <div id="login-section">
         <div class="login-box">
@@ -61,7 +39,6 @@
     </div>
 
     <div id="dashboard-section">
-        <!-- 擴充後的後台頁籤 -->
         <div class="admin-nav">
             <button class="tab-btn active" data-target="form-courses">課程管理</button>
             <button class="tab-btn" data-target="form-team">師資管理</button>
@@ -70,66 +47,50 @@
             <button class="tab-btn" data-target="form-brands">品牌推廣管理</button>
         </div>
         
-        <!-- 表單 1：課程管理 -->
         <div class="dashboard-container active" id="form-courses">
             <h2 style="color:var(--primary-color); margin-top:0;">新增課程</h2>
             <div class="form-group"><label>課程名稱</label><input type="text" class="input-field data-input"></div>
             <div class="form-group"><label>簡介</label><input type="text" class="input-field data-input"></div>
             <div class="form-group"><label>講師</label><input type="text" class="input-field data-input"></div>
-            <div class="form-group"><label>圖片網址</label><input type="text" class="input-field data-input"></div>
+            <div class="form-group"><label>上傳圖片 (可選多張進行輪播)</label><input type="file" class="input-field data-input" accept="image/*" multiple><div class="file-hint">系統將自動上傳至您的 Google Drive</div></div>
             <div class="form-group"><label>報名連結</label><input type="text" class="input-field data-input"></div>
-            <button class="btn-submit btn-publish" data-sheet="課程介紹">發佈至課程資料庫</button>
+            <button class="btn-submit btn-publish" data-sheet="課程介紹">發佈至資料庫</button>
         </div>
 
-        <!-- 表單 2：師資管理 -->
         <div class="dashboard-container" id="form-team">
             <h2 style="color:var(--primary-color); margin-top:0;">新增師資</h2>
             <div class="form-group"><label>講師姓名</label><input type="text" class="input-field data-input"></div>
             <div class="form-group"><label>專長項目</label><input type="text" class="input-field data-input"></div>
             <div class="form-group"><label>個人簡介</label><input type="text" class="input-field data-input"></div>
-            <div class="form-group"><label>照片網址</label><input type="text" class="input-field data-input"></div>
+            <div class="form-group"><label>上傳照片</label><input type="file" class="input-field data-input" accept="image/*"><div class="file-hint">系統將自動上傳至您的 Google Drive</div></div>
             <div class="form-group"><label>聯絡方式(IG/Line)</label><input type="text" class="input-field data-input"></div>
-            <button class="btn-submit btn-publish" data-sheet="專業師資">發佈至師資資料庫</button>
+            <button class="btn-submit btn-publish" data-sheet="專業師資">發佈至資料庫</button>
         </div>
 
-        <!-- 表單 3：花絮管理 -->
         <div class="dashboard-container" id="form-gallery">
             <h2 style="color:var(--primary-color); margin-top:0;">新增活動花絮</h2>
             <div class="form-group"><label>活動名稱</label><input type="text" class="input-field data-input"></div>
             <div class="form-group"><label>日期 (例如: 2026/08/13)</label><input type="text" class="input-field data-input"></div>
-            <div class="form-group"><label>活動照片網址</label><input type="text" class="input-field data-input"></div>
-            <button class="btn-submit btn-publish" data-sheet="活動花絮">發佈至花絮資料庫</button>
+            <div class="form-group"><label>上傳活動照片 (可選多張)</label><input type="file" class="input-field data-input" accept="image/*" multiple></div>
+            <button class="btn-submit btn-publish" data-sheet="活動花絮">發佈至資料庫</button>
         </div>
 
-        <!-- 表單 4：關於我們管理 (長文排版) -->
         <div class="dashboard-container" id="form-about">
-            <h2 style="color:var(--primary-color); margin-top:0;">新增關於我們 (文章段落)</h2>
-            <p style="color:var(--taupe); font-size:13px; margin-bottom:20px;">每個段落可以包含標題與長篇內容，前台會自動排版為優雅的文章格式。</p>
-            <div class="form-group"><label>段落標題 (選填)</label><input type="text" class="input-field data-input"></div>
+            <h2 style="color:var(--primary-color); margin-top:0;">新增關於我們</h2>
+            <div class="form-group"><label>段落標題</label><input type="text" class="input-field data-input"></div>
             <div class="form-group"><label>文章內容 (支援換行)</label><textarea class="textarea-field data-input"></textarea></div>
-            <div class="form-group"><label>段落配圖網址 (選填)</label><input type="text" class="input-field data-input"></div>
-            <button class="btn-submit btn-publish" data-sheet="關於我們">發佈至關於我們資料庫</button>
+            <div class="form-group"><label>上傳配圖 (可選多張)</label><input type="file" class="input-field data-input" accept="image/*" multiple></div>
+            <button class="btn-submit btn-publish" data-sheet="關於我們">發佈至資料庫</button>
         </div>
 
-        <!-- 表單 5：品牌推廣管理 -->
         <div class="dashboard-container" id="form-brands">
             <h2 style="color:var(--primary-color); margin-top:0;">新增推廣品牌</h2>
             <div class="form-group"><label>品牌名稱</label><input type="text" class="input-field data-input"></div>
             <div class="form-group"><label>品牌簡介</label><input type="text" class="input-field data-input"></div>
-            <div class="form-group"><label>品牌Logo/圖片網址</label><input type="text" class="input-field data-input"></div>
-            <button class="btn-submit btn-publish" data-sheet="品牌推廣">發佈至品牌資料庫</button>
+            <div class="form-group"><label>上傳品牌Logo</label><input type="file" class="input-field data-input" accept="image/*"></div>
+            <button class="btn-submit btn-publish" data-sheet="品牌推廣">發佈至資料庫</button>
         </div>
     </div>
-
-    <footer>
-        <div class="footer-links">
-            <a href="https://lin.ee/p4GvYng" target="_blank">LINE 官方帳號</a>
-            <a href="https://www.facebook.com/CIAEDA/" target="_blank">Facebook</a>
-            <a href="https://www.instagram.com/ciaeda111" target="_blank">Instagram</a>
-        </div>
-        <p style="color: var(--taupe); font-size: 13px; margin: 0;">&copy; 2026 中華國際美學教育發展協會 CLA-EDA. All Rights Reserved.</p>
-    </footer>
-
     <script src="js/admin.js"></script>
 </body>
 </html>
