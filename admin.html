@@ -8,8 +8,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=Noto+Sans+TC:wght@400;500&family=Noto+Serif+TC:wght@500;700&display=swap" rel="stylesheet">
     <style>
         body { margin: 0; font-family: 'Noto Sans TC', sans-serif; background-color: var(--secondary-color); display: flex; flex-direction: column; min-height: 100vh; }
-        header { padding: 20px 50px; background-color: #050505; text-align: center; }
-        .brand-logo-img { height: 50px; width: auto; }
+        
+        /* 後台導覽列也換回乾淨的白色 */
+        header { padding: 20px 50px; background-color: #ffffff; box-shadow: 0 2px 10px rgba(0,0,0,0.05); text-align: center; }
+        .brand-logo-img { height: 60px; width: auto; }
         
         #login-section { flex: 1; display: flex; justify-content: center; align-items: center; }
         .login-box { background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); text-align: center; width: 90%; max-width: 350px; }
@@ -22,7 +24,7 @@
         .tab-btn.active, .tab-btn:hover { background: var(--primary-color); color: white; }
         
         .dashboard-container { background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); max-width: 700px; margin: 0 auto; display: none; }
-        .dashboard-container.active { display: block; } /* 顯示選中的表單 */
+        .dashboard-container.active { display: block; }
         
         .form-group { margin-bottom: 20px; }
         .form-group label { display: block; font-size: 14px; margin-bottom: 8px; color: var(--ink-navy); font-weight: 500; }
@@ -33,8 +35,9 @@
 </head>
 <body>
 
+    <!-- 鑲嵌去背 PNG Logo -->
     <header>
-        <img src="images/CIAEDA_直式標準_標準彩色.jpg" alt="CLA-EDA Logo" class="brand-logo-img">
+        <img src="images/CIAEDA_直式標準_標準彩色.png" alt="CLA-EDA Logo" class="brand-logo-img">
     </header>
 
     <div id="login-section">
@@ -46,14 +49,12 @@
     </div>
 
     <div id="dashboard-section">
-        <!-- 頁籤控制 -->
         <div class="admin-nav">
             <button class="tab-btn active" data-target="form-courses">課程管理</button>
             <button class="tab-btn" data-target="form-team">師資管理</button>
             <button class="tab-btn" data-target="form-gallery">花絮管理</button>
         </div>
         
-        <!-- 表單：課程管理 -->
         <div class="dashboard-container active" id="form-courses">
             <h2 style="color:var(--primary-color);">新增課程</h2>
             <div class="form-group"><label>課程名稱</label><input type="text" id="course-title" class="input-field"></div>
@@ -64,7 +65,6 @@
             <button class="btn-submit btn-publish" data-sheet="課程介紹">發佈至課程資料庫</button>
         </div>
 
-        <!-- 表單：師資管理 -->
         <div class="dashboard-container" id="form-team">
             <h2 style="color:var(--primary-color);">新增師資</h2>
             <div class="form-group"><label>講師姓名</label><input type="text" id="team-name" class="input-field"></div>
@@ -75,7 +75,6 @@
             <button class="btn-submit btn-publish" data-sheet="專業師資">發佈至師資資料庫</button>
         </div>
 
-        <!-- 表單：花絮管理 -->
         <div class="dashboard-container" id="form-gallery">
             <h2 style="color:var(--primary-color);">新增活動花絮</h2>
             <div class="form-group"><label>活動名稱</label><input type="text" id="gallery-title" class="input-field"></div>
