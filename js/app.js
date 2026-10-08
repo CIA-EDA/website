@@ -3,7 +3,7 @@
  * 職責：負責在網頁載入時，向 GAS 獲取試算表中的課程資料，並動態產生 HTML 網頁卡片
  */
 
-// 1. 請填入你部署獨立 GAS 取得的「網頁應用程式網址」
+// 1. 寫入你專屬的 GAS API 網址
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec'; 
 
 // 網頁載入完成後執行
