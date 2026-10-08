@@ -21,7 +21,6 @@
         .nav-btn-highlight { color: #ffffff !important; background-color: var(--primary-color); padding: 8px 15px; border-radius: 5px; font-weight: 700 !important; }
         .nav-btn-highlight:hover { background-color: #967a4a; }
 
-        /* 入會表單容器 */
         .join-container { background: #ffffff; padding: 50px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); width: 100%; max-width: 600px; }
         .join-title { font-size: 28px; color: var(--ink-navy); text-align: center; margin-top: 0; margin-bottom: 10px; }
         .join-subtitle { text-align: center; color: var(--text-light); margin-bottom: 40px; font-size: 14px; }
@@ -42,7 +41,8 @@
 
     <header>
         <a href="index.html">
-            <img src="images/CIAEDA_直式標準_標準彩色.jpg" alt="CLA-EDA Logo" class="brand-logo-img">
+            <!-- 已精準修正為 .png -->
+            <img src="images/CIAEDA_直式標準_標準彩色.png" alt="CLA-EDA Logo" class="brand-logo-img">
         </a>
         <nav class="main-nav">
             <a href="index.html">首頁</a>
@@ -65,7 +65,6 @@
             <div class="form-group"><label>LINE ID</label><input type="text" id="join-line" class="input-field" placeholder="方便顧問聯繫的 ID"></div>
             <div class="form-group">
                 <label>申請類別 (必填)</label>
-                <!-- 對應您的 CIS 品牌手冊設計的會員分類 -->
                 <select id="join-type" class="select-field">
                     <option value="">請選擇申請類別...</option>
                     <option value="一般會員">一般會員 (墨藍卡面)</option>
@@ -88,7 +87,6 @@
         <p style="color: var(--taupe); font-size: 13px; margin: 0;">&copy; 2026 中華國際美學教育發展協會 CLA-EDA. All Rights Reserved.</p>
     </footer>
 
-    <!-- 引入專屬的入會跳轉程式碼 -->
     <script src="js/join.js"></script>
 </body>
 </html>
