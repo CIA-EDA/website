@@ -9,16 +9,16 @@
     <style>
         body { margin: 0; font-family: 'Noto Sans TC', sans-serif; background-color: var(--secondary-color); display: flex; flex-direction: column; min-height: 100vh; }
         
-        /* 後台導覽列也換回乾淨的白色 */
-        header { padding: 20px 50px; background-color: #ffffff; box-shadow: 0 2px 10px rgba(0,0,0,0.05); text-align: center; }
-        .brand-logo-img { height: 60px; width: auto; }
-        
-        #login-section { flex: 1; display: flex; justify-content: center; align-items: center; }
+        header { padding: 15px 50px; display: flex; justify-content: space-between; align-items: center; background-color: #050505; box-shadow: 0 2px 10px rgba(0,0,0,0.5); position: sticky; top: 0; z-index: 9000; }
+        .brand-logo-img { height: 60px; width: auto; display: block; }
+        .main-nav { display: flex; gap: 20px; align-items: center; }
+        .main-nav a { color: var(--champagne); text-decoration: none; font-size: 15px; font-weight: 500; letter-spacing: 0.08em; transition: color 0.3s; }
+        .main-nav a:hover { color: #ffffff; }
+
+        #login-section { flex: 1; display: flex; justify-content: center; align-items: center; margin-bottom: 50px; }
         .login-box { background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); text-align: center; width: 90%; max-width: 350px; }
         
-        #dashboard-section { display: none; padding: 30px 5%; flex: 1; }
-        
-        /* 頁籤導覽設計 */
+        #dashboard-section { display: none; padding: 30px 5%; flex: 1; margin-bottom: 50px; }
         .admin-nav { display: flex; gap: 15px; margin-bottom: 20px; justify-content: center; }
         .tab-btn { padding: 12px 25px; border: 1px solid var(--primary-color); background: transparent; color: var(--primary-color); border-radius: 50px; cursor: pointer; font-size: 16px; font-weight: 500; transition: 0.3s; }
         .tab-btn.active, .tab-btn:hover { background: var(--primary-color); color: white; }
@@ -31,13 +31,22 @@
         .input-field, .textarea-field { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
         .btn-submit { width: 100%; padding: 15px; background: var(--primary-color); color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; transition: 0.3s; }
         .btn-submit:hover { background: #967a4a; }
+
+        footer { background-color: #050505; padding: 40px 50px; text-align: center; border-top: 1px solid #222; margin-top: auto; }
+        .footer-links { display: flex; justify-content: center; gap: 30px; margin-bottom: 20px; }
+        .footer-links a { color: var(--champagne); text-decoration: none; font-size: 15px; transition: 0.3s; }
+        .footer-links a:hover { color: #fff; }
     </style>
 </head>
 <body>
 
-    <!-- 鑲嵌去背 PNG Logo -->
     <header>
-        <img src="images/CIAEDA_直式標準_標準彩色.png" alt="CLA-EDA Logo" class="brand-logo-img">
+        <a href="index.html">
+            <img src="images/CIAEDA_直式標準_標準彩色.jpg" alt="CLA-EDA Logo" class="brand-logo-img">
+        </a>
+        <nav class="main-nav">
+            <a href="index.html">返回前台首頁</a>
+        </nav>
     </header>
 
     <div id="login-section">
@@ -83,6 +92,15 @@
             <button class="btn-submit btn-publish" data-sheet="活動花絮">發佈至花絮資料庫</button>
         </div>
     </div>
+
+    <footer>
+        <div class="footer-links">
+            <a href="https://lin.ee/p4GvYng" target="_blank">LINE 官方帳號</a>
+            <a href="https://www.facebook.com/CIAEDA/" target="_blank">Facebook</a>
+            <a href="https://www.instagram.com/ciaeda111" target="_blank">Instagram</a>
+        </div>
+        <p style="color: var(--taupe); font-size: 13px; margin: 0;">&copy; 2026 中華國際美學教育發展協會 CLA-EDA. All Rights Reserved.</p>
+    </footer>
 
     <script src="js/admin.js"></script>
 </body>
