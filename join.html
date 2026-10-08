@@ -3,48 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CLA-EDA | 立即入會申請</title>
+    <title>CIA-EDA | 立即入會申請</title>
     <link rel="stylesheet" href="css/variables.css">
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=Noto+Sans+TC:wght@400;500&family=Noto+Serif+TC:wght@500;700&display=swap" rel="stylesheet">
     <style>
         body { margin: 0; font-family: 'Noto Sans TC', sans-serif; background-color: var(--secondary-color); color: var(--text-dark); display: flex; flex-direction: column; min-height: 100vh; }
-        h1, h2, h3, .serif-text { font-family: 'Noto Serif TC', serif; }
-        main { flex: 1; padding: 50px 10%; display: flex; justify-content: center; }
+        h1, h2, h3 { font-family: 'Noto Serif TC', serif; color: var(--ink-navy); }
+        main { flex: 1; padding: 50px 5%; display: flex; justify-content: center; }
 
-        header { padding: 15px 50px; display: flex; justify-content: space-between; align-items: center; background-color: #050505; box-shadow: 0 2px 10px rgba(0,0,0,0.5); position: sticky; top: 0; z-index: 9000; }
-        .brand-logo-img { height: 60px; width: auto; display: block; transition: transform 0.3s; }
-        .brand-logo-img:hover { transform: scale(1.05); }
-
+        /* --- 視覺優化：導覽列改為「柔霧粉」背景 --- */
+        header { padding: 15px 40px; display: flex; justify-content: space-between; align-items: center; background-color: var(--mist-rose); box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 9000; }
+        .brand-logo-img { height: 50px; width: auto; display: block; transition: transform 0.3s; }
+        .menu-toggle { display: none; font-size: 28px; cursor: pointer; color: var(--ink-navy); }
+        
+        /* 導覽列文字改為墨藍色確保閱讀性 */
         .main-nav { display: flex; gap: 20px; align-items: center; }
-        .main-nav a { color: var(--champagne); text-decoration: none; font-size: 15px; font-weight: 500; letter-spacing: 0.08em; transition: color 0.3s; }
+        .main-nav a { color: var(--ink-navy); text-decoration: none; font-size: 15px; font-weight: 600; letter-spacing: 0.05em; transition: color 0.3s; }
         .main-nav a:hover, .main-nav a.active { color: #ffffff; }
         .nav-btn-highlight { color: #ffffff !important; background-color: var(--primary-color); padding: 8px 15px; border-radius: 5px; font-weight: 700 !important; }
-        .nav-btn-highlight:hover { background-color: #967a4a; }
-
-        .join-container { background: #ffffff; padding: 50px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); width: 100%; max-width: 600px; }
-        .join-title { font-size: 28px; color: var(--ink-navy); text-align: center; margin-top: 0; margin-bottom: 10px; }
-        .join-subtitle { text-align: center; color: var(--text-light); margin-bottom: 40px; font-size: 14px; }
         
-        .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; font-size: 14px; margin-bottom: 8px; color: var(--ink-navy); font-weight: 500; }
-        .input-field, .select-field { width: 100%; padding: 15px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 15px; background-color: #fafafa; }
-        .btn-submit { width: 100%; padding: 18px; background: var(--primary-color); color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+        @media (max-width: 768px) {
+            header { padding: 15px 20px; }
+            .menu-toggle { display: block; }
+            .main-nav { display: none; flex-direction: column; position: absolute; top: 75px; left: 0; width: 100%; background-color: var(--mist-rose); padding: 20px 0; gap: 20px; box-shadow: 0 10px 15px rgba(0,0,0,0.05); }
+            .main-nav.show { display: flex; }
+        }
+
+        /* 完整入會表單設計 */
+        .join-container { background: #ffffff; padding: 40px 50px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); width: 100%; max-width: 800px; margin-bottom: 50px; }
+        .join-title { font-size: 28px; text-align: center; margin-top: 0; margin-bottom: 10px; }
+        .join-subtitle { text-align: center; color: var(--text-light); margin-bottom: 30px; font-size: 14px; }
+        
+        .form-section { background: #fafafa; padding: 20px; border-radius: 8px; margin-bottom: 25px; border-left: 4px solid var(--primary-color); }
+        .form-row { display: flex; gap: 20px; margin-bottom: 15px; flex-wrap: wrap; }
+        .form-group { flex: 1; min-width: 250px; }
+        .form-group.full-width { flex: 100%; }
+        
+        .form-group label { display: block; font-size: 15px; margin-bottom: 8px; color: var(--ink-navy); font-weight: bold; }
+        .input-field, .select-field, .textarea-field { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 15px; }
+        .textarea-field { resize: vertical; height: 80px; }
+        
+        /* 複選/單選排版 */
+        .checkbox-group { display: flex; flex-direction: column; gap: 10px; margin-top: 5px; }
+        .checkbox-item { display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--text-dark); cursor: pointer; }
+        .checkbox-item input { width: 18px; height: 18px; cursor: pointer; }
+
+        .btn-submit { width: 100%; padding: 18px; background: var(--primary-color); color: white; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 20px; }
         .btn-submit:hover { background: #967a4a; box-shadow: 0 5px 15px rgba(184, 149, 90, 0.4); }
 
-        footer { background-color: #050505; padding: 40px 50px; text-align: center; border-top: 1px solid #222; margin-top: auto; }
+        /* --- 視覺優化：頁尾改為「柔霧粉」背景 --- */
+        footer { background-color: var(--mist-rose); padding: 40px 50px; text-align: center; margin-top: auto; }
         .footer-links { display: flex; justify-content: center; gap: 30px; margin-bottom: 20px; }
-        .footer-links a { color: var(--champagne); text-decoration: none; font-size: 15px; transition: 0.3s; }
-        .footer-links a:hover { color: #fff; }
+        .footer-links a { color: var(--ink-navy); text-decoration: none; font-size: 15px; font-weight: 600; transition: 0.3s; }
+        .footer-links a:hover { color: #ffffff; }
     </style>
 </head>
 <body>
 
     <header>
         <a href="index.html">
-            <!-- 已精準修正為 .png -->
-            <img src="images/CIAEDA_直式標準_標準彩色.png" alt="CLA-EDA Logo" class="brand-logo-img">
+            <img src="images/CIAEDA_直式標準_標準彩色.png" alt="CIA-EDA Logo" class="brand-logo-img">
         </a>
-        <nav class="main-nav">
+        <div class="menu-toggle" id="mobile-menu-btn">☰</div>
+        <nav class="main-nav" id="main-nav-menu">
             <a href="index.html">首頁</a>
             <a href="courses.html">課程介紹</a>
             <a href="team.html">專業師資</a>
@@ -56,23 +77,120 @@
 
     <main>
         <div class="join-container">
-            <h2 class="join-title">立即入會申請</h2>
-            <p class="join-subtitle">歡迎加入中華國際美學教育發展協會，攜手共創美業新高峰。申請送出後將自動為您導向金流繳費頁面。</p>
+            <h2 class="join-title">中華國際美學教育發展協會 入會申請表</h2>
+            <p class="join-subtitle">請填寫此表單以申請加入 CIA-EDA。所有資訊將用於會籍管理與聯繫。（標示 * 為必填）</p>
             
-            <div class="form-group"><label>真實姓名 (必填)</label><input type="text" id="join-name" class="input-field" placeholder="請輸入姓名"></div>
-            <div class="form-group"><label>聯絡電話 (必填)</label><input type="tel" id="join-phone" class="input-field" placeholder="請輸入手機號碼"></div>
-            <div class="form-group"><label>電子信箱 Email (必填)</label><input type="email" id="join-email" class="input-field" placeholder="example@email.com"></div>
-            <div class="form-group"><label>LINE ID</label><input type="text" id="join-line" class="input-field" placeholder="方便顧問聯繫的 ID"></div>
-            <div class="form-group">
-                <label>申請類別 (必填)</label>
-                <select id="join-type" class="select-field">
-                    <option value="">請選擇申請類別...</option>
-                    <option value="一般會員">一般會員 (墨藍卡面)</option>
-                    <option value="師資會員">師資會員 (柔霧粉卡面)</option>
-                    <option value="認證店家">認證店家</option>
-                </select>
+            <!-- 區塊 1：基本資料 -->
+            <div class="form-section">
+                <div class="form-row">
+                    <div class="form-group"><label>申請人中文姓名 *</label><input type="text" id="j-name-zh" class="input-field"></div>
+                    <div class="form-group"><label>申請人英文姓名 (或羅馬拼音)</label><input type="text" id="j-name-en" class="input-field"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>出生日期 *</label><input type="date" id="j-birth" class="input-field"></div>
+                    <div class="form-group"><label>身分證字號或護照號碼 *</label><input type="text" id="j-id" class="input-field"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        <label>最高學歷 *</label>
+                        <select id="j-edu" class="select-field">
+                            <option value="">請選擇</option>
+                            <option value="高中/職">高中/職</option>
+                            <option value="專科">專科</option>
+                            <option value="學士">學士</option>
+                            <option value="碩士">碩士</option>
+                            <option value="博士">博士</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                </div>
             </div>
-            <div class="form-group"><label>推薦人姓名 (選填)</label><input type="text" id="join-referrer" class="input-field" placeholder="若無可免填"></div>
+
+            <!-- 區塊 2：專業背景 -->
+            <div class="form-section">
+                <div class="form-group full-width" style="margin-bottom:20px;">
+                    <label>目前從事的美學相關領域 *</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-item"><input type="checkbox" name="j-field" value="美容/美體"> 美容/美體</label>
+                        <label class="checkbox-item"><input type="checkbox" name="j-field" value="美髮/造型"> 美髮/造型</label>
+                        <label class="checkbox-item"><input type="checkbox" name="j-field" value="美甲/美睫"> 美甲/美睫</label>
+                        <label class="checkbox-item"><input type="checkbox" name="j-field" value="紋繡/微刺青"> 紋繡/微刺青</label>
+                        <label class="checkbox-item"><input type="checkbox" name="j-field" value="整體造型"> 整體造型</label>
+                        <label class="checkbox-item"><input type="checkbox" name="j-field" value="美學教育/培訓"> 美學教育/培訓</label>
+                        <label class="checkbox-item"><input type="checkbox" name="j-field" value="醫療美容"> 醫療美容</label>
+                        <label class="checkbox-item"><input type="checkbox" name="j-field" value="產品研發/銷售"> 產品研發/銷售</label>
+                        <label class="checkbox-item"><input type="checkbox" name="j-field" value="藝術/設計"> 藝術/設計</label>
+                        <label class="checkbox-item"><input type="checkbox" name="j-field" value="其他"> 其他</label>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>現職機構名稱(公司/行號/工作室) *</label><input type="text" id="j-company" class="input-field"></div>
+                    <div class="form-group"><label>現任職稱</label><input type="text" id="j-jobtitle" class="input-field"></div>
+                </div>
+            </div>
+
+            <!-- 區塊 3：聯絡方式 -->
+            <div class="form-section">
+                <div class="form-row">
+                    <div class="form-group"><label>聯絡電話(手機) *</label><input type="tel" id="j-phone" class="input-field"></div>
+                    <div class="form-group"><label>Line ID</label><input type="text" id="j-line" class="input-field"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group full-width"><label>電子郵件地址</label><input type="email" id="j-email" class="input-field"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group full-width"><label>通訊地址(含郵遞區號) *</label><input type="text" id="j-address" class="input-field"></div>
+                </div>
+            </div>
+
+            <!-- 區塊 4：會籍與期望 -->
+            <div class="form-section">
+                <div class="form-group full-width" style="margin-bottom:20px;">
+                    <label>您希望申請的會籍類別 *</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-item"><input type="radio" name="j-membership" value="個人會員"> 個人會員 (從事美學相關工作之個人)</label>
+                        <label class="checkbox-item"><input type="radio" name="j-membership" value="學生會員"> 學生會員 (在學的美學相關科系學生)</label>
+                        <label class="checkbox-item"><input type="radio" name="j-membership" value="團體會員"> 團體會員 (相關企業、機構或學術單位)</label>
+                    </div>
+                </div>
+                
+                <div class="form-group full-width" style="margin-bottom:20px;">
+                    <label>您從何處得知本協會資訊？</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-item"><input type="checkbox" name="j-source" value="協會官方網站/社群媒體"> 協會官方網站/社群媒體</label>
+                        <label class="checkbox-item"><input type="checkbox" name="j-source" value="朋友/同行介紹"> 朋友/同行介紹</label>
+                        <label class="checkbox-item"><input type="checkbox" name="j-source" value="美學相關展覽/活動"> 美學相關展覽/活動</label>
+                        <label class="checkbox-item"><input type="checkbox" name="j-source" value="媒體報導/雜誌"> 媒體報導/雜誌</label>
+                        <label class="checkbox-item"><input type="checkbox" name="j-source" value="合作夥伴推薦"> 合作夥伴推薦</label>
+                        <label class="checkbox-item"><input type="checkbox" name="j-source" value="其他"> 其他</label>
+                    </div>
+                </div>
+
+                <div class="form-group full-width" style="margin-bottom:20px;">
+                    <label>您對加入本協會有何期待或希望參與的活動？(可複選) *</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-item"><input type="checkbox" name="j-expect" value="參與專業培訓課程"> 參與專業培訓課程</label>
+                        <label class="checkbox-item"><input type="checkbox" name="j-expect" value="獲取最新產業資訊"> 獲取最新產業資訊</label>
+                        <label class="checkbox-item"><input type="checkbox" name="j-expect" value="參加國際交流與競賽"> 參加國際交流與競賽</label>
+                        <label class="checkbox-item"><input type="checkbox" name="j-expect" value="拓展人脈與合作機會"> 拓展人脈與合作機會</label>
+                        <label class="checkbox-item"><input type="checkbox" name="j-expect" value="協助制定產業標準"> 協助制定產業標準</label>
+                        <label class="checkbox-item"><input type="checkbox" name="j-expect" value="擔任協會志工/講師"> 擔任協會志工/講師</label>
+                    </div>
+                </div>
+
+                <div class="form-group full-width" style="margin-bottom:20px;">
+                    <label>您是否願意收到協會的電子報與活動通知？ *</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-item"><input type="radio" name="j-newsletter" value="是"> 是</label>
+                        <label class="checkbox-item"><input type="radio" name="j-newsletter" value="否"> 否</label>
+                    </div>
+                </div>
+
+                <div class="form-group full-width">
+                    <label>是否有其他備註事項或需特別告知的事項？</label>
+                    <textarea id="j-remarks" class="textarea-field"></textarea>
+                </div>
+            </div>
             
             <button id="btn-submit-join" class="btn-submit">確認送出並前往付款</button>
         </div>
@@ -84,7 +202,7 @@
             <a href="https://www.facebook.com/CIAEDA/" target="_blank">Facebook</a>
             <a href="https://www.instagram.com/ciaeda111" target="_blank">Instagram</a>
         </div>
-        <p style="color: var(--taupe); font-size: 13px; margin: 0;">&copy; 2026 中華國際美學教育發展協會 CLA-EDA. All Rights Reserved.</p>
+        <p style="color: var(--ink-navy); font-size: 13px; margin: 0;">&copy; 2026 中華國際美學教育發展協會 CIA-EDA. All Rights Reserved.</p>
     </footer>
 
     <script src="js/join.js"></script>
