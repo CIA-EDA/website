@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLA-EDA | 品牌推廣</title>
+    
+    <link rel="stylesheet" href="css/variables.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=Noto+Sans+TC:wght@400;500&family=Noto+Serif+TC:wght@500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { margin: 0; font-family: 'Noto Sans TC', sans-serif; background-color: var(--secondary-color); color: var(--text-dark); display: flex; flex-direction: column; min-height: 100vh; }
+        h1, h2, h3 { font-family: 'Noto Serif TC', serif; color: var(--ink-navy); }
+        main { flex: 1; }
+
+        #preloader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--secondary-color); display: flex; justify-content: center; align-items: center; z-index: 99999; animation: forceHide 3.5s forwards; }
+        .preloader-logo { width: 150px; height: auto; animation: pulseFade 1.5s ease-in-out infinite; }
+        @keyframes pulseFade { 0% { opacity: 0.3; transform: scale(0.95); } 50% { opacity: 1; transform: scale(1.05); } 100% { opacity: 0.3; transform: scale(0.95); } }
+        @keyframes forceHide { 0%, 80% { opacity: 1; visibility: visible; } 100% { opacity: 0; visibility: hidden; pointer-events: none; z-index: -100; } }
+        
+        header { padding: 15px 40px; display: flex; justify-content: space-between; align-items: center; background-color: #050505; box-shadow: 0 2px 10px rgba(0,0,0,0.5); position: sticky; top: 0; z-index: 9000; flex-wrap: wrap; gap: 15px; }
+        .brand-logo-img { height: 50px; width: auto; display: block; transition: transform 0.3s; }
+        .brand-logo-img:hover { transform: scale(1.05); }
+
+        .main-nav { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        .main-nav a { color: var(--champagne); text-decoration: none; font-size: 14px; font-weight: 500; letter-spacing: 0.05em; transition: color 0.3s; }
+        .main-nav a:hover, .main-nav a.active { color: #ffffff; }
+        .nav-btn-highlight { color: #ffffff !important; background-color: var(--primary-color); padding: 8px 15px; border-radius: 5px; font-weight: 700 !important; }
+        .nav-btn-highlight:hover { background-color: #967a4a; }
+
+        .hero-section { padding: 60px 40px; text-align: center; background-color: var(--secondary-color); border-bottom: 1px solid #eaeaea; }
+        .hero-title { font-size: 32px; margin-bottom: 15px; letter-spacing: 0.15em; }
+        .content-section { padding: 50px 8%; background-color: #ffffff; }
+
+        .course-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; margin-top: 30px; }
+        .course-card { border: 1px solid #eee; border-radius: 10px; overflow: hidden; background: #fff; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
+        .course-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
+        .course-img { width: 100%; height: 200px; object-fit: cover; }
+        .course-info { padding: 20px; }
+
+        .floating-contact-btn { position: fixed; bottom: 30px; right: 30px; background-color: var(--primary-color); color: #ffffff; padding: 15px 25px; border-radius: 50px; font-size: 15px; font-weight: bold; cursor: pointer; z-index: 9998; transition: 0.3s; box-shadow: 0 4px 15px rgba(184, 149, 90, 0.4); }
+        .floating-contact-btn:hover { transform: translateY(-5px); }
+
+        footer { background-color: #050505; padding: 40px 50px; text-align: center; border-top: 1px solid #222; margin-top: auto; }
+        .footer-links { display: flex; justify-content: center; gap: 30px; margin-bottom: 20px; }
+        .footer-links a { color: var(--champagne); text-decoration: none; font-size: 14px; transition: 0.3s; }
+        .footer-links a:hover { color: #fff; }
+    </style>
+</head>
+<body>
+
+    <div id="preloader">
+        <img src="images/CIAEDA_直式標準_標準彩色.png" alt="CLA-EDA Loading" class="preloader-logo">
+    </div>
+
+    <header>
+        <a href="index.html">
+            <img src="images/CIAEDA_直式標準_標準彩色.png" alt="CLA-EDA Logo" class="brand-logo-img">
+        </a>
+        <nav class="main-nav">
+            <a href="index.html">首頁</a>
+            <a href="about.html">關於我們</a>
+            <a href="courses.html">課程介紹</a>
+            <a href="team.html">專業師資</a>
+            <a href="gallery.html">活動花絮</a>
+            <a href="brands.html" class="active">品牌推廣</a>
+            <a href="join.html">入會申請</a>
+            <a href="https://api.payuni.com.tw/api/uop/receive_info/2/1/CCAT968310880001/hQjvQe2jfYEAWXlu2K21X" target="_blank" class="nav-btn-highlight">💳 線上付款</a>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero-section">
+            <h1 class="hero-title">品牌推廣與合作</h1>
+            <p style="color: var(--text-light); letter-spacing: 0.08em;">嚴選業界頂尖品牌，共創美業生態圈</p>
+        </section>
+
+        <section class="content-section">
+            <!-- 預設為 data-layout="card" -->
+            <div id="data-container" data-sheet="品牌推廣" data-layout="card"></div>
+        </section>
+    </main>
+
+    <div class="floating-contact-btn" onclick="window.location.href='join.html'">💬 聯絡顧問 / 入會</div>
+
+    <footer>
+        <div class="footer-links">
+            <a href="https://lin.ee/p4GvYng" target="_blank">LINE 官方帳號</a>
+            <a href="https://www.facebook.com/CIAEDA/" target="_blank">Facebook</a>
+            <a href="https://www.instagram.com/ciaeda111" target="_blank">Instagram</a>
+            <a href="admin.html">管理員登入</a>
+        </div>
+        <p style="color: var(--taupe); font-size: 13px; margin: 0;">&copy; 2026 中華國際美學教育發展協會 CLA-EDA. All Rights Reserved.</p>
+    </footer>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
