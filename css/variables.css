@@ -1,31 +1,19 @@
-/* 
- * 檔案名稱：css/variables.css
- * 職責：統一管理 CLA-EDA 網站的品牌色彩與全局共用變數
- */
+/* 檔案名稱：css/variables.css */
+/* 職責：全站集中化色彩與排版變數設定 */
 
 :root {
-  /* =========================================
-     品牌核心色彩定義區 (源自 CIS 規範)
-     ========================================= */
-  --ink-navy: #1F2D4A;    /* 墨藍：專業、信任 */
-  --mist-rose: #E8D3CB;   /* 柔霧粉：溫度、美感 */
-  --champagne: #B8955A;   /* 香檳金：認證、榮耀 */
-  --pearl: #FAF7F2;       /* 珍珠白：大面積底色 */
-  --taupe: #8C8279;       /* 暖灰：分隔線、次要文字 */
-     
-  /* =========================================
-     語意化變數 (方便套用於 HTML 元件)
-     ========================================= */
-  --primary-color: var(--champagne); /* 品牌強調按鈕色 */
-  --secondary-color: var(--pearl);   /* 網站全局背景色 */
-  --text-dark: var(--ink-navy);      /* 主標題與重要文字 */
-  --text-light: var(--taupe);        /* 副標題與說明文字 */
-}
-
-/* 全局基礎樣式預設 */
-body {
-  background-color: var(--secondary-color);
-  color: var(--text-dark);
-  letter-spacing: 0.05em; 
-  scroll-behavior: smooth;
+  /* --- 1. CIA-EDA 品牌標準色 (Brand Colors) --- */
+  --ink-navy: #1F2D4A;      /* 墨藍色：用於標題、重要文字、主選單字體 */
+  --mist-rose: #E8D3CB;     /* 柔霧粉：用於導覽列背景、頁尾背景、糖果按鈕漸層 */
+  --champagne: #B8955A;     /* 香檳金：用於強調按鈕、線上付款、浮動聯絡我們 */
+  
+  /* --- 2. 輔助色 (Secondary Colors) --- */
+  --pearl: #FAF7F2;         /* 珍珠白：大面積網頁底色，取代純白，提升高級感 */
+  --taupe: #8C8279;         /* 暖灰：用於次要說明文字、分隔線、表單邊框 */
+  
+  /* --- 3. 系統功能變數映射 (Functional Variables) --- */
+  --primary-color: var(--champagne);
+  --secondary-color: var(--pearl);
+  --text-dark: var(--ink-navy);
+  --text-light: var(--taupe);
 }
