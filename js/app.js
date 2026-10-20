@@ -1,12 +1,15 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：SPA 首頁與大廳路由，會員登入後顯示「進入平台按鈕」
+ * 職責：SPA 路由、網址參數攔截、雙 LIFF 登入 (含官方 LINE 專屬 ID)、Session 追蹤、安全金庫跳轉
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
 const PAYUNI_URL = 'https://api.payuni.com.tw/api/uop/receive_info/2/1/CCAT968310880001/hQjvQe2jfYEAWXlu2K21X';
-const LIFF_ID = '2012121201-JKa4hPdF'; 
+
+// 🔑 雙 LIFF 鑰匙設定
+const LIFF_ID_MAIN = '2012121201-JKa4hPdF'; // 一般首頁用的 LIFF ID
+const LIFF_ID_MEMBER = '2012121201-DRHgrrOJ'; // 官方 LINE 會員專區專用 LIFF ID
 
 const PAGE_CONFIG = {
     '': { title: '重新定義美學與專業', subtitle: '打造全方位美業人才的孵化平台', sheet: '課程介紹', layout: 'card' },
@@ -16,13 +19,21 @@ const PAGE_CONFIG = {
     '#team': { title: '專業師資團隊', subtitle: '頂尖業界講師群，為您帶來最扎實的實戰教學。', sheet: '專業師資', layout: 'card' },
     '#gallery': { title: '精彩活動與花絮', subtitle: '見證協會與學員們共同成長的每一個珍貴時刻。', sheet: '活動花絮', layout: 'card' },
     '#brands': { title: '品牌推廣與合作', subtitle: '嚴選業界頂尖品牌，共創美業生態圈。', sheet: '品牌推廣', layout: 'card' },
-    '#join': { title: '入會申請', subtitle: '歡迎加入中華國際美學教育發展協會。', isForm: true },
+    '#join': { title: '入會申請', subtitle: '歡迎加入中華國際美學教育發展協會。為保障您的權益，請詳實填寫以下資料。', isForm: true },
     '#member-zone': { title: '會員登入與大廳', subtitle: '驗證會員身分以進入專屬學習平台', isMember: true }
 };
+
+// === 0. 網址參數轉換器 (解決 LINE LIFF 不支援 # 的問題) ===
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('zone') === 'member') {
+    window.location.hash = '#member-zone'; 
+    window.history.replaceState(null, '', window.location.pathname + '#member-zone');
+}
 
 let currentTrackingHash = window.location.hash || '#home';
 let currentPageEntryTime = Date.now();
 
+// === 1. 系統與動態 LIFF 初始化 ===
 async function initSystem() {
     try {
         const countRes = await fetch(`${GAS_URL}?action=getVisitorCount`);
@@ -38,13 +49,22 @@ async function initSystem() {
         localStorage.setItem('visitor_ip', ipData.ip);
     } catch(e) {}
 
+    // 動態判斷要使用哪一把 LIFF 鑰匙
+    let activeLiffId = LIFF_ID_MAIN;
+    if (window.location.hash === '#member-zone' || window.location.hash.includes('member-zone')) {
+        activeLiffId = LIFF_ID_MEMBER;
+    }
+
     try {
-        await liff.init({ liffId: LIFF_ID });
+        await liff.init({ liffId: activeLiffId });
+        
         if (liff.isInClient()) {
-            document.body.classList.add('in-line-app');
+            document.body.classList.add('in-line-app'); 
+            
             if (window.location.hash !== '#member-zone' && window.location.hash !== '#join') {
                 window.location.hash = '#member-zone';
             }
+            
             if (liff.isLoggedIn() && !localStorage.getItem('cia_member_credentials')) {
                 await handleLineLoginCallback();
             } else if (!liff.isLoggedIn()) {
@@ -55,7 +75,9 @@ async function initSystem() {
                 await handleLineLoginCallback();
             }
         }
-    } catch (err) { console.error('LIFF 初始化失敗', err); }
+    } catch (err) { 
+        console.error('LIFF 初始化失敗，請檢查 LIFF ID 設定', err); 
+    }
 }
 
 async function handleLineLoginCallback() {
@@ -68,7 +90,6 @@ async function handleLineLoginCallback() {
         });
         const data = await res.json();
         if (data.status === 'success') {
-            // === 核心：將通關憑證存入 localStorage 以便跨網頁(獨立平台)使用 ===
             localStorage.setItem('cia_member_credentials', JSON.stringify({ lineUid: profile.userId }));
             localStorage.setItem('cia_member_info', JSON.stringify(data.member));
             updateMemberUI();
@@ -85,6 +106,7 @@ function updateMemberUI() {
     }
 }
 
+// === 2. 追蹤引擎 ===
 function handlePageTransition() {
     const now = Date.now();
     const durationSeconds = Math.floor((now - currentPageEntryTime) / 1000);
@@ -112,6 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function showPreloader() { const p = document.getElementById('preloader'); p.style.display = 'flex'; p.style.visibility = 'visible'; p.style.opacity = '1'; }
 function hidePreloader() { const p = document.getElementById('preloader'); p.style.opacity = '0'; p.style.visibility = 'hidden'; setTimeout(() => { p.style.display = 'none'; }, 500); }
 
+// === 3. 頁面載入邏輯 ===
 async function loadPage() {
     showPreloader();
     const hash = window.location.hash || '#home';
@@ -136,7 +159,7 @@ async function loadPage() {
 
     if (config.isForm && joinContainer) { joinContainer.style.display = 'block'; hidePreloader(); return; }
 
-    // === 大門審核區塊 ===
+    // === 大門審核大廳區塊 ===
     if (config.isMember) {
         const credentials = localStorage.getItem('cia_member_credentials');
         const memberInfo = JSON.parse(localStorage.getItem('cia_member_info') || 'null');
@@ -147,7 +170,6 @@ async function loadPage() {
             hidePreloader(); return;
         }
         
-        // 已有憑證，顯示「前往獨立課程平台」的按鈕
         let avatarHtml = memberInfo && memberInfo.avatar ? `<img src="${memberInfo.avatar}" style="width:50px; height:50px; border-radius:50%; vertical-align:middle; margin-right:15px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">` : '';
         let badgeHtml = memberInfo && memberInfo.level ? `<span style="background:var(--champagne); color:#fff; font-size:14px; padding:4px 12px; border-radius:20px; font-weight:bold;">${memberInfo.level} 會員</span>` : '';
         
@@ -182,6 +204,7 @@ async function loadPage() {
 function logoutMember() {
     localStorage.removeItem('cia_member_credentials');
     localStorage.removeItem('cia_member_info');
+    if (liff.isLoggedIn()) { liff.logout(); }
     alert('已登出。');
     window.location.hash = '#home';
     loadPage();
