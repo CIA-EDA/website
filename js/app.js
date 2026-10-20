@@ -1,6 +1,6 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：SPA 路由、網址參數攔截、雙 LIFF 登入 (含官方 LINE 專屬 ID)、Session 追蹤、安全金庫跳轉
+ * 職責：極淨 App 模式攔截、資料補全閘門判斷、雙 LIFF 引擎
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
@@ -8,8 +8,8 @@ const API_SECRET_TOKEN = 'cla-eda-secure-2026';
 const PAYUNI_URL = 'https://api.payuni.com.tw/api/uop/receive_info/2/1/CCAT968310880001/hQjvQe2jfYEAWXlu2K21X';
 
 // 🔑 雙 LIFF 鑰匙設定
-const LIFF_ID_MAIN = '2012121201-JKa4hPdF'; // 一般首頁用的 LIFF ID
-const LIFF_ID_MEMBER = '2012121201-DRHgrrOJ'; // 官方 LINE 會員專區專用 LIFF ID
+const LIFF_ID_MAIN = '2012121201-JKa4hPdF'; 
+const LIFF_ID_MEMBER = '2012121201-DRHgrrOJ';
 
 const PAGE_CONFIG = {
     '': { title: '重新定義美學與專業', subtitle: '打造全方位美業人才的孵化平台', sheet: '課程介紹', layout: 'card' },
@@ -23,9 +23,11 @@ const PAGE_CONFIG = {
     '#member-zone': { title: '會員登入與大廳', subtitle: '驗證會員身分以進入專屬學習平台', isMember: true }
 };
 
-// === 0. 網址參數轉換器 (解決 LINE LIFF 不支援 # 的問題) ===
+// === 0. 網址攔截器 (極淨 App 模式切換) ===
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('zone') === 'member') {
+    // 瞬間加上標記，CSS 將物理性隱藏導覽列與頁尾
+    document.body.classList.add('is-exclusive-zone');
     window.location.hash = '#member-zone'; 
     window.history.replaceState(null, '', window.location.pathname + '#member-zone');
 }
@@ -33,7 +35,6 @@ if (urlParams.get('zone') === 'member') {
 let currentTrackingHash = window.location.hash || '#home';
 let currentPageEntryTime = Date.now();
 
-// === 1. 系統與動態 LIFF 初始化 ===
 async function initSystem() {
     try {
         const countRes = await fetch(`${GAS_URL}?action=getVisitorCount`);
@@ -43,28 +44,14 @@ async function initSystem() {
             if(counterEl) counterEl.innerText = countData.count.toLocaleString();
         }
     } catch(e) {}
-    try {
-        const ipRes = await fetch('https://api.ipify.org?format=json');
-        const ipData = await ipRes.json();
-        localStorage.setItem('visitor_ip', ipData.ip);
-    } catch(e) {}
 
-    // 動態判斷要使用哪一把 LIFF 鑰匙
     let activeLiffId = LIFF_ID_MAIN;
-    if (window.location.hash === '#member-zone' || window.location.hash.includes('member-zone')) {
-        activeLiffId = LIFF_ID_MEMBER;
-    }
+    if (window.location.hash === '#member-zone') activeLiffId = LIFF_ID_MEMBER;
 
     try {
         await liff.init({ liffId: activeLiffId });
-        
-        if (liff.isInClient()) {
-            document.body.classList.add('in-line-app'); 
-            
-            if (window.location.hash !== '#member-zone' && window.location.hash !== '#join') {
-                window.location.hash = '#member-zone';
-            }
-            
+        if (liff.isInClient() || document.body.classList.contains('is-exclusive-zone')) {
+            document.body.classList.add('is-exclusive-zone'); // 確保隱藏
             if (liff.isLoggedIn() && !localStorage.getItem('cia_member_credentials')) {
                 await handleLineLoginCallback();
             } else if (!liff.isLoggedIn()) {
@@ -75,9 +62,7 @@ async function initSystem() {
                 await handleLineLoginCallback();
             }
         }
-    } catch (err) { 
-        console.error('LIFF 初始化失敗，請檢查 LIFF ID 設定', err); 
-    }
+    } catch (err) { console.error('LIFF 初始化失敗', err); }
 }
 
 async function handleLineLoginCallback() {
@@ -94,7 +79,7 @@ async function handleLineLoginCallback() {
             localStorage.setItem('cia_member_info', JSON.stringify(data.member));
             updateMemberUI();
             if (window.location.hash !== '#member-zone') window.location.hash = '#member-zone'; else loadPage();
-        } else { alert('系統驗證失敗：' + data.message); }
+        } else { alert('登入異常：' + data.message); }
     } catch(e) { alert('LINE 登入連線失敗。'); } 
     finally { hidePreloader(); }
 }
@@ -106,35 +91,16 @@ function updateMemberUI() {
     }
 }
 
-// === 2. 追蹤引擎 ===
-function handlePageTransition() {
-    const now = Date.now();
-    const durationSeconds = Math.floor((now - currentPageEntryTime) / 1000);
-    const ip = localStorage.getItem('visitor_ip') || '未知IP';
-    if (durationSeconds > 1) {
-        let session = JSON.parse(localStorage.getItem('tracking_session') || 'null');
-        if (!session || (now - session.lastActiveTime > 600000) || session.views >= 10) {
-            session = { id: 'SESS_' + now + '_' + Math.floor(Math.random() * 1000), entryTime: new Date(now - (durationSeconds * 1000)).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }), views: 0 };
-        }
-        session.views += 1; session.lastActiveTime = now;
-        localStorage.setItem('tracking_session', JSON.stringify(session));
-        fetch(GAS_URL, { method: 'POST', keepalive: true, body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'trackSession', sessionId: session.id, entryTime: session.entryTime, leaveTime: new Date(now).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }), ip: ip, path: currentTrackingHash, duration: durationSeconds, userAgent: navigator.userAgent }) }).catch(e=>e);
-    }
-    currentTrackingHash = window.location.hash || '#home';
-    currentPageEntryTime = now;
-}
-
 document.addEventListener('DOMContentLoaded', () => {
     initSystem(); setupMobileMenu(); setupMemberLogin(); updateMemberUI();
-    window.addEventListener('hashchange', () => { handlePageTransition(); loadPage(); });
-    window.addEventListener('beforeunload', () => { handlePageTransition(); });
+    setupProfileCompletionForm(); // 綁定資料補全送出按鈕
+    window.addEventListener('hashchange', () => { loadPage(); });
     loadPage();
 });
 
 function showPreloader() { const p = document.getElementById('preloader'); p.style.display = 'flex'; p.style.visibility = 'visible'; p.style.opacity = '1'; }
 function hidePreloader() { const p = document.getElementById('preloader'); p.style.opacity = '0'; p.style.visibility = 'hidden'; setTimeout(() => { p.style.display = 'none'; }, 500); }
 
-// === 3. 頁面載入邏輯 ===
 async function loadPage() {
     showPreloader();
     const hash = window.location.hash || '#home';
@@ -149,17 +115,15 @@ async function loadPage() {
     });
 
     const dataContainer = document.getElementById('data-container');
-    const joinContainer = document.getElementById('join-container');
     const loginContainer = document.getElementById('login-container');
+    const profileContainer = document.getElementById('profile-completion-container');
 
     dataContainer.style.display = 'none';
-    if(joinContainer) joinContainer.style.display = 'none';
     loginContainer.style.display = 'none';
+    if(profileContainer) profileContainer.style.display = 'none';
     dataContainer.innerHTML = '';
 
-    if (config.isForm && joinContainer) { joinContainer.style.display = 'block'; hidePreloader(); return; }
-
-    // === 大門審核大廳區塊 ===
+    // === 會員大門與資料補全閘門 ===
     if (config.isMember) {
         const credentials = localStorage.getItem('cia_member_credentials');
         const memberInfo = JSON.parse(localStorage.getItem('cia_member_info') || 'null');
@@ -169,12 +133,20 @@ async function loadPage() {
             document.getElementById('page-subtitle').innerText = '請登入以驗證您的會員資格。';
             hidePreloader(); return;
         }
+
+        // === 核心：檢查是否需要補全資料 ===
+        if (memberInfo && memberInfo.needsProfileCompletion) {
+            profileContainer.style.display = 'block';
+            document.getElementById('page-subtitle').innerText = '系統偵測到您尚未完善基本資料，請填寫下方表單以開通金庫權限。';
+            // 自動帶入已知資料
+            document.getElementById('p-name-zh').value = memberInfo.name || '';
+            hidePreloader(); return;
+        }
         
         let avatarHtml = memberInfo && memberInfo.avatar ? `<img src="${memberInfo.avatar}" style="width:50px; height:50px; border-radius:50%; vertical-align:middle; margin-right:15px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">` : '';
         let badgeHtml = memberInfo && memberInfo.level ? `<span style="background:var(--champagne); color:#fff; font-size:14px; padding:4px 12px; border-radius:20px; font-weight:bold;">${memberInfo.level} 會員</span>` : '';
         
         document.getElementById('page-subtitle').innerHTML = `身分驗證成功，點擊下方按鈕進入安全金庫。`;
-        
         dataContainer.style.display = 'block';
         dataContainer.innerHTML = `
             <div style="background:#fff; border-radius:12px; padding:50px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.05); max-width:600px; margin:0 auto;">
@@ -184,8 +156,7 @@ async function loadPage() {
                 </div>
                 <div style="margin-bottom:40px;">${badgeHtml}</div>
                 <a href="course_platform.html" class="candy-btn" style="font-size:20px; padding:15px 40px; border-radius:50px; background:linear-gradient(135deg, var(--ink-navy) 0%, #3a4a6b 100%); color:#fff !important;">🚀 進入專屬課程平台</a>
-                <p style="font-size:13px; color:#888; margin-top:20px;">進入後系統將進行嚴格連線審核，並驗證您的到期日。</p>
-                <button onclick="logoutMember()" style="margin-top:20px; background:none; border:none; color:red; text-decoration:underline; cursor:pointer;">登出帳號</button>
+                <button onclick="logoutMember()" style="display:block; margin:20px auto 0; background:none; border:none; color:red; text-decoration:underline; cursor:pointer;">登出帳號</button>
             </div>
         `;
         hidePreloader(); return;
@@ -199,6 +170,52 @@ async function loadPage() {
         else dataContainer.innerHTML = '<p style="text-align:center; width:100%; color:#7A7A7A;">目前資料庫尚無發佈資訊。</p>';
     } catch (error) { dataContainer.innerHTML = '<p style="text-align:center; width:100%; color:red;">資料載入異常。</p>'; } 
     finally { hidePreloader(); }
+}
+
+function setupProfileCompletionForm() {
+    const submitBtn = document.getElementById('submit-profile-btn');
+    if (!submitBtn) return;
+    submitBtn.addEventListener('click', async () => {
+        const profileData = {
+            nameZh: document.getElementById('p-name-zh').value.trim(),
+            nameEn: document.getElementById('p-name-en').value.trim(),
+            gender: document.getElementById('p-gender').value,
+            birth: document.getElementById('p-birth').value,
+            idNum: document.getElementById('p-id').value.trim(),
+            phone: document.getElementById('p-phone').value.trim(),
+            line: document.getElementById('p-line').value.trim(),
+            email: document.getElementById('p-email').value.trim(),
+            address: document.getElementById('p-address').value.trim(),
+            edu: document.getElementById('p-edu').value,
+            fields: document.getElementById('p-fields').value.trim(),
+            company: document.getElementById('p-company').value.trim(),
+            jobTitle: document.getElementById('p-jobtitle').value.trim(),
+            membership: document.getElementById('p-membership').value
+        };
+
+        if (!profileData.nameZh || !profileData.birth || !profileData.idNum || !profileData.phone || !profileData.address) {
+            alert('請填寫所有標示星號 (*) 的必填欄位！'); return;
+        }
+
+        submitBtn.innerText = '儲存中...'; submitBtn.disabled = true;
+        try {
+            const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
+            await fetch(GAS_URL, { 
+                method: 'POST', 
+                body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'updateMemberProfile', lineUid: credentials.lineUid, profileData: profileData }) 
+            });
+            alert('資料完善成功！已為您開通進入金庫權限。');
+            
+            // 更新本地快取，移除 needsProfileCompletion 標記
+            let memberInfo = JSON.parse(localStorage.getItem('cia_member_info'));
+            memberInfo.needsProfileCompletion = false;
+            memberInfo.name = profileData.nameZh;
+            localStorage.setItem('cia_member_info', JSON.stringify(memberInfo));
+            
+            loadPage(); // 重新載入，就會看見進入金庫的按鈕
+        } catch(e) { alert('儲存失敗，請稍後再試。'); } 
+        finally { submitBtn.innerText = '儲存並前往會員專區'; submitBtn.disabled = false; }
+    });
 }
 
 function logoutMember() {
@@ -295,68 +312,4 @@ function renderData(rawData, layoutType, container) {
     }
     html += '</div>';
     container.innerHTML = html;
-}
-
-function setupContactModal() {
-    const modal = document.getElementById('contact-modal');
-    const openBtn = document.getElementById('open-contact-btn');
-    const closeBtn = document.getElementById('close-contact-btn');
-    const submitBtn = document.getElementById('submit-contact-btn');
-    openBtn.addEventListener('click', () => modal.classList.add('active'));
-    closeBtn.addEventListener('click', () => modal.classList.remove('active'));
-    window.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('active'); });
-
-    submitBtn.addEventListener('click', async () => {
-        const name = document.getElementById('c-name').value.trim();
-        const phone = document.getElementById('c-phone').value.trim();
-        const line = document.getElementById('c-line').value.trim();
-        const subject = document.getElementById('c-subject').value.trim();
-        const msg = document.getElementById('c-message').value.trim();
-        if (!name || !phone || !subject || !msg) { alert('請填寫所有必填欄位！'); return; }
-        submitBtn.innerText = '傳送中...'; submitBtn.disabled = true;
-        try {
-            const timestamp = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
-            await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, sheetName: '聯絡我們', newRowData: [timestamp, name, phone, line, subject, msg], action: 'submitContact' }) });
-            alert('訊息已成功送出！'); modal.classList.remove('active');
-            ['c-name', 'c-phone', 'c-line', 'c-subject', 'c-message'].forEach(id => document.getElementById(id).value = '');
-        } catch (err) { alert('失敗請稍後重試'); } 
-        finally { submitBtn.innerText = '確認送出'; submitBtn.disabled = false; }
-    });
-}
-
-function setupJoinForm() {
-    const submitBtn = document.getElementById('submit-join-btn');
-    if (!submitBtn) return;
-    submitBtn.addEventListener('click', async () => {
-        const nameZh = document.getElementById('j-name-zh').value.trim();
-        const nameEn = document.getElementById('j-name-en').value.trim();
-        const birth = document.getElementById('j-birth').value;
-        const idNum = document.getElementById('j-id').value.trim();
-        const edu = document.getElementById('j-edu').value.trim();
-        const company = document.getElementById('j-company').value.trim();
-        const jobTitle = document.getElementById('j-jobtitle').value.trim();
-        const phone = document.getElementById('j-phone').value.trim();
-        const line = document.getElementById('j-line').value.trim();
-        const email = document.getElementById('j-email').value.trim();
-        const address = document.getElementById('j-address').value.trim();
-        const remarks = document.getElementById('j-remarks').value.trim();
-
-        const fields = Array.from(document.querySelectorAll('input[name="j-field"]:checked')).map(cb => cb.value).join(',');
-        const expects = Array.from(document.querySelectorAll('input[name="j-expect"]:checked')).map(cb => cb.value).join(',');
-        const membershipNode = document.querySelector('input[name="j-membership"]:checked');
-        const newsletterNode = document.querySelector('input[name="j-newsletter"]:checked');
-
-        if (!nameZh || !birth || !idNum || !edu || !fields || !company || !phone || !address || !membershipNode || !expects || !newsletterNode) {
-            alert('請務必填寫所有標示星號 (*) 的必填欄位！'); return;
-        }
-        submitBtn.innerText = '資料傳送中...'; submitBtn.disabled = true;
-
-        try {
-            const timestamp = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
-            const rowData = [timestamp, nameZh, nameEn, birth, idNum, edu, fields, company, jobTitle, phone, line, email, address, membershipNode.value, '', expects, newsletterNode.value, remarks];
-            await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, sheetName: '入會申請', newRowData: rowData, action: 'submitJoin' }) });
-            alert('申請成功！將引導至線上付款頁面。'); window.location.href = PAYUNI_URL;
-        } catch (err) { alert('傳送失敗'); }
-        finally { submitBtn.innerText = '確認送出並前往付款'; submitBtn.disabled = false; }
-    });
 }
