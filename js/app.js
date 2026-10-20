@@ -1,14 +1,12 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：SPA 路由、動態渲染、LIFF 登入、影片播放器、Session 追蹤
+ * 職責：SPA 首頁與大廳路由，會員登入後顯示「進入平台按鈕」
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
 const PAYUNI_URL = 'https://api.payuni.com.tw/api/uop/receive_info/2/1/CCAT968310880001/hQjvQe2jfYEAWXlu2K21X';
-
-// ⚠️ 請在這裡填入你申請的 LINE LIFF ID
-const LIFF_ID = 'YOUR_LIFF_ID_HERE'; 
+const LIFF_ID = '2012121201-JKa4hPdF'; 
 
 const PAGE_CONFIG = {
     '': { title: '重新定義美學與專業', subtitle: '打造全方位美業人才的孵化平台', sheet: '課程介紹', layout: 'card' },
@@ -19,15 +17,13 @@ const PAGE_CONFIG = {
     '#gallery': { title: '精彩活動與花絮', subtitle: '見證協會與學員們共同成長的每一個珍貴時刻。', sheet: '活動花絮', layout: 'card' },
     '#brands': { title: '品牌推廣與合作', subtitle: '嚴選業界頂尖品牌，共創美業生態圈。', sheet: '品牌推廣', layout: 'card' },
     '#join': { title: '入會申請', subtitle: '歡迎加入中華國際美學教育發展協會。', isForm: true },
-    '#member-zone': { title: '會員專屬影音平台', subtitle: '觀看高階實戰課程與內部培訓影片', isMember: true }
+    '#member-zone': { title: '會員登入與大廳', subtitle: '驗證會員身分以進入專屬學習平台', isMember: true }
 };
 
 let currentTrackingHash = window.location.hash || '#home';
 let currentPageEntryTime = Date.now();
 
-// === 1. 初始化系統 (包含計數器、IP與 LIFF) ===
 async function initSystem() {
-    // 獲取計數與 IP
     try {
         const countRes = await fetch(`${GAS_URL}?action=getVisitorCount`);
         const countData = await countRes.json();
@@ -42,85 +38,72 @@ async function initSystem() {
         localStorage.setItem('visitor_ip', ipData.ip);
     } catch(e) {}
 
-    // === 初始化 LINE LIFF ===
     try {
         await liff.init({ liffId: LIFF_ID });
-        // 如果使用者剛剛授權完跳回來，且已登入，我們自動處理登入邏輯
-        if (liff.isLoggedIn() && !sessionStorage.getItem('cia_member')) {
-            await handleLineLoginCallback();
+        if (liff.isInClient()) {
+            document.body.classList.add('in-line-app');
+            if (window.location.hash !== '#member-zone' && window.location.hash !== '#join') {
+                window.location.hash = '#member-zone';
+            }
+            if (liff.isLoggedIn() && !localStorage.getItem('cia_member_credentials')) {
+                await handleLineLoginCallback();
+            } else if (!liff.isLoggedIn()) {
+                liff.login();
+            }
+        } else {
+            if (liff.isLoggedIn() && !localStorage.getItem('cia_member_credentials')) {
+                await handleLineLoginCallback();
+            }
         }
-    } catch (err) {
-        console.error('LIFF 初始化失敗。請確認 LIFF ID 是否正確。');
-    }
+    } catch (err) { console.error('LIFF 初始化失敗', err); }
 }
 
-// 處理 LIFF 登入後的回傳資料
 async function handleLineLoginCallback() {
     showPreloader();
     try {
         const profile = await liff.getProfile();
-        // 傳送給 GAS 進行比對或自動註冊
         const res = await fetch(GAS_URL, { 
             method: 'POST', 
-            body: JSON.stringify({ 
-                token: API_SECRET_TOKEN, 
-                action: 'lineLogin', 
-                lineUid: profile.userId,
-                displayName: profile.displayName,
-                pictureUrl: profile.pictureUrl
-            }) 
+            body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'lineLogin', lineUid: profile.userId, displayName: profile.displayName, pictureUrl: profile.pictureUrl }) 
         });
         const data = await res.json();
         if (data.status === 'success') {
-            sessionStorage.setItem('cia_member', JSON.stringify(data.member));
+            // === 核心：將通關憑證存入 localStorage 以便跨網頁(獨立平台)使用 ===
+            localStorage.setItem('cia_member_credentials', JSON.stringify({ lineUid: profile.userId }));
+            localStorage.setItem('cia_member_info', JSON.stringify(data.member));
             updateMemberUI();
-            if (window.location.hash !== '#member-zone') {
-                window.location.hash = '#member-zone'; // 強制導向影音專區
-            } else {
-                loadPage(); // 重整畫面
-            }
-        }
-    } catch(e) {
-        alert('LINE 登入連線失敗');
-    } finally {
-        hidePreloader();
-    }
+            if (window.location.hash !== '#member-zone') window.location.hash = '#member-zone'; else loadPage();
+        } else { alert('系統驗證失敗：' + data.message); }
+    } catch(e) { alert('LINE 登入連線失敗。'); } 
+    finally { hidePreloader(); }
 }
 
 function updateMemberUI() {
     const memberBtn = document.getElementById('nav-member-btn');
-    if (sessionStorage.getItem('cia_member') && memberBtn) {
+    if (localStorage.getItem('cia_member_credentials') && memberBtn) {
         memberBtn.innerHTML = '🎬 進入影音平台';
     }
 }
 
-// === 2. 追蹤引擎 ===
 function handlePageTransition() {
     const now = Date.now();
     const durationSeconds = Math.floor((now - currentPageEntryTime) / 1000);
     const ip = localStorage.getItem('visitor_ip') || '未知IP';
-    const userAgent = navigator.userAgent;
-
     if (durationSeconds > 1) {
         let session = JSON.parse(localStorage.getItem('tracking_session') || 'null');
-        const tenMins = 10 * 60 * 1000;
-        if (!session || (now - session.lastActiveTime > tenMins) || session.views >= 10) {
+        if (!session || (now - session.lastActiveTime > 600000) || session.views >= 10) {
             session = { id: 'SESS_' + now + '_' + Math.floor(Math.random() * 1000), entryTime: new Date(now - (durationSeconds * 1000)).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }), views: 0 };
         }
         session.views += 1; session.lastActiveTime = now;
-        const leaveTimeStr = new Date(now).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
         localStorage.setItem('tracking_session', JSON.stringify(session));
-
-        fetch(GAS_URL, { method: 'POST', keepalive: true, body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'trackSession', sessionId: session.id, entryTime: session.entryTime, leaveTime: leaveTimeStr, ip: ip, path: currentTrackingHash, duration: durationSeconds, userAgent: userAgent }) }).catch(e=>e);
+        fetch(GAS_URL, { method: 'POST', keepalive: true, body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'trackSession', sessionId: session.id, entryTime: session.entryTime, leaveTime: new Date(now).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }), ip: ip, path: currentTrackingHash, duration: durationSeconds, userAgent: navigator.userAgent }) }).catch(e=>e);
     }
     currentTrackingHash = window.location.hash || '#home';
     currentPageEntryTime = now;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    initSystem(); setupMobileMenu(); setupMemberLogin();
-    updateMemberUI();
-
+    initSystem(); setupMobileMenu(); setupMemberLogin(); updateMemberUI();
     window.addEventListener('hashchange', () => { handlePageTransition(); loadPage(); });
     window.addEventListener('beforeunload', () => { handlePageTransition(); });
     loadPage();
@@ -129,7 +112,6 @@ document.addEventListener('DOMContentLoaded', () => {
 function showPreloader() { const p = document.getElementById('preloader'); p.style.display = 'flex'; p.style.visibility = 'visible'; p.style.opacity = '1'; }
 function hidePreloader() { const p = document.getElementById('preloader'); p.style.opacity = '0'; p.style.visibility = 'hidden'; setTimeout(() => { p.style.display = 'none'; }, 500); }
 
-// === 3. 頁面渲染邏輯 ===
 async function loadPage() {
     showPreloader();
     const hash = window.location.hash || '#home';
@@ -154,30 +136,39 @@ async function loadPage() {
 
     if (config.isForm && joinContainer) { joinContainer.style.display = 'block'; hidePreloader(); return; }
 
-    // 會員專區
+    // === 大門審核區塊 ===
     if (config.isMember) {
-        const memberInfo = JSON.parse(sessionStorage.getItem('cia_member'));
-        if (!memberInfo) {
+        const credentials = localStorage.getItem('cia_member_credentials');
+        const memberInfo = JSON.parse(localStorage.getItem('cia_member_info') || 'null');
+        
+        if (!credentials) {
             loginContainer.style.display = 'block';
-            document.getElementById('page-subtitle').innerText = '請選擇登入方式以觀看專屬課程。';
-            hidePreloader();
-            return;
+            document.getElementById('page-subtitle').innerText = '請登入以驗證您的會員資格。';
+            hidePreloader(); return;
         }
         
-        let avatarHtml = memberInfo.avatar ? `<img src="${memberInfo.avatar}" style="width:30px; height:30px; border-radius:50%; vertical-align:middle; margin-right:10px;">` : '';
-        document.getElementById('page-subtitle').innerHTML = `${avatarHtml} 歡迎回來，${memberInfo.name} (${memberInfo.level}會員)。以下是您的專屬課程。`;
-        dataContainer.style.display = 'grid';
-        try {
-            const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'getMemberCourses', memberLevel: memberInfo.level }) });
-            const result = await res.json();
-            if (result.status === 'success' && result.data.length > 1) renderVideoData(result.data, dataContainer);
-            else dataContainer.innerHTML = '<p style="text-align:center; width:100%;">目前沒有可觀看的專屬影片。</p>';
-        } catch(e) { dataContainer.innerHTML = '<p style="text-align:center; width:100%; color:red;">載入異常。</p>'; }
-        hidePreloader();
-        return;
+        // 已有憑證，顯示「前往獨立課程平台」的按鈕
+        let avatarHtml = memberInfo && memberInfo.avatar ? `<img src="${memberInfo.avatar}" style="width:50px; height:50px; border-radius:50%; vertical-align:middle; margin-right:15px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">` : '';
+        let badgeHtml = memberInfo && memberInfo.level ? `<span style="background:var(--champagne); color:#fff; font-size:14px; padding:4px 12px; border-radius:20px; font-weight:bold;">${memberInfo.level} 會員</span>` : '';
+        
+        document.getElementById('page-subtitle').innerHTML = `身分驗證成功，點擊下方按鈕進入安全金庫。`;
+        
+        dataContainer.style.display = 'block';
+        dataContainer.innerHTML = `
+            <div style="background:#fff; border-radius:12px; padding:50px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.05); max-width:600px; margin:0 auto;">
+                <div style="margin-bottom:30px;">
+                    ${avatarHtml}
+                    <h3 style="display:inline-block; margin:0; color:var(--ink-navy); font-size:24px; vertical-align:middle;">${memberInfo ? memberInfo.name : '尊榮會員'}，歡迎回來！</h3>
+                </div>
+                <div style="margin-bottom:40px;">${badgeHtml}</div>
+                <a href="course_platform.html" class="candy-btn" style="font-size:20px; padding:15px 40px; border-radius:50px; background:linear-gradient(135deg, var(--ink-navy) 0%, #3a4a6b 100%); color:#fff !important;">🚀 進入專屬課程平台</a>
+                <p style="font-size:13px; color:#888; margin-top:20px;">進入後系統將進行嚴格連線審核，並驗證您的到期日。</p>
+                <button onclick="logoutMember()" style="margin-top:20px; background:none; border:none; color:red; text-decoration:underline; cursor:pointer;">登出帳號</button>
+            </div>
+        `;
+        hidePreloader(); return;
     }
 
-    // 一般資料展示
     dataContainer.style.display = 'grid'; 
     try {
         const response = await fetch(`${GAS_URL}?sheetName=${config.sheet}`);
@@ -188,22 +179,23 @@ async function loadPage() {
     finally { hidePreloader(); }
 }
 
-// === 4. 登入邏輯 (LINE 與 傳統) ===
+function logoutMember() {
+    localStorage.removeItem('cia_member_credentials');
+    localStorage.removeItem('cia_member_info');
+    alert('已登出。');
+    window.location.hash = '#home';
+    loadPage();
+}
+
 function setupMemberLogin() {
-    // LINE 登入按鈕
     const lineBtn = document.getElementById('btn-line-login');
     if (lineBtn) {
         lineBtn.addEventListener('click', () => {
-            if (!liff.isLoggedIn()) {
-                // 會自動跳轉到 LINE 授權頁面
-                liff.login();
-            } else {
-                handleLineLoginCallback();
-            }
+            if (!liff.isLoggedIn()) liff.login();
+            else handleLineLoginCallback();
         });
     }
 
-    // 傳統登入按鈕
     const btn = document.getElementById('submit-login-btn');
     if(!btn) return;
     btn.addEventListener('click', async () => {
@@ -216,9 +208,9 @@ function setupMemberLogin() {
             const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'memberLogin', account: acc, password: pwd }) });
             const data = await res.json();
             if (data.status === 'success') {
-                sessionStorage.setItem('cia_member', JSON.stringify(data.member));
-                updateMemberUI();
-                loadPage(); 
+                localStorage.setItem('cia_member_credentials', JSON.stringify({ account: acc, password: pwd }));
+                localStorage.setItem('cia_member_info', JSON.stringify(data.member));
+                updateMemberUI(); loadPage(); 
             } else { alert(data.message); }
         } catch(e) { alert('登入失敗，請稍後再試。'); }
         finally { btn.innerText = '一般登入'; btn.disabled = false; document.getElementById('m-password').value=''; }
@@ -232,31 +224,6 @@ function setupMobileMenu() {
         mobileBtn.addEventListener('click', () => mainNav.classList.toggle('show'));
         mainNav.querySelectorAll('a').forEach(link => { link.addEventListener('click', () => mainNav.classList.remove('show')); });
     }
-}
-
-// === 影片與一般資料渲染邏輯 ===
-function generateVideoHTML(url) {
-    if (!url) return '';
-    return `<div class="video-container"><iframe src="${url}" allowfullscreen></iframe></div>`;
-}
-
-function renderVideoData(rawData, container) {
-    const headers = rawData[0];
-    let html = '<div class="course-grid" style="width:100%;">';
-    for (let i = 1; i < rawData.length; i++) {
-        let item = {};
-        for (let j = 0; j < headers.length; j++) item[headers[j]] = rawData[i][j];
-        const title = item['課程名稱'] || '專屬課程';
-        const desc = item['課程簡介'] || '';
-        const vidUrl = item['影片嵌入網址'] || '';
-        const imgRaw = item['封面圖片網址'] || '';
-        
-        const mediaHtml = vidUrl ? generateVideoHTML(vidUrl) : generateImageHTML(imgRaw);
-        
-        html += `<div class="course-card">${mediaHtml}<div class="course-info"><h3 style="margin-top:0; color:var(--ink-navy);">${title}</h3><p style="color:var(--text-light); font-size:14px; line-height:1.5;">${desc}</p></div></div>`;
-    }
-    html += '</div>';
-    container.innerHTML = html;
 }
 
 function optimizeImageUrl(url) {
@@ -305,4 +272,68 @@ function renderData(rawData, layoutType, container) {
     }
     html += '</div>';
     container.innerHTML = html;
+}
+
+function setupContactModal() {
+    const modal = document.getElementById('contact-modal');
+    const openBtn = document.getElementById('open-contact-btn');
+    const closeBtn = document.getElementById('close-contact-btn');
+    const submitBtn = document.getElementById('submit-contact-btn');
+    openBtn.addEventListener('click', () => modal.classList.add('active'));
+    closeBtn.addEventListener('click', () => modal.classList.remove('active'));
+    window.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('active'); });
+
+    submitBtn.addEventListener('click', async () => {
+        const name = document.getElementById('c-name').value.trim();
+        const phone = document.getElementById('c-phone').value.trim();
+        const line = document.getElementById('c-line').value.trim();
+        const subject = document.getElementById('c-subject').value.trim();
+        const msg = document.getElementById('c-message').value.trim();
+        if (!name || !phone || !subject || !msg) { alert('請填寫所有必填欄位！'); return; }
+        submitBtn.innerText = '傳送中...'; submitBtn.disabled = true;
+        try {
+            const timestamp = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+            await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, sheetName: '聯絡我們', newRowData: [timestamp, name, phone, line, subject, msg], action: 'submitContact' }) });
+            alert('訊息已成功送出！'); modal.classList.remove('active');
+            ['c-name', 'c-phone', 'c-line', 'c-subject', 'c-message'].forEach(id => document.getElementById(id).value = '');
+        } catch (err) { alert('失敗請稍後重試'); } 
+        finally { submitBtn.innerText = '確認送出'; submitBtn.disabled = false; }
+    });
+}
+
+function setupJoinForm() {
+    const submitBtn = document.getElementById('submit-join-btn');
+    if (!submitBtn) return;
+    submitBtn.addEventListener('click', async () => {
+        const nameZh = document.getElementById('j-name-zh').value.trim();
+        const nameEn = document.getElementById('j-name-en').value.trim();
+        const birth = document.getElementById('j-birth').value;
+        const idNum = document.getElementById('j-id').value.trim();
+        const edu = document.getElementById('j-edu').value.trim();
+        const company = document.getElementById('j-company').value.trim();
+        const jobTitle = document.getElementById('j-jobtitle').value.trim();
+        const phone = document.getElementById('j-phone').value.trim();
+        const line = document.getElementById('j-line').value.trim();
+        const email = document.getElementById('j-email').value.trim();
+        const address = document.getElementById('j-address').value.trim();
+        const remarks = document.getElementById('j-remarks').value.trim();
+
+        const fields = Array.from(document.querySelectorAll('input[name="j-field"]:checked')).map(cb => cb.value).join(',');
+        const expects = Array.from(document.querySelectorAll('input[name="j-expect"]:checked')).map(cb => cb.value).join(',');
+        const membershipNode = document.querySelector('input[name="j-membership"]:checked');
+        const newsletterNode = document.querySelector('input[name="j-newsletter"]:checked');
+
+        if (!nameZh || !birth || !idNum || !edu || !fields || !company || !phone || !address || !membershipNode || !expects || !newsletterNode) {
+            alert('請務必填寫所有標示星號 (*) 的必填欄位！'); return;
+        }
+        submitBtn.innerText = '資料傳送中...'; submitBtn.disabled = true;
+
+        try {
+            const timestamp = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+            const rowData = [timestamp, nameZh, nameEn, birth, idNum, edu, fields, company, jobTitle, phone, line, email, address, membershipNode.value, '', expects, newsletterNode.value, remarks];
+            await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, sheetName: '入會申請', newRowData: rowData, action: 'submitJoin' }) });
+            alert('申請成功！將引導至線上付款頁面。'); window.location.href = PAYUNI_URL;
+        } catch (err) { alert('傳送失敗'); }
+        finally { submitBtn.innerText = '確認送出並前往付款'; submitBtn.disabled = false; }
+    });
 }
