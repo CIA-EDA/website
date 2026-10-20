@@ -1,8 +1,9 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：SPA 單頁面路由控制、資料庫抓取、圖片自動優化、表單送出
+ * 職責：SPA 路由、動態渲染、真實數據追蹤 (IP與停留時間)、表單提交
  */
 
+// ⚠️ 請確保這裡填入您「最新部署」的 GAS 網址
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
 const PAYUNI_URL = 'https://api.payuni.com.tw/api/uop/receive_info/2/1/CCAT968310880001/hQjvQe2jfYEAWXlu2K21X';
@@ -18,11 +19,76 @@ const PAGE_CONFIG = {
     '#join': { title: '入會申請', subtitle: '歡迎加入中華國際美學教育發展協會。為保障您的權益，請詳實填寫以下資料。', isForm: true }
 };
 
+// === 網站追蹤引擎模組 ===
+let currentVisitorIP = '未知 IP';
+let currentPageEntryTime = Date.now();
+let currentTrackingHash = window.location.hash || '#home';
+
+async function initTracker() {
+    // 1. 獲取真實造訪人數 (向 GAS 請求計算)
+    try {
+        const countRes = await fetch(`${GAS_URL}?action=getVisitorCount`);
+        const countData = await countRes.json();
+        if(countData.status === 'success') {
+            const counterEl = document.getElementById('visitor-counter');
+            if(counterEl) counterEl.innerText = countData.count.toLocaleString();
+        }
+    } catch(e) { console.error('無法獲取計數'); }
+
+    // 2. 獲取訪客 IP
+    try {
+        const ipRes = await fetch('https://api.ipify.org?format=json');
+        const ipData = await ipRes.json();
+        currentVisitorIP = ipData.ip;
+    } catch(e) { console.error('無法獲取 IP'); }
+}
+
+// 發送停留數據至資料庫
+function sendAnalyticsPayload(pageHash, durationSeconds) {
+    const timestamp = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+    const userAgent = navigator.userAgent;
+    fetch(GAS_URL, {
+        method: 'POST',
+        keepalive: true, // 確保在頁面關閉時也能送出
+        body: JSON.stringify({
+            token: API_SECRET_TOKEN,
+            sheetName: '網站分析',
+            action: 'trackAnalytics',
+            newRowData: [timestamp, currentVisitorIP, pageHash, durationSeconds, userAgent]
+        })
+    }).catch(e => console.log('分析送出失敗'));
+}
+
+// 處理網址改變時的計時結算
+function handlePageTransition() {
+    const now = Date.now();
+    const durationSeconds = Math.floor((now - currentPageEntryTime) / 1000);
+    if(durationSeconds > 1) { // 停留超過 1 秒才記錄，過濾無效跳轉
+        sendAnalyticsPayload(currentTrackingHash, durationSeconds);
+    }
+    // 更新為新頁面的狀態
+    currentTrackingHash = window.location.hash || '#home';
+    currentPageEntryTime = now;
+}
+// ==========================
+
 document.addEventListener('DOMContentLoaded', () => {
+    initTracker();
     setupMobileMenu();
     setupContactModal();
     setupJoinForm();
-    window.addEventListener('hashchange', loadPage);
+    
+    // SPA 切換時觸發資料結算與重新載入
+    window.addEventListener('hashchange', () => {
+        handlePageTransition();
+        loadPage();
+    });
+    
+    // 當使用者關閉網頁時，結算最後一個頁面的停留時間
+    window.addEventListener('beforeunload', () => {
+        handlePageTransition();
+    });
+
     loadPage();
 });
 
@@ -78,7 +144,6 @@ async function loadPage() {
     } finally { hidePreloader(); }
 }
 
-// === 核心優化：自動修復舊網址並轉換為低流量縮圖 ===
 function optimizeImageUrl(url) {
     if (url.includes('drive.google.com') && !url.includes('thumbnail')) {
         const idMatch = url.match(/id=([^&]+)/);
@@ -91,12 +156,9 @@ function optimizeImageUrl(url) {
 
 function generateImageHTML(imgString) {
     const rawUrls = imgString.split(',').map(u => u.trim()).filter(u => u);
-    
     if (rawUrls.length === 0) return `<img src="https://via.placeholder.com/600x400/E8D3CB/1F2D4A?text=CIA-EDA" class="course-img" style="border-radius:12px;">`;
     
-    // 將所有網址丟入轉換器進行流量優化
     const urls = rawUrls.map(url => optimizeImageUrl(url));
-
     if (urls.length === 1) return `<img src="${urls[0]}" class="course-img" style="border-radius:12px;">`;
     
     let html = `<div style="display:flex; overflow-x:auto; scroll-snap-type: x mandatory; border-radius:12px; margin-bottom:10px;">`;
@@ -188,7 +250,7 @@ function setupJoinForm() {
         const nameEn = document.getElementById('j-name-en').value.trim();
         const birth = document.getElementById('j-birth').value;
         const idNum = document.getElementById('j-id').value.trim();
-        const edu = document.getElementById('j-edu').value;
+        const edu = document.getElementById('j-edu').value.trim();
         const company = document.getElementById('j-company').value.trim();
         const jobTitle = document.getElementById('j-jobtitle').value.trim();
         const phone = document.getElementById('j-phone').value.trim();
