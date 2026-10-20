@@ -3,101 +3,142 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CIA-EDA | 管理控制台</title>
-    <link rel="stylesheet" href="css/variables.css">
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500&family=Noto+Serif+TC:wght@500;700&display=swap" rel="stylesheet">
+    <title>CIA-EDA | Core Management System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        body { margin: 0; font-family: 'Noto Sans TC', sans-serif; background-color: var(--secondary-color); display: flex; flex-direction: column; min-height: 100vh; }
-        header { padding: 15px 40px; text-align: center; background-color: var(--mist-rose); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .brand-logo-img { height: 50px; width: auto; display: inline-block; }
-        #login-section { flex: 1; display: flex; justify-content: center; align-items: center; margin-bottom: 50px; }
-        .login-box { background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); text-align: center; width: 90%; max-width: 350px; }
-        #dashboard-section { display: none; padding: 30px 5%; flex: 1; margin-bottom: 50px; }
-        .admin-nav { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; flex-wrap: wrap; }
-        .tab-btn { padding: 10px 20px; border: 1px solid var(--primary-color); background: transparent; color: var(--primary-color); border-radius: 20px; cursor: pointer; font-size: 14px; font-weight: 600; transition: 0.3s; }
-        .tab-btn.active, .tab-btn:hover { background: var(--primary-color); color: white; }
-        .dashboard-container { background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); max-width: 700px; margin: 0 auto; display: none; }
-        .dashboard-container.active { display: block; }
+        :root { --admin-bg: #f4f6f9; --admin-dark: #1F2D4A; --admin-accent: #B8955A; --admin-text: #333; }
+        body { margin: 0; font-family: 'Noto Sans TC', sans-serif; background-color: var(--admin-bg); color: var(--admin-text); display: flex; height: 100vh; overflow: hidden; }
+        
+        /* 震撼級左側選單與系統監控區 (嚇人用的假功能展示) */
+        .sidebar { width: 280px; background-color: var(--admin-dark); color: #fff; display: flex; flex-direction: column; box-shadow: 2px 0 15px rgba(0,0,0,0.1); z-index: 100; }
+        .sidebar-header { padding: 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sidebar-header img { height: 40px; margin-bottom: 10px; filter: brightness(0) invert(1); }
+        .sidebar-header h2 { margin: 0; font-size: 14px; font-family: 'JetBrains Mono', monospace; color: var(--admin-accent); letter-spacing: 2px; }
+        
+        .nav-menu { padding: 20px 0; flex: 1; }
+        .nav-item { padding: 15px 25px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 15px; border-left: 4px solid transparent; transition: 0.3s; }
+        .nav-item:hover, .nav-item.active { background: rgba(255,255,255,0.05); border-left-color: var(--admin-accent); color: var(--admin-accent); font-weight: bold; }
+        
+        /* 系統狀態假組件 */
+        .system-status { padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8ba2c4; }
+        .status-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .status-bar-bg { width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-bottom: 15px; }
+        .status-bar-fill { height: 100%; background: #4caf50; border-radius: 2px; width: 92%; }
+        
+        /* 右側主內容區 */
+        .main-content { flex: 1; overflow-y: auto; position: relative; }
+        .topbar { background: #fff; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+        .content-body { padding: 40px; }
+        
+        .panel { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.03); display: none; }
+        .panel.active { display: block; }
+        
+        /* 表單設計 */
         .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; font-size: 14px; margin-bottom: 8px; color: var(--ink-navy); font-weight: 500; }
-        .input-field, .textarea-field { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 12px; box-sizing: border-box; font-family: inherit; }
-        .textarea-field { resize: vertical; height: 120px; }
-        .btn-submit { width: 100%; padding: 15px; background: var(--primary-color); color: white; border: none; border-radius: 12px; font-size: 16px; cursor: pointer; transition: 0.3s; font-weight: bold; }
-        .btn-submit:hover { background: #967a4a; }
-        .file-hint { font-size: 12px; color: #888; margin-top: 5px; }
+        .form-group label { display: block; font-size: 14px; margin-bottom: 8px; color: var(--admin-dark); font-weight: 600; }
+        .input-field, .select-field, .textarea-field { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; }
+        .textarea-field { resize: vertical; height: 100px; }
+        .btn-primary { background: var(--admin-accent); color: #fff; border: none; padding: 12px 25px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 15px; }
+        .btn-primary:hover { filter: brightness(0.9); }
+        
+        /* 內容管理清單設計 */
+        .data-list { list-style: none; padding: 0; margin: 0; }
+        .data-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #eee; margin-bottom: 10px; border-radius: 8px; background: #fafafa; }
+        .data-item-title { font-weight: 600; color: var(--admin-dark); }
+        .action-btns { display: flex; gap: 10px; }
+        .btn-icon { background: none; border: 1px solid #ddd; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: 0.3s; font-size: 12px; }
+        .btn-icon:hover { background: #eee; }
+        .btn-icon.danger { color: #d32f2f; border-color: #ffcdd2; }
+        .btn-icon.danger:hover { background: #ffebee; }
+
+        /* 登入遮罩 */
+        #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--admin-dark); display: flex; justify-content: center; align-items: center; z-index: 9999; }
+        .login-box { background: #fff; padding: 40px; border-radius: 12px; text-align: center; width: 90%; max-width: 350px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
-    <header>
-        <img src="images/CIAEDA_直式標準_標準彩色.png" alt="CIA-EDA Logo" class="brand-logo-img">
-    </header>
 
-    <div id="login-section">
+    <!-- 登入驗證 -->
+    <div id="login-overlay">
         <div class="login-box">
-            <h2 style="color:var(--ink-navy); margin-top:0;">管理密碼</h2>
-            <div class="form-group"><input type="password" id="admin-pwd-input" class="input-field" placeholder="請輸入密碼"></div>
-            <button id="btn-login" class="btn-submit">驗證並登入</button>
+            <img src="images/CIAEDA_直式標準_標準彩色.png" alt="CIA-EDA" style="height:50px; margin-bottom:20px;">
+            <div class="form-group"><input type="password" id="admin-pwd" class="input-field" placeholder="System Password"></div>
+            <button id="btn-login" class="btn-primary" style="width:100%;">AUTH & ENTER</button>
         </div>
     </div>
 
-    <div id="dashboard-section">
-        <div class="admin-nav">
-            <button class="tab-btn active" data-target="form-courses">課程管理</button>
-            <button class="tab-btn" data-target="form-team">師資管理</button>
-            <button class="tab-btn" data-target="form-gallery">花絮管理</button>
-            <button class="tab-btn" data-target="form-about">關於我們管理</button>
-            <button class="tab-btn" data-target="form-brands">品牌推廣管理</button>
+    <!-- 左側進階控制台 (威嚇用介面) -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <img src="images/CIAEDA_直式標準_標準彩色.png" alt="Logo">
+            <h2>CORE SYSTEM v2.0</h2>
         </div>
-        
-        <!-- 表單 1：課程管理 -->
-        <div class="dashboard-container active" id="form-courses">
-            <h2 style="color:var(--primary-color); margin-top:0;">新增課程</h2>
-            <div class="form-group"><label>課程名稱</label><input type="text" class="input-field data-input"></div>
-            <div class="form-group"><label>簡介</label><input type="text" class="input-field data-input"></div>
-            <div class="form-group"><label>講師</label><input type="text" class="input-field data-input"></div>
-            <div class="form-group"><label>上傳圖片 (可選多張進行輪播)</label><input type="file" class="input-field data-input" accept="image/*" multiple><div class="file-hint">系統將自動上傳至您的 Google Drive</div></div>
-            <div class="form-group"><label>專屬線上付款網址 (若填寫，卡片下方將出現付款按鈕)</label><input type="text" class="input-field data-input"></div>
-            <button class="btn-submit btn-publish" data-sheet="課程介紹">發佈至資料庫</button>
+        <nav class="nav-menu">
+            <div class="nav-item active" data-target="panel-add">＋ 統一發佈中心</div>
+            <div class="nav-item" data-target="panel-manage">≡ 內容編排與管理</div>
+            <div class="nav-item" onclick="window.open('index.html', '_blank')">↗ 前往網站前台</div>
+        </nav>
+        <div class="system-status">
+            <div class="status-row"><span>Server Load</span><span>12%</span></div>
+            <div class="status-bar-bg"><div class="status-bar-fill" style="width: 12%; background: #4caf50;"></div></div>
+            <div class="status-row"><span>API Latency</span><span>24ms</span></div>
+            <div class="status-bar-bg"><div class="status-bar-fill" style="width: 24%; background: #2196f3;"></div></div>
+            <div class="status-row"><span>Database Sync</span><span>Optimal</span></div>
+        </div>
+    </aside>
+
+    <!-- 右側工作區 -->
+    <main class="main-content">
+        <div class="topbar">
+            <h3 style="margin:0; color:var(--admin-dark);">CIA-EDA Management</h3>
+            <span style="font-size:12px; color:#888;">Encrypted Connection Active</span>
         </div>
 
-        <!-- 表單 2：師資管理 -->
-        <div class="dashboard-container" id="form-team">
-            <h2 style="color:var(--primary-color); margin-top:0;">新增師資</h2>
-            <div class="form-group"><label>講師姓名</label><input type="text" class="input-field data-input"></div>
-            <div class="form-group"><label>專長項目</label><input type="text" class="input-field data-input"></div>
-            <div class="form-group"><label>個人簡介</label><input type="text" class="input-field data-input"></div>
-            <div class="form-group"><label>上傳照片</label><input type="file" class="input-field data-input" accept="image/*"><div class="file-hint">系統將自動上傳至您的 Google Drive</div></div>
-            <div class="form-group"><label>聯絡方式(IG/Line)</label><input type="text" class="input-field data-input"></div>
-            <button class="btn-submit btn-publish" data-sheet="專業師資">發佈至資料庫</button>
-        </div>
+        <div class="content-body">
+            
+            <!-- 統一發佈中心 -->
+            <div id="panel-add" class="panel active">
+                <h2>統一發佈中心</h2>
+                <div class="form-group">
+                    <label>請選擇要發佈的單元類別</label>
+                    <select id="category-select" class="select-field">
+                        <option value="課程介紹">課程介紹</option>
+                        <option value="專業師資">專業師資</option>
+                        <option value="活動花絮">活動花絮</option>
+                        <option value="關於我們">關於我們</option>
+                        <option value="品牌推廣">品牌推廣</option>
+                    </select>
+                </div>
+                <hr style="border:0; border-top:1px dashed #ddd; margin:30px 0;">
+                
+                <!-- 動態表單容器 -->
+                <div id="dynamic-form-container"></div>
+                
+                <button id="btn-submit-data" class="btn-primary" style="margin-top:20px;">發佈資料</button>
+            </div>
 
-        <!-- 表單 3：花絮管理 -->
-        <div class="dashboard-container" id="form-gallery">
-            <h2 style="color:var(--primary-color); margin-top:0;">新增活動花絮</h2>
-            <div class="form-group"><label>活動名稱</label><input type="text" class="input-field data-input"></div>
-            <div class="form-group"><label>日期 (例如: 2026/08/13)</label><input type="text" class="input-field data-input"></div>
-            <div class="form-group"><label>上傳活動照片 (可選多張)</label><input type="file" class="input-field data-input" accept="image/*" multiple></div>
-            <button class="btn-submit btn-publish" data-sheet="活動花絮">發佈至資料庫</button>
-        </div>
+            <!-- 內容編排與管理 -->
+            <div id="panel-manage" class="panel">
+                <h2>內容編排與管理</h2>
+                <div class="form-group">
+                    <label>請選擇要管理的單元</label>
+                    <select id="manage-category-select" class="select-field">
+                        <option value="">請選擇...</option>
+                        <option value="課程介紹">課程介紹</option>
+                        <option value="專業師資">專業師資</option>
+                        <option value="活動花絮">活動花絮</option>
+                        <option value="關於我們">關於我們</option>
+                        <option value="品牌推廣">品牌推廣</option>
+                    </select>
+                </div>
+                <div id="manage-list-container">
+                    <p style="color:#888; text-align:center; padding:30px 0;">請先由上方選擇單元載入資料</p>
+                </div>
+            </div>
 
-        <!-- 表單 4：關於我們管理 -->
-        <div class="dashboard-container" id="form-about">
-            <h2 style="color:var(--primary-color); margin-top:0;">新增關於我們</h2>
-            <div class="form-group"><label>段落標題</label><input type="text" class="input-field data-input"></div>
-            <div class="form-group"><label>文章內容 (支援換行)</label><textarea class="textarea-field data-input"></textarea></div>
-            <div class="form-group"><label>上傳配圖 (可選多張)</label><input type="file" class="input-field data-input" accept="image/*" multiple></div>
-            <button class="btn-submit btn-publish" data-sheet="關於我們">發佈至資料庫</button>
         </div>
+    </main>
 
-        <!-- 表單 5：品牌推廣管理 -->
-        <div class="dashboard-container" id="form-brands">
-            <h2 style="color:var(--primary-color); margin-top:0;">新增推廣產品</h2>
-            <div class="form-group"><label>產品名稱</label><input type="text" class="input-field data-input"></div>
-            <div class="form-group"><label>產品簡介</label><input type="text" class="input-field data-input"></div>
-            <div class="form-group"><label>上傳產品logo及圖檔 (可選多張)</label><input type="file" class="input-field data-input" accept="image/*" multiple></div>
-            <button class="btn-submit btn-publish" data-sheet="品牌推廣">發佈至資料庫</button>
-        </div>
-    </div>
     <script src="js/admin.js"></script>
 </body>
 </html>
