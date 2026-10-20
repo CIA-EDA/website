@@ -1,13 +1,12 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：SPA 單頁面路由控制、資料庫抓取、表單送出與 Modal 控制
+ * 職責：SPA 單頁面路由控制、資料庫抓取、圖片自動優化、表單送出
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
 const PAYUNI_URL = 'https://api.payuni.com.tw/api/uop/receive_info/2/1/CCAT968310880001/hQjvQe2jfYEAWXlu2K21X';
 
-// === 1. 核心路由設定 (管理所有分頁的狀態) ===
 const PAGE_CONFIG = {
     '': { title: '重新定義美學與專業', subtitle: '打造全方位美業人才的孵化平台', sheet: '課程介紹', layout: 'card' },
     '#home': { title: '重新定義美學與專業', subtitle: '打造全方位美業人才的孵化平台', sheet: '課程介紹', layout: 'card' },
@@ -23,34 +22,26 @@ document.addEventListener('DOMContentLoaded', () => {
     setupMobileMenu();
     setupContactModal();
     setupJoinForm();
-
-    // 監聽網址 Hash 變化，達成 SPA 切換
     window.addEventListener('hashchange', loadPage);
-    // 網頁首次載入時執行一次
     loadPage();
 });
 
 function showPreloader() {
     const p = document.getElementById('preloader');
-    p.style.display = 'flex';
-    p.style.visibility = 'visible';
-    p.style.opacity = '1';
+    p.style.display = 'flex'; p.style.visibility = 'visible'; p.style.opacity = '1';
 }
 
 function hidePreloader() {
     const p = document.getElementById('preloader');
-    p.style.opacity = '0';
-    p.style.visibility = 'hidden';
+    p.style.opacity = '0'; p.style.visibility = 'hidden';
     setTimeout(() => { p.style.display = 'none'; }, 500);
 }
 
-// === 2. 頁面載入邏輯 ===
 async function loadPage() {
     showPreloader();
     const hash = window.location.hash || '#home';
     const config = PAGE_CONFIG[hash] || PAGE_CONFIG['#home'];
 
-    // 更新標題與選單狀態
     document.getElementById('page-title').innerText = config.title;
     document.getElementById('page-subtitle').innerText = config.subtitle;
     
@@ -62,7 +53,6 @@ async function loadPage() {
     const dataContainer = document.getElementById('data-container');
     const joinContainer = document.getElementById('join-container');
 
-    // 如果是入會申請，顯示表單並隱藏資料庫區塊
     if (config.isForm) {
         dataContainer.style.display = 'none';
         joinContainer.style.display = 'block';
@@ -70,9 +60,8 @@ async function loadPage() {
         return;
     }
 
-    // 若為一般分頁，隱藏表單，顯示並抓取資料
     joinContainer.style.display = 'none';
-    dataContainer.style.display = 'grid'; // 或 block 視佈局而定
+    dataContainer.style.display = 'grid'; 
     dataContainer.innerHTML = '';
 
     try {
@@ -86,19 +75,32 @@ async function loadPage() {
         }
     } catch (error) {
         dataContainer.innerHTML = '<p style="text-align:center; width:100%; color:red;">資料載入異常。</p>';
-    } finally {
-        hidePreloader();
-    }
+    } finally { hidePreloader(); }
 }
 
-// === 3. 卡片渲染與圖片輪播邏輯 ===
+// === 核心優化：自動修復舊網址並轉換為低流量縮圖 ===
+function optimizeImageUrl(url) {
+    if (url.includes('drive.google.com') && !url.includes('thumbnail')) {
+        const idMatch = url.match(/id=([^&]+)/);
+        if (idMatch && idMatch[1]) {
+            return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w800`;
+        }
+    }
+    return url;
+}
+
 function generateImageHTML(imgString) {
-    const urls = imgString.split(',').map(u => u.trim()).filter(u => u);
-    if (urls.length === 0) return `<img src="https://via.placeholder.com/600x400/E8D3CB/1F2D4A?text=CIA-EDA" class="course-img" style="border-radius:12px;">`;
+    const rawUrls = imgString.split(',').map(u => u.trim()).filter(u => u);
+    
+    if (rawUrls.length === 0) return `<img src="https://via.placeholder.com/600x400/E8D3CB/1F2D4A?text=CIA-EDA" class="course-img" style="border-radius:12px;">`;
+    
+    // 將所有網址丟入轉換器進行流量優化
+    const urls = rawUrls.map(url => optimizeImageUrl(url));
+
     if (urls.length === 1) return `<img src="${urls[0]}" class="course-img" style="border-radius:12px;">`;
     
     let html = `<div style="display:flex; overflow-x:auto; scroll-snap-type: x mandatory; border-radius:12px; margin-bottom:10px;">`;
-    urls.forEach(url => { html += `<img src="${url}" style="flex: 0 0 100%; scroll-snap-align: start; width:100%; height:200px; object-fit:cover;">`; });
+    urls.forEach(url => { html += `<img src="${url}" style="flex: 0 0 100%; scroll-snap-align: start; width:100%; height:200px; object-fit:cover; background-color:#FAF7F2;">`; });
     html += `</div><div style="text-align:center; font-size:12px; color:var(--taupe); margin-top:-5px; margin-bottom:10px;">← 左右滑動查看多圖 →</div>`;
     return html;
 }
@@ -142,7 +144,6 @@ function renderData(rawData, layoutType, container) {
     container.innerHTML = html;
 }
 
-// === 4. 聯絡我們 Modal 控制與送出 ===
 function setupContactModal() {
     const modal = document.getElementById('contact-modal');
     const openBtn = document.getElementById('open-contact-btn');
@@ -178,7 +179,6 @@ function setupContactModal() {
     });
 }
 
-// === 5. 入會申請表單送出 ===
 function setupJoinForm() {
     const submitBtn = document.getElementById('submit-join-btn');
     if (!submitBtn) return;
@@ -227,9 +227,7 @@ function setupMobileMenu() {
     const mobileBtn = document.getElementById('mobile-menu-btn');
     const mainNav = document.getElementById('main-nav-menu');
     if (mobileBtn && mainNav) {
-        // 點擊漢堡選單展開
         mobileBtn.addEventListener('click', () => mainNav.classList.toggle('show'));
-        // 點擊任何連結後，自動收合手機選單
         mainNav.querySelectorAll('a').forEach(link => {
             link.addEventListener('click', () => mainNav.classList.remove('show'));
         });
