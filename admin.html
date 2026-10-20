@@ -8,40 +8,28 @@
     <style>
         :root { --admin-bg: #f4f6f9; --admin-dark: #1F2D4A; --admin-accent: #B8955A; --admin-text: #333; }
         body { margin: 0; font-family: 'Noto Sans TC', sans-serif; background-color: var(--admin-bg); color: var(--admin-text); display: flex; height: 100vh; overflow: hidden; }
-        
-        /* 震撼級左側選單與系統監控區 (嚇人用的假功能展示) */
         .sidebar { width: 280px; background-color: var(--admin-dark); color: #fff; display: flex; flex-direction: column; box-shadow: 2px 0 15px rgba(0,0,0,0.1); z-index: 100; }
         .sidebar-header { padding: 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
         .sidebar-header img { height: 40px; margin-bottom: 10px; filter: brightness(0) invert(1); }
         .sidebar-header h2 { margin: 0; font-size: 14px; font-family: 'JetBrains Mono', monospace; color: var(--admin-accent); letter-spacing: 2px; }
-        
         .nav-menu { padding: 20px 0; flex: 1; }
         .nav-item { padding: 15px 25px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 15px; border-left: 4px solid transparent; transition: 0.3s; }
         .nav-item:hover, .nav-item.active { background: rgba(255,255,255,0.05); border-left-color: var(--admin-accent); color: var(--admin-accent); font-weight: bold; }
-        
-        /* 系統狀態假組件 */
         .system-status { padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8ba2c4; }
         .status-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
         .status-bar-bg { width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-bottom: 15px; }
         .status-bar-fill { height: 100%; background: #4caf50; border-radius: 2px; width: 92%; }
-        
-        /* 右側主內容區 */
         .main-content { flex: 1; overflow-y: auto; position: relative; }
         .topbar { background: #fff; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
         .content-body { padding: 40px; }
-        
         .panel { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.03); display: none; }
         .panel.active { display: block; }
-        
-        /* 表單設計 */
         .form-group { margin-bottom: 20px; }
         .form-group label { display: block; font-size: 14px; margin-bottom: 8px; color: var(--admin-dark); font-weight: 600; }
         .input-field, .select-field, .textarea-field { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; }
         .textarea-field { resize: vertical; height: 100px; }
         .btn-primary { background: var(--admin-accent); color: #fff; border: none; padding: 12px 25px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 15px; }
         .btn-primary:hover { filter: brightness(0.9); }
-        
-        /* 內容管理清單設計 */
         .data-list { list-style: none; padding: 0; margin: 0; }
         .data-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #eee; margin-bottom: 10px; border-radius: 8px; background: #fafafa; }
         .data-item-title { font-weight: 600; color: var(--admin-dark); }
@@ -50,15 +38,11 @@
         .btn-icon:hover { background: #eee; }
         .btn-icon.danger { color: #d32f2f; border-color: #ffcdd2; }
         .btn-icon.danger:hover { background: #ffebee; }
-
-        /* 登入遮罩 */
         #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--admin-dark); display: flex; justify-content: center; align-items: center; z-index: 9999; }
         .login-box { background: #fff; padding: 40px; border-radius: 12px; text-align: center; width: 90%; max-width: 350px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
-
-    <!-- 登入驗證 -->
     <div id="login-overlay">
         <div class="login-box">
             <img src="images/CIAEDA_直式標準_標準彩色.png" alt="CIA-EDA" style="height:50px; margin-bottom:20px;">
@@ -67,11 +51,10 @@
         </div>
     </div>
 
-    <!-- 左側進階控制台 (威嚇用介面) -->
     <aside class="sidebar">
         <div class="sidebar-header">
             <img src="images/CIAEDA_直式標準_標準彩色.png" alt="Logo">
-            <h2>CORE SYSTEM v2.0</h2>
+            <h2>CORE SYSTEM v3.0</h2>
         </div>
         <nav class="nav-menu">
             <div class="nav-item active" data-target="panel-add">＋ 統一發佈中心</div>
@@ -80,14 +63,12 @@
         </nav>
         <div class="system-status">
             <div class="status-row"><span>Server Load</span><span>12%</span></div>
-            <div class="status-bar-bg"><div class="status-bar-fill" style="width: 12%; background: #4caf50;"></div></div>
+            <div class="status-bar-bg"><div class="status-bar-fill" style="width: 12%;"></div></div>
             <div class="status-row"><span>API Latency</span><span>24ms</span></div>
             <div class="status-bar-bg"><div class="status-bar-fill" style="width: 24%; background: #2196f3;"></div></div>
-            <div class="status-row"><span>Database Sync</span><span>Optimal</span></div>
         </div>
     </aside>
 
-    <!-- 右側工作區 -->
     <main class="main-content">
         <div class="topbar">
             <h3 style="margin:0; color:var(--admin-dark);">CIA-EDA Management</h3>
@@ -95,13 +76,15 @@
         </div>
 
         <div class="content-body">
-            
-            <!-- 統一發佈中心 -->
             <div id="panel-add" class="panel active">
                 <h2>統一發佈中心</h2>
                 <div class="form-group">
                     <label>請選擇要發佈的單元類別</label>
                     <select id="category-select" class="select-field">
+                        <!-- 加入影音平台分類 -->
+                        <option value="會員專屬影片">🎬 建立：會員專屬影片</option>
+                        <option value="會員名單">👥 建立：會員名單</option>
+                        <hr disabled>
                         <option value="課程介紹">課程介紹</option>
                         <option value="專業師資">專業師資</option>
                         <option value="活動花絮">活動花絮</option>
@@ -110,20 +93,18 @@
                     </select>
                 </div>
                 <hr style="border:0; border-top:1px dashed #ddd; margin:30px 0;">
-                
-                <!-- 動態表單容器 -->
                 <div id="dynamic-form-container"></div>
-                
                 <button id="btn-submit-data" class="btn-primary" style="margin-top:20px;">發佈資料</button>
             </div>
 
-            <!-- 內容編排與管理 -->
             <div id="panel-manage" class="panel">
                 <h2>內容編排與管理</h2>
                 <div class="form-group">
                     <label>請選擇要管理的單元</label>
                     <select id="manage-category-select" class="select-field">
                         <option value="">請選擇...</option>
+                        <option value="會員專屬影片">會員專屬影片</option>
+                        <option value="會員名單">會員名單</option>
                         <option value="課程介紹">課程介紹</option>
                         <option value="專業師資">專業師資</option>
                         <option value="活動花絮">活動花絮</option>
@@ -135,7 +116,6 @@
                     <p style="color:#888; text-align:center; padding:30px 0;">請先由上方選擇單元載入資料</p>
                 </div>
             </div>
-
         </div>
     </main>
 
