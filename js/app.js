@@ -1,9 +1,9 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：SPA 路由、動態渲染、真實數據追蹤 (IP與停留時間)、表單提交
+ * 職責：SPA 路由、動態渲染、嚴謹的 Session (10分鐘/10筆) 追蹤引擎
  */
 
-// ⚠️ 請確保這裡填入您「最新部署」的 GAS 網址
+// ⚠️ 請確保這裡填入您最新部署的 GAS 網址
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
 const PAYUNI_URL = 'https://api.payuni.com.tw/api/uop/receive_info/2/1/CCAT968310880001/hQjvQe2jfYEAWXlu2K21X';
@@ -19,13 +19,12 @@ const PAGE_CONFIG = {
     '#join': { title: '入會申請', subtitle: '歡迎加入中華國際美學教育發展協會。為保障您的權益，請詳實填寫以下資料。', isForm: true }
 };
 
-// === 網站追蹤引擎模組 ===
-let currentVisitorIP = '未知 IP';
-let currentPageEntryTime = Date.now();
+// === 網站 Session 追蹤引擎 ===
 let currentTrackingHash = window.location.hash || '#home';
+let currentPageEntryTime = Date.now();
 
 async function initTracker() {
-    // 1. 獲取真實造訪人數 (向 GAS 請求計算)
+    // 獲取真實計數
     try {
         const countRes = await fetch(`${GAS_URL}?action=getVisitorCount`);
         const countData = await countRes.json();
@@ -33,44 +32,63 @@ async function initTracker() {
             const counterEl = document.getElementById('visitor-counter');
             if(counterEl) counterEl.innerText = countData.count.toLocaleString();
         }
-    } catch(e) { console.error('無法獲取計數'); }
+    } catch(e) {}
 
-    // 2. 獲取訪客 IP
+    // 獲取 IP 並存入快取
     try {
         const ipRes = await fetch('https://api.ipify.org?format=json');
         const ipData = await ipRes.json();
-        currentVisitorIP = ipData.ip;
-    } catch(e) { console.error('無法獲取 IP'); }
+        localStorage.setItem('visitor_ip', ipData.ip);
+    } catch(e) {}
 }
 
-// 發送停留數據至資料庫
-function sendAnalyticsPayload(pageHash, durationSeconds) {
-    const timestamp = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
-    const userAgent = navigator.userAgent;
-    fetch(GAS_URL, {
-        method: 'POST',
-        keepalive: true, // 確保在頁面關閉時也能送出
-        body: JSON.stringify({
-            token: API_SECRET_TOKEN,
-            sheetName: '網站分析',
-            action: 'trackAnalytics',
-            newRowData: [timestamp, currentVisitorIP, pageHash, durationSeconds, userAgent]
-        })
-    }).catch(e => console.log('分析送出失敗'));
-}
-
-// 處理網址改變時的計時結算
 function handlePageTransition() {
     const now = Date.now();
     const durationSeconds = Math.floor((now - currentPageEntryTime) / 1000);
-    if(durationSeconds > 1) { // 停留超過 1 秒才記錄，過濾無效跳轉
-        sendAnalyticsPayload(currentTrackingHash, durationSeconds);
+    const ip = localStorage.getItem('visitor_ip') || '未知IP';
+    const userAgent = navigator.userAgent;
+
+    // 停留超過 1 秒才記錄，防止狂點刷版
+    if (durationSeconds > 1) {
+        let session = JSON.parse(localStorage.getItem('tracking_session') || 'null');
+        const tenMins = 10 * 60 * 1000;
+
+        // 如果沒有 Session，或者閒置超過 10 分鐘，或者已經記錄滿 10 次 -> 產生新 Session
+        if (!session || (now - session.lastActiveTime > tenMins) || session.views >= 10) {
+            session = {
+                id: 'SESS_' + now + '_' + Math.floor(Math.random() * 1000),
+                entryTime: new Date(now - (durationSeconds * 1000)).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }),
+                views: 0
+            };
+        }
+
+        session.views += 1;
+        session.lastActiveTime = now;
+        const leaveTimeStr = new Date(now).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+        localStorage.setItem('tracking_session', JSON.stringify(session));
+
+        // 發送更新請求給後端
+        fetch(GAS_URL, {
+            method: 'POST',
+            keepalive: true, // 確保關閉分頁時仍送出
+            body: JSON.stringify({
+                token: API_SECRET_TOKEN,
+                action: 'trackSession',
+                sessionId: session.id,
+                entryTime: session.entryTime,
+                leaveTime: leaveTimeStr,
+                ip: ip,
+                path: currentTrackingHash,
+                duration: durationSeconds,
+                userAgent: userAgent
+            })
+        }).catch(e => console.log(e));
     }
-    // 更新為新頁面的狀態
+
+    // 重置計時器進入下個頁面
     currentTrackingHash = window.location.hash || '#home';
     currentPageEntryTime = now;
 }
-// ==========================
 
 document.addEventListener('DOMContentLoaded', () => {
     initTracker();
@@ -78,13 +96,13 @@ document.addEventListener('DOMContentLoaded', () => {
     setupContactModal();
     setupJoinForm();
     
-    // SPA 切換時觸發資料結算與重新載入
+    // SPA 切換時觸發結算
     window.addEventListener('hashchange', () => {
         handlePageTransition();
         loadPage();
     });
     
-    // 當使用者關閉網頁時，結算最後一個頁面的停留時間
+    // 關閉網頁時結算最後停留
     window.addEventListener('beforeunload', () => {
         handlePageTransition();
     });
