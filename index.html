@@ -10,7 +10,7 @@
     <meta property="og:description" content="重新定義美學與專業，從技術教育到品牌經營，為您帶來最扎實的美業實戰教學與認證。">
     <meta property="og:image" content="https://cia-eda.github.io/website/images/CIAEDA_直式標準_標準彩色.png">
     
-    <!-- 載入 LINE LIFF SDK -->
+    <!-- 載入 LINE LIFF 官方 SDK -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@500;700&display=swap" rel="stylesheet">
@@ -46,7 +46,7 @@
         .payment-btn:hover { background: linear-gradient(135deg, #a6844b 0%, #80663c 100%); }
         .member-btn { background: linear-gradient(135deg, var(--ink-navy) 0%, #3a4a6b 100%); color: #fff !important; }
 
-        /* LINE 專屬按鈕樣式 */
+        /* LINE 專屬登入按鈕樣式 */
         .line-btn { background: #06C755; color: white !important; border: none; box-shadow: 0 4px 10px rgba(6, 199, 85, 0.3); margin-top: 15px; }
         .line-btn:hover { background: #05b04b; transform: translateY(-3px); box-shadow: 0 8px 15px rgba(6, 199, 85, 0.4); }
 
@@ -65,9 +65,6 @@
         .course-card { border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.03); padding-bottom: 15px; }
         .course-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
         .course-info { padding: 0 20px; }
-
-        .video-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 12px; margin-bottom: 15px; background: #000; }
-        .video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
 
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(31, 45, 74, 0.8); display: none; justify-content: center; align-items: center; z-index: 9999; opacity: 0; transition: opacity 0.3s ease; }
         .modal-overlay.active { display: flex; opacity: 1; }
@@ -88,6 +85,16 @@
         .checkbox-item { display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--text-dark); cursor: pointer; }
         .checkbox-item input { width: 18px; height: 18px; cursor: pointer; }
 
+        /* =========================================
+           LINE App 內部專屬樣式 (自動隱藏選單，變形為 App)
+           ========================================= */
+        body.in-line-app header { display: none !important; }
+        body.in-line-app footer { display: none !important; }
+        body.in-line-app .hero-section { display: none !important; }
+        body.in-line-app .content-section { padding: 20px 5%; min-height: 100vh; }
+        .line-app-header { display: none; background: var(--mist-rose); padding: 15px 20px; text-align: center; font-weight: bold; color: var(--ink-navy); box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 9000; }
+        body.in-line-app .line-app-header { display: block; }
+
         @media (max-width: 768px) {
             header { padding: 15px 20px; }
             .menu-toggle { display: block; }
@@ -95,11 +102,15 @@
             .main-nav.show { display: flex; align-items: center; }
             .hero-title { font-size: 26px !important; }
             .footer-links { flex-direction: column; gap: 15px; align-items: center; }
+            .join-container { padding: 20px; }
         }
     </style>
 </head>
 <body>
     <div id="preloader"><img src="images/CIAEDA_直式標準_標準彩色.png" alt="Loading" class="preloader-logo"></div>
+
+    <!-- LINE App 專屬頂部狀態列 -->
+    <div class="line-app-header" id="line-app-header">CIA-EDA 會員專區</div>
 
     <header>
         <a href="#home"><img src="images/CIAEDA_直式標準_標準彩色.png" alt="Logo" class="brand-logo-img"></a>
@@ -113,6 +124,7 @@
             <a href="#gallery" class="candy-btn nav-link">活動花絮</a>
             <a href="#brands" class="candy-btn nav-link">品牌推廣</a>
             <a href="#join" class="candy-btn nav-link">入會申請</a>
+            <!-- 專屬會員入口 -->
             <a href="#member-zone" class="candy-btn nav-link member-btn" id="nav-member-btn">🔒 登入/專屬影音</a>
         </nav>
     </header>
@@ -126,13 +138,12 @@
         <section class="content-section">
             <div id="data-container"></div>
             
-            <!-- 會員登入表單 -->
+            <!-- 會員登入表單與入口大廳 -->
             <div id="login-container" style="display: none; max-width: 400px; margin: 0 auto;">
                 <div class="form-section" style="text-align: center;">
                     <h3 style="color:var(--ink-navy); margin-top:0;">會員專區登入</h3>
-                    <p style="font-size:13px; color:var(--taupe);">請選擇登入方式以觀看您的專屬課程</p>
+                    <p style="font-size:13px; color:var(--taupe);">請選擇登入方式以驗證您的會員資格</p>
                     
-                    <!-- LINE 快速登入按鈕 -->
                     <button id="btn-line-login" class="candy-btn line-btn" style="width:100%; font-size:16px;">
                         <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg" style="width:20px; vertical-align:middle; margin-right:8px;"> 
                         LINE 一鍵快速登入
@@ -148,18 +159,85 @@
                 </div>
             </div>
 
-            <!-- 入會申請表單省略，保留原樣即可 -->
+            <!-- 入會申請表單 -->
             <div id="join-container" style="display: none; max-width: 800px; margin: 0 auto;">
-                <!-- 內容同前一版本，不影響排版 -->
-                <p style="text-align:center;">此處為入會申請表單 (保留原樣)</p>
+                <div class="form-section">
+                    <div class="form-row">
+                        <div class="form-group"><label>申請人中文姓名 *</label><input type="text" id="j-name-zh" class="input-field"></div>
+                        <div class="form-group"><label>申請人英文姓名</label><input type="text" id="j-name-en" class="input-field"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>出生日期 *</label><input type="date" id="j-birth" class="input-field"></div>
+                        <div class="form-group"><label>身分證/護照號碼 *</label><input type="text" id="j-id" class="input-field"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group full-width"><label>最高學歷 *</label>
+                            <select id="j-edu" class="select-field"><option value="">請選擇</option><option value="高中/職">高中/職</option><option value="專科">專科</option><option value="學士">學士</option><option value="碩士">碩士</option><option value="博士">博士</option><option value="其他">其他</option></select>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-section">
+                    <div class="form-group full-width"><label>目前從事的美學領域 (可複選) *</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-item"><input type="checkbox" name="j-field" value="美容/美體"> 美容/美體</label>
+                            <label class="checkbox-item"><input type="checkbox" name="j-field" value="美甲/美睫"> 美甲/美睫</label>
+                            <label class="checkbox-item"><input type="checkbox" name="j-field" value="紋繡/微刺青"> 紋繡/微刺青</label>
+                            <label class="checkbox-item"><input type="checkbox" name="j-field" value="美學教育/培訓"> 美學教育/培訓</label>
+                            <label class="checkbox-item"><input type="checkbox" name="j-field" value="其他"> 其他</label>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>現職機構名稱 *</label><input type="text" id="j-company" class="input-field"></div>
+                        <div class="form-group"><label>現任職稱</label><input type="text" id="j-jobtitle" class="input-field"></div>
+                    </div>
+                </div>
+                <div class="form-section">
+                    <div class="form-row">
+                        <div class="form-group"><label>聯絡電話(手機) *</label><input type="tel" id="j-phone" class="input-field"></div>
+                        <div class="form-group"><label>Line ID</label><input type="text" id="j-line" class="input-field"></div>
+                    </div>
+                    <div class="form-row"><div class="form-group full-width"><label>電子郵件地址</label><input type="email" id="j-email" class="input-field"></div></div>
+                    <div class="form-row"><div class="form-group full-width"><label>通訊地址(含郵遞區號) *</label><input type="text" id="j-address" class="input-field"></div></div>
+                </div>
+                <div class="form-section">
+                    <div class="form-group full-width"><label>希望申請的會籍類別 *</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-item"><input type="radio" name="j-membership" value="個人會員"> 個人會員</label>
+                            <label class="checkbox-item"><input type="radio" name="j-membership" value="學生會員"> 學生會員</label>
+                            <label class="checkbox-item"><input type="radio" name="j-membership" value="團體會員"> 團體會員</label>
+                        </div>
+                    </div>
+                    <div class="form-group full-width"><label>期待或希望參與的活動 (可複選) *</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-item"><input type="checkbox" name="j-expect" value="參與專業培訓課程"> 參與專業培訓課程</label>
+                            <label class="checkbox-item"><input type="checkbox" name="j-expect" value="獲取最新產業資訊"> 獲取最新產業資訊</label>
+                            <label class="checkbox-item"><input type="checkbox" name="j-expect" value="拓展人脈與合作機會"> 拓展人脈與合作機會</label>
+                        </div>
+                    </div>
+                    <div class="form-group full-width"><label>是否願意收到電子報？ *</label>
+                        <div class="checkbox-group"><label class="checkbox-item"><input type="radio" name="j-newsletter" value="是"> 是</label><label class="checkbox-item"><input type="radio" name="j-newsletter" value="否"> 否</label></div>
+                    </div>
+                    <div class="form-group full-width"><label>其他備註</label><textarea id="j-remarks" class="textarea-field"></textarea></div>
+                </div>
+                <button id="submit-join-btn" class="submit-btn-full">確認送出並前往付款</button>
             </div>
         </section>
     </main>
 
-    <!-- Modal 聯絡我們 -->
     <div class="floating-contact-btn" id="open-contact-btn">💬 聯絡協會</div>
+    
     <div id="contact-modal" class="modal-overlay">
-        <!-- 內容同前一版本，不影響排版 -->
+        <div class="modal-content">
+            <button class="modal-close-btn" id="close-contact-btn">&times;</button>
+            <h2 style="text-align:center; color:var(--ink-navy); margin-top:0; font-family:'Noto Serif TC', serif;">聯絡我們</h2>
+            <p style="text-align:center; color:var(--taupe); font-size:14px; margin-bottom:20px;">有任何問題？請填寫下方表單，協會顧問將盡快與您聯繫。</p>
+            <div class="form-group"><label>姓名 Name *</label><input type="text" id="c-name" class="input-field" placeholder="請輸入姓名"></div>
+            <div class="form-group"><label>聯絡電話 Phone *</label><input type="tel" id="c-phone" class="input-field" placeholder="請輸入電話"></div>
+            <div class="form-group"><label>LINE ID (選填)</label><input type="text" id="c-line" class="input-field" placeholder="方便顧問聯繫"></div>
+            <div class="form-group"><label>詢問主旨 Subject *</label><input type="text" id="c-subject" class="input-field" placeholder="例如：課程詢問、合作提案"></div>
+            <div class="form-group"><label>詳細內容 Message *</label><textarea id="c-message" class="textarea-field" placeholder="請填寫您的問題或需求"></textarea></div>
+            <button id="submit-contact-btn" class="submit-btn-full">確認送出</button>
+        </div>
     </div>
 
     <footer>
