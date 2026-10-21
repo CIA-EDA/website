@@ -1,13 +1,12 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：極淨 App 模式攔截、資料補全閘門判斷、雙 LIFF 引擎
+ * 職責：整合入會申請與 LINE 登入資料補全閘門
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
 const PAYUNI_URL = 'https://api.payuni.com.tw/api/uop/receive_info/2/1/CCAT968310880001/hQjvQe2jfYEAWXlu2K21X';
 
-// 🔑 雙 LIFF 鑰匙設定
 const LIFF_ID_MAIN = '2012121201-JKa4hPdF'; 
 const LIFF_ID_MEMBER = '2012121201-DRHgrrOJ';
 
@@ -19,14 +18,12 @@ const PAGE_CONFIG = {
     '#team': { title: '專業師資團隊', subtitle: '頂尖業界講師群，為您帶來最扎實的實戰教學。', sheet: '專業師資', layout: 'card' },
     '#gallery': { title: '精彩活動與花絮', subtitle: '見證協會與學員們共同成長的每一個珍貴時刻。', sheet: '活動花絮', layout: 'card' },
     '#brands': { title: '品牌推廣與合作', subtitle: '嚴選業界頂尖品牌，共創美業生態圈。', sheet: '品牌推廣', layout: 'card' },
-    '#join': { title: '入會申請', subtitle: '歡迎加入中華國際美學教育發展協會。為保障您的權益，請詳實填寫以下資料。', isForm: true },
+    '#join': { title: '入會申請', subtitle: '請先透過 LINE 登入，並完成資料填寫以進行入會申請。', isMember: true, isJoinIntent: true },
     '#member-zone': { title: '會員登入與大廳', subtitle: '驗證會員身分以進入專屬學習平台', isMember: true }
 };
 
-// === 0. 網址攔截器 (極淨 App 模式切換) ===
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('zone') === 'member') {
-    // 瞬間加上標記，CSS 將物理性隱藏導覽列與頁尾
     document.body.classList.add('is-exclusive-zone');
     window.location.hash = '#member-zone'; 
     window.history.replaceState(null, '', window.location.pathname + '#member-zone');
@@ -44,14 +41,24 @@ async function initSystem() {
             if(counterEl) counterEl.innerText = countData.count.toLocaleString();
         }
     } catch(e) {}
+    try {
+        const ipRes = await fetch('https://api.ipify.org?format=json');
+        const ipData = await ipRes.json();
+        localStorage.setItem('visitor_ip', ipData.ip);
+    } catch(e) {}
 
     let activeLiffId = LIFF_ID_MAIN;
-    if (window.location.hash === '#member-zone') activeLiffId = LIFF_ID_MEMBER;
+    if (window.location.hash === '#member-zone' || window.location.hash.includes('member-zone')) {
+        activeLiffId = LIFF_ID_MEMBER;
+    }
 
     try {
         await liff.init({ liffId: activeLiffId });
         if (liff.isInClient() || document.body.classList.contains('is-exclusive-zone')) {
-            document.body.classList.add('is-exclusive-zone'); // 確保隱藏
+            document.body.classList.add('is-exclusive-zone'); 
+            if (window.location.hash !== '#member-zone' && window.location.hash !== '#join') {
+                window.location.hash = '#member-zone';
+            }
             if (liff.isLoggedIn() && !localStorage.getItem('cia_member_credentials')) {
                 await handleLineLoginCallback();
             } else if (!liff.isLoggedIn()) {
@@ -78,8 +85,9 @@ async function handleLineLoginCallback() {
             localStorage.setItem('cia_member_credentials', JSON.stringify({ lineUid: profile.userId }));
             localStorage.setItem('cia_member_info', JSON.stringify(data.member));
             updateMemberUI();
-            if (window.location.hash !== '#member-zone') window.location.hash = '#member-zone'; else loadPage();
-        } else { alert('登入異常：' + data.message); }
+            // 登入後保持在當前 hash 以觸發後續表單
+            loadPage();
+        } else { alert('系統驗證失敗：' + data.message); }
     } catch(e) { alert('LINE 登入連線失敗。'); } 
     finally { hidePreloader(); }
 }
@@ -91,10 +99,28 @@ function updateMemberUI() {
     }
 }
 
+function handlePageTransition() {
+    const now = Date.now();
+    const durationSeconds = Math.floor((now - currentPageEntryTime) / 1000);
+    const ip = localStorage.getItem('visitor_ip') || '未知IP';
+    if (durationSeconds > 1) {
+        let session = JSON.parse(localStorage.getItem('tracking_session') || 'null');
+        if (!session || (now - session.lastActiveTime > 600000) || session.views >= 10) {
+            session = { id: 'SESS_' + now + '_' + Math.floor(Math.random() * 1000), entryTime: new Date(now - (durationSeconds * 1000)).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }), views: 0 };
+        }
+        session.views += 1; session.lastActiveTime = now;
+        localStorage.setItem('tracking_session', JSON.stringify(session));
+        fetch(GAS_URL, { method: 'POST', keepalive: true, body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'trackSession', sessionId: session.id, entryTime: session.entryTime, leaveTime: new Date(now).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }), ip: ip, path: currentTrackingHash, duration: durationSeconds, userAgent: navigator.userAgent }) }).catch(e=>e);
+    }
+    currentTrackingHash = window.location.hash || '#home';
+    currentPageEntryTime = now;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     initSystem(); setupMobileMenu(); setupMemberLogin(); updateMemberUI();
-    setupProfileCompletionForm(); // 綁定資料補全送出按鈕
-    window.addEventListener('hashchange', () => { loadPage(); });
+    setupProfileCompletionForm(); 
+    window.addEventListener('hashchange', () => { handlePageTransition(); loadPage(); });
+    window.addEventListener('beforeunload', () => { handlePageTransition(); });
     loadPage();
 });
 
@@ -123,30 +149,34 @@ async function loadPage() {
     if(profileContainer) profileContainer.style.display = 'none';
     dataContainer.innerHTML = '';
 
-    // === 會員大門與資料補全閘門 ===
+    // === 會員大門與入會/資料補全閘門 ===
     if (config.isMember) {
         const credentials = localStorage.getItem('cia_member_credentials');
         const memberInfo = JSON.parse(localStorage.getItem('cia_member_info') || 'null');
         
         if (!credentials) {
             loginContainer.style.display = 'block';
-            document.getElementById('page-subtitle').innerText = '請登入以驗證您的會員資格。';
+            document.getElementById('login-form-title').innerText = config.isJoinIntent ? '請先登入以進行入會申請' : '會員專區登入';
             hidePreloader(); return;
         }
 
-        // === 核心：檢查是否需要補全資料 ===
+        // 檢查是否需要補全資料 (入會表單)
         if (memberInfo && memberInfo.needsProfileCompletion) {
             profileContainer.style.display = 'block';
-            document.getElementById('page-subtitle').innerText = '系統偵測到您尚未完善基本資料，請填寫下方表單以開通金庫權限。';
-            // 自動帶入已知資料
             document.getElementById('p-name-zh').value = memberInfo.name || '';
             hidePreloader(); return;
         }
         
+        // 若已經是會員且試圖點擊入會申請，直接引導至大廳
+        if (config.isJoinIntent && !memberInfo.needsProfileCompletion) {
+            document.getElementById('page-subtitle').innerHTML = `<span style="color:#e53e3e;">您已完成入會申請，目前狀態：${memberInfo.level}會員。</span><br>若權限遭停用或審核中，請靜候管理員通知或聯絡協會。`;
+        } else {
+            document.getElementById('page-subtitle').innerHTML = `身分驗證成功，點擊下方按鈕進入安全金庫。`;
+        }
+
         let avatarHtml = memberInfo && memberInfo.avatar ? `<img src="${memberInfo.avatar}" style="width:50px; height:50px; border-radius:50%; vertical-align:middle; margin-right:15px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">` : '';
         let badgeHtml = memberInfo && memberInfo.level ? `<span style="background:var(--champagne); color:#fff; font-size:14px; padding:4px 12px; border-radius:20px; font-weight:bold;">${memberInfo.level} 會員</span>` : '';
         
-        document.getElementById('page-subtitle').innerHTML = `身分驗證成功，點擊下方按鈕進入安全金庫。`;
         dataContainer.style.display = 'block';
         dataContainer.innerHTML = `
             <div style="background:#fff; border-radius:12px; padding:50px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.05); max-width:600px; margin:0 auto;">
@@ -197,24 +227,23 @@ function setupProfileCompletionForm() {
             alert('請填寫所有標示星號 (*) 的必填欄位！'); return;
         }
 
-        submitBtn.innerText = '儲存中...'; submitBtn.disabled = true;
+        submitBtn.innerText = '送出審核中...'; submitBtn.disabled = true;
         try {
             const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
             await fetch(GAS_URL, { 
                 method: 'POST', 
                 body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'updateMemberProfile', lineUid: credentials.lineUid, profileData: profileData }) 
             });
-            alert('資料完善成功！已為您開通進入金庫權限。');
+            alert('入會申請送出成功！管理員審核通過後即可開通權限。\n即將引導至線上付款頁面。');
             
-            // 更新本地快取，移除 needsProfileCompletion 標記
             let memberInfo = JSON.parse(localStorage.getItem('cia_member_info'));
             memberInfo.needsProfileCompletion = false;
             memberInfo.name = profileData.nameZh;
             localStorage.setItem('cia_member_info', JSON.stringify(memberInfo));
             
-            loadPage(); // 重新載入，就會看見進入金庫的按鈕
+            window.location.href = PAYUNI_URL;
         } catch(e) { alert('儲存失敗，請稍後再試。'); } 
-        finally { submitBtn.innerText = '儲存並前往會員專區'; submitBtn.disabled = false; }
+        finally { submitBtn.innerText = '確認送出申請並前往繳費'; submitBtn.disabled = false; }
     });
 }
 
@@ -312,4 +341,31 @@ function renderData(rawData, layoutType, container) {
     }
     html += '</div>';
     container.innerHTML = html;
+}
+
+function setupContactModal() {
+    const modal = document.getElementById('contact-modal');
+    const openBtn = document.getElementById('open-contact-btn');
+    const closeBtn = document.getElementById('close-contact-btn');
+    const submitBtn = document.getElementById('submit-contact-btn');
+    openBtn.addEventListener('click', () => modal.classList.add('active'));
+    closeBtn.addEventListener('click', () => modal.classList.remove('active'));
+    window.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('active'); });
+
+    submitBtn.addEventListener('click', async () => {
+        const name = document.getElementById('c-name').value.trim();
+        const phone = document.getElementById('c-phone').value.trim();
+        const line = document.getElementById('c-line').value.trim();
+        const subject = document.getElementById('c-subject').value.trim();
+        const msg = document.getElementById('c-message').value.trim();
+        if (!name || !phone || !subject || !msg) { alert('請填寫所有必填欄位！'); return; }
+        submitBtn.innerText = '傳送中...'; submitBtn.disabled = true;
+        try {
+            const timestamp = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+            await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, sheetName: '聯絡我們', newRowData: [timestamp, name, phone, line, subject, msg], action: 'submitContact' }) });
+            alert('訊息已成功送出！'); modal.classList.remove('active');
+            ['c-name', 'c-phone', 'c-line', 'c-subject', 'c-message'].forEach(id => document.getElementById(id).value = '');
+        } catch (err) { alert('失敗請稍後重試'); } 
+        finally { submitBtn.innerText = '確認送出'; submitBtn.disabled = false; }
+    });
 }
