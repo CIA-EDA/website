@@ -15,9 +15,6 @@
         h1, h2, h3 { font-family: 'Noto Serif TC', serif; color: var(--ink-navy); }
         main { flex: 1; }
 
-        /* =========================================
-           極淨 App 模式：從 LINE 進入時徹底抹除多餘介面
-           ========================================= */
         body.is-exclusive-zone header { display: none !important; }
         body.is-exclusive-zone footer { display: none !important; }
         body.is-exclusive-zone .hero-section { display: none !important; }
@@ -106,9 +103,10 @@
         <section class="content-section">
             <div id="data-container"></div>
             
+            <!-- 登入與入會引導閘門 -->
             <div id="login-container" style="display: none; max-width: 400px; margin: 0 auto;">
                 <div class="form-section" style="text-align: center;">
-                    <h3 style="color:var(--ink-navy); margin-top:0;">會員專區登入</h3>
+                    <h3 id="login-form-title" style="color:var(--ink-navy); margin-top:0;">會員專區登入</h3>
                     <button id="btn-line-login" class="candy-btn line-btn" style="width:100%; font-size:16px;">
                         <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg" style="width:20px; vertical-align:middle; margin-right:8px;"> LINE 一鍵快速登入
                     </button>
@@ -121,11 +119,11 @@
                 </div>
             </div>
 
-            <!-- 全新：資料補全閘門 -->
+            <!-- 入會申請暨資料補全表單 -->
             <div id="profile-completion-container" style="display: none; max-width: 800px; margin: 0 auto;">
                 <div class="form-section">
-                    <h2 style="color:var(--primary-color); text-align:center; margin-top:0;">完善會員基本資料</h2>
-                    <p style="text-align:center; color:var(--text-light); font-size:14px; margin-bottom:20px;">為了保障您的會員權益與觀課資格，請先填寫以下必填資料。</p>
+                    <h2 style="color:var(--primary-color); text-align:center; margin-top:0;">入會申請暨會員資料完善</h2>
+                    <p style="text-align:center; color:var(--text-light); font-size:14px; margin-bottom:20px;">為了保障您的會員權益，請詳細填寫入會申請資料。資料送出後將由協會進行審核。</p>
                     
                     <div class="form-row">
                         <div class="form-group"><label>真實姓名 (中文) *</label><input type="text" id="p-name-zh" class="input-field"></div>
@@ -160,19 +158,26 @@
                             <select id="p-membership" class="select-field"><option value="個人會員">個人會員</option><option value="學生會員">學生會員</option><option value="團體會員">團體會員</option></select>
                         </div>
                     </div>
-                    <button id="submit-profile-btn" class="submit-btn-full">儲存並前往會員專區</button>
+                    <button id="submit-profile-btn" class="submit-btn-full">確認送出申請並前往繳費</button>
                 </div>
-            </div>
-
-            <!-- 入會申請表單 (預設隱藏) -->
-            <div id="join-container" style="display: none; max-width: 800px; margin: 0 auto;">
-                <p style="text-align:center;">此處為入會申請表單（請見 js 自動渲染）</p>
             </div>
         </section>
     </main>
 
     <div class="floating-contact-btn" id="open-contact-btn">💬 聯絡協會</div>
-    <div id="contact-modal" class="modal-overlay">...</div>
+    <div id="contact-modal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="modal-close-btn" id="close-contact-btn">&times;</button>
+            <h2 style="text-align:center; color:var(--ink-navy); margin-top:0; font-family:'Noto Serif TC', serif;">聯絡我們</h2>
+            <p style="text-align:center; color:var(--taupe); font-size:14px; margin-bottom:20px;">有任何問題？請填寫下方表單，協會顧問將盡快與您聯繫。</p>
+            <div class="form-group"><label>姓名 Name *</label><input type="text" id="c-name" class="input-field" placeholder="請輸入姓名"></div>
+            <div class="form-group"><label>聯絡電話 Phone *</label><input type="tel" id="c-phone" class="input-field" placeholder="請輸入電話"></div>
+            <div class="form-group"><label>LINE ID (選填)</label><input type="text" id="c-line" class="input-field" placeholder="方便顧問聯繫"></div>
+            <div class="form-group"><label>詢問主旨 Subject *</label><input type="text" id="c-subject" class="input-field" placeholder="例如：課程詢問、合作提案"></div>
+            <div class="form-group"><label>詳細內容 Message *</label><textarea id="c-message" class="textarea-field" placeholder="請填寫您的問題或需求"></textarea></div>
+            <button id="submit-contact-btn" class="submit-btn-full">確認送出</button>
+        </div>
+    </div>
 
     <footer>
         <div style="text-align: center; margin-bottom: 20px; font-size: 14px; color: var(--ink-navy); font-weight: bold; letter-spacing: 0.1em; background: rgba(255,255,255,0.5); padding: 8px 15px; display: inline-block; border-radius: 20px;">
