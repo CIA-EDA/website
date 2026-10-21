@@ -1,14 +1,15 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：整合入會申請與 LINE 登入資料補全閘門
+ * 職責：解開首頁阻擋死胡同，溫馨顯示審核狀態
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
 const PAYUNI_URL = 'https://api.payuni.com.tw/api/uop/receive_info/2/1/CCAT968310880001/hQjvQe2jfYEAWXlu2K21X';
 
+// 🔑 雙 LIFF 鑰匙設定
 const LIFF_ID_MAIN = '2012121201-JKa4hPdF'; 
-const LIFF_ID_MEMBER = '2012121201-DRHgrrOJ';
+const LIFF_ID_MEMBER = '2012121201-DRHgrrOJ'; // ⚠️ 請確保這是您的官方 LINE 專屬 ID
 
 const PAGE_CONFIG = {
     '': { title: '重新定義美學與專業', subtitle: '打造全方位美業人才的孵化平台', sheet: '課程介紹', layout: 'card' },
@@ -60,20 +61,21 @@ async function initSystem() {
                 window.location.hash = '#member-zone';
             }
             if (liff.isLoggedIn() && !localStorage.getItem('cia_member_credentials')) {
-                await handleLineLoginCallback();
+                await handleLineLoginCallback(true); // 靜默登入
             } else if (!liff.isLoggedIn()) {
                 liff.login();
             }
         } else {
             if (liff.isLoggedIn() && !localStorage.getItem('cia_member_credentials')) {
-                await handleLineLoginCallback();
+                await handleLineLoginCallback(true); // 靜默登入
             }
         }
     } catch (err) { console.error('LIFF 初始化失敗', err); }
 }
 
-async function handleLineLoginCallback() {
-    showPreloader();
+// 加入 isSilent 參數，避免在首頁背景登入時打擾訪客
+async function handleLineLoginCallback(isSilent = false) {
+    if (!isSilent) showPreloader();
     try {
         const profile = await liff.getProfile();
         const res = await fetch(GAS_URL, { 
@@ -81,21 +83,40 @@ async function handleLineLoginCallback() {
             body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'lineLogin', lineUid: profile.userId, displayName: profile.displayName, pictureUrl: profile.pictureUrl }) 
         });
         const data = await res.json();
+        
         if (data.status === 'success') {
+            // 登入成功，將資料存入本地
             localStorage.setItem('cia_member_credentials', JSON.stringify({ lineUid: profile.userId }));
             localStorage.setItem('cia_member_info', JSON.stringify(data.member));
             updateMemberUI();
-            // 登入後保持在當前 hash 以觸發後續表單
-            loadPage();
-        } else { alert('系統驗證失敗：' + data.message); }
-    } catch(e) { alert('LINE 登入連線失敗。'); } 
-    finally { hidePreloader(); }
+            
+            // 只有當使用者在會員專區或剛按登入鈕時才刷新畫面，背景靜默登入不刷新
+            if (window.location.hash === '#member-zone' || window.location.hash === '#join') {
+                loadPage();
+            } else if (!isSilent) {
+                window.location.hash = '#member-zone';
+            }
+        } else {
+            // 發生其他不可預期的嚴重錯誤
+            if (!isSilent) alert('登入異常：' + data.message);
+        }
+    } catch(e) { 
+        if (!isSilent) alert('LINE 登入連線失敗。'); 
+    } finally { 
+        hidePreloader(); 
+    }
 }
 
 function updateMemberUI() {
+    const memberInfo = JSON.parse(localStorage.getItem('cia_member_info'));
     const memberBtn = document.getElementById('nav-member-btn');
-    if (localStorage.getItem('cia_member_credentials') && memberBtn) {
-        memberBtn.innerHTML = '🎬 進入影音平台';
+    if (memberInfo && memberBtn) {
+        // 若狀態為停用，顯示審核中；若啟用，顯示影音平台
+        if (memberInfo.memberStatus === '停用') {
+            memberBtn.innerHTML = '⏳ 會員審核中';
+        } else {
+            memberBtn.innerHTML = '🎬 進入影音平台';
+        }
     }
 }
 
@@ -149,34 +170,47 @@ async function loadPage() {
     if(profileContainer) profileContainer.style.display = 'none';
     dataContainer.innerHTML = '';
 
-    // === 會員大門與入會/資料補全閘門 ===
+    // === 會員大廳區塊 ===
     if (config.isMember) {
         const credentials = localStorage.getItem('cia_member_credentials');
         const memberInfo = JSON.parse(localStorage.getItem('cia_member_info') || 'null');
         
         if (!credentials) {
             loginContainer.style.display = 'block';
-            document.getElementById('login-form-title').innerText = config.isJoinIntent ? '請先登入以進行入會申請' : '會員專區登入';
+            document.getElementById('login-form-title').innerText = config.isJoinIntent ? '請先透過 LINE 登入以進行入會申請' : '會員專區登入';
             hidePreloader(); return;
         }
 
-        // 檢查是否需要補全資料 (入會表單)
         if (memberInfo && memberInfo.needsProfileCompletion) {
             profileContainer.style.display = 'block';
             document.getElementById('p-name-zh').value = memberInfo.name || '';
             hidePreloader(); return;
         }
         
-        // 若已經是會員且試圖點擊入會申請，直接引導至大廳
-        if (config.isJoinIntent && !memberInfo.needsProfileCompletion) {
-            document.getElementById('page-subtitle').innerHTML = `<span style="color:#e53e3e;">您已完成入會申請，目前狀態：${memberInfo.level}會員。</span><br>若權限遭停用或審核中，請靜候管理員通知或聯絡協會。`;
-        } else {
-            document.getElementById('page-subtitle').innerHTML = `身分驗證成功，點擊下方按鈕進入安全金庫。`;
-        }
-
         let avatarHtml = memberInfo && memberInfo.avatar ? `<img src="${memberInfo.avatar}" style="width:50px; height:50px; border-radius:50%; vertical-align:middle; margin-right:15px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">` : '';
         let badgeHtml = memberInfo && memberInfo.level ? `<span style="background:var(--champagne); color:#fff; font-size:14px; padding:4px 12px; border-radius:20px; font-weight:bold;">${memberInfo.level} 會員</span>` : '';
         
+        // === 【優雅引導】：判斷停用/審核中狀態 ===
+        if (memberInfo && memberInfo.memberStatus === '停用') {
+            document.getElementById('page-subtitle').innerHTML = `<span style="color:#e53e3e;">您已完成資料綁定，目前狀態：審核中。</span>`;
+            dataContainer.style.display = 'block';
+            dataContainer.innerHTML = `
+                <div style="background:#fff; border-radius:12px; padding:50px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.05); max-width:600px; margin:0 auto;">
+                    <div style="margin-bottom:30px;">
+                        ${avatarHtml}
+                        <h3 style="display:inline-block; margin:0; color:var(--ink-navy); font-size:24px; vertical-align:middle;">${memberInfo.name}，您好！</h3>
+                    </div>
+                    <div style="padding:20px; background:#fff3cd; color:#856404; border-radius:8px; margin-bottom:30px; text-align:left; font-size:15px; line-height:1.6;">
+                        <strong>⏳ 您的會員資格正在審核中</strong><br>協會顧問將盡快為您確認資料。<br>在審核通過前，專屬課程平台將暫時無法進入，但您仍可自由瀏覽網站的其他公開資訊。
+                    </div>
+                    <button onclick="logoutMember()" style="display:block; margin:20px auto 0; background:none; border:none; color:red; text-decoration:underline; cursor:pointer;">登出帳號</button>
+                </div>
+            `;
+            hidePreloader(); return;
+        }
+
+        // === 啟用狀態，顯示進入金庫按鈕 ===
+        document.getElementById('page-subtitle').innerHTML = `身分驗證成功，點擊下方按鈕進入安全金庫。`;
         dataContainer.style.display = 'block';
         dataContainer.innerHTML = `
             <div style="background:#fff; border-radius:12px; padding:50px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.05); max-width:600px; margin:0 auto;">
@@ -239,6 +273,7 @@ function setupProfileCompletionForm() {
             let memberInfo = JSON.parse(localStorage.getItem('cia_member_info'));
             memberInfo.needsProfileCompletion = false;
             memberInfo.name = profileData.nameZh;
+            memberInfo.memberStatus = '停用'; // 剛申請完一定是被停用的，等待管理員審核
             localStorage.setItem('cia_member_info', JSON.stringify(memberInfo));
             
             window.location.href = PAYUNI_URL;
