@@ -42,16 +42,24 @@
         .login-box { background: #fff; padding: 40px; border-radius: 12px; text-align: center; width: 90%; max-width: 350px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
         
         /* 會員管理專用樣式 */
-        .member-card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+        .member-card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin-bottom: 15px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+        .member-card-header { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; }
         .member-info { flex: 1; min-width: 250px; }
-        .member-info h4 { margin: 0 0 5px 0; color: var(--admin-dark); }
+        .member-info h4 { margin: 0 0 5px 0; color: var(--admin-dark); font-size: 18px; }
         .member-info p { margin: 0; font-size: 13px; color: #666; }
         .member-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
         .control-group { display: flex; flex-direction: column; gap: 5px; }
         .control-group label { font-size: 12px; color: #888; font-weight: normal; margin: 0; }
-        .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+        
+        /* 狀態標籤 */
+        .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; margin-left: 10px; }
         .status-active { background: #e8f5e9; color: #2e7d32; }
+        .status-pending { background: #fff3cd; color: #856404; }
         .status-inactive { background: #ffebee; color: #c62828; }
+
+        /* 詳細資料區塊 */
+        .details-box { background: #f8f9fa; border-radius: 8px; padding: 15px; margin-top: 15px; width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 13px; color: #555; }
+        .details-box div span { font-weight: bold; color: var(--admin-dark); display: inline-block; width: 80px; }
     </style>
 </head>
 <body>
@@ -66,7 +74,7 @@
     <aside class="sidebar">
         <div class="sidebar-header">
             <img src="images/CIAEDA_直式標準_標準彩色.png" alt="Logo">
-            <h2>CORE SYSTEM v4.0</h2>
+            <h2>CORE SYSTEM v4.5</h2>
         </div>
         <nav class="nav-menu">
             <div class="nav-item active" data-target="panel-members">👥 會員系統管理</div>
@@ -90,10 +98,9 @@
 
         <div class="content-body">
             
-            <!-- 全新：會員系統管理面板 -->
             <div id="panel-members" class="panel active">
                 <h2>會員系統管理</h2>
-                <p style="color:#888; font-size:14px;">在此審核新註冊會員、調整權限等級，以及設定到期日以控管影音平台存取權。</p>
+                <p style="color:#888; font-size:14px;">在此審核新註冊會員、檢視完整申請資料，以及設定到期日以控管影音平台存取權。</p>
                 <div style="margin-bottom: 20px;">
                     <input type="text" id="member-search" class="input-field" placeholder="搜尋姓名、電話或帳號..." style="max-width: 300px;">
                 </div>
@@ -102,7 +109,6 @@
                 </div>
             </div>
 
-            <!-- 原有面板 -->
             <div id="panel-add" class="panel">
                 <h2>統一發佈中心</h2>
                 <div class="form-group">
