@@ -1,6 +1,6 @@
 /**
  * 檔案名稱：js/admin.js
- * 職責：動態表單生成、資料庫列表呈現、刪除與排序操作、會員管理系統 (CRUD)
+ * 職責：動態表單生成、資料庫列表呈現、會員管理系統 (詳細資料呈現與修復0消失)
  */
 
 const ADMIN_PASSWORD = '6668888';
@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-login').addEventListener('click', () => {
         if(pwdInput.value === ADMIN_PASSWORD) {
             document.getElementById('login-overlay').style.display = 'none';
-            fetchMembers(); // 登入成功後自動載入會員列表
+            fetchMembers(); 
         } else { alert('Access Denied'); pwdInput.value = ''; }
     });
 
@@ -37,23 +37,15 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
             e.currentTarget.classList.add('active');
             document.getElementById(e.currentTarget.getAttribute('data-target')).classList.add('active');
-            
-            // 若切換到會員面板，重新整理資料
-            if (e.currentTarget.getAttribute('data-target') === 'panel-members') {
-                fetchMembers();
-            }
+            if (e.currentTarget.getAttribute('data-target') === 'panel-members') fetchMembers();
         });
     });
 
-    // === 新增：會員管理邏輯 ===
     async function fetchMembers() {
         const container = document.getElementById('members-container');
         container.innerHTML = '<p style="text-align:center; color:#888;">資料載入中...</p>';
         try {
-            const res = await fetch(GAS_URL, {
-                method: 'POST',
-                body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'getAllMembers' })
-            });
+            const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'getAllMembers' }) });
             const result = await res.json();
             if (result.status === 'success' && result.data.length > 1) {
                 allMembersData = result.data;
@@ -61,63 +53,95 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 container.innerHTML = '<p style="text-align:center; color:#888;">目前尚無會員資料。</p>';
             }
-        } catch (error) {
-            container.innerHTML = '<p style="color:red; text-align:center;">載入失敗</p>';
-        }
+        } catch (error) { container.innerHTML = '<p style="color:red; text-align:center;">載入失敗</p>'; }
     }
 
     function renderMembers(dataToRender) {
         const container = document.getElementById('members-container');
         let html = '';
         
-        // 從 i=1 開始跳過標題列
         for (let i = 1; i < dataToRender.length; i++) {
             const m = dataToRender[i];
             const memberId = m[0] || '待設定';
             const account = m[2] || m[1] || '無';
             const level = m[4] || '一般';
             const name = m[5] || '未填寫';
-            const phone = m[10] || '未填寫';
+            const enName = m[6] || '無';
+            const gender = m[7] || '未知';
+            const birth = m[8] || '';
+            const idNum = m[9] || '無';
+            
+            // 修正：若電話號碼是 9 開頭且長度為 9，前端顯示時自動補 0
+            let phone = m[10] || '未填寫';
+            if (String(phone).startsWith('9') && String(phone).length === 9) phone = '0' + phone; 
+            
+            const lineId = m[11] || '無';
+            const email = m[12] || '無';
+            const address = m[13] || '無';
+            const edu = m[14] || '無';
+            const fields = m[15] || '無';
+            const company = m[16] || '無';
+            const jobTitle = m[17] || '無';
+            const memType = m[18] || '無';
             const createTime = m[19] || '';
             const expiryDate = m[20] || '';
-            const status = m[22] || '停用';
-            const rowIndex = i + 1; // Google Sheet 真實列號
+            const status = m[22] || '待審核';
+            const rowIndex = i + 1; 
             
-            const statusClass = status === '啟用' ? 'status-active' : 'status-inactive';
+            let statusClass = 'status-pending';
+            if (status === '啟用') statusClass = 'status-active';
+            if (status === '停用') statusClass = 'status-inactive';
 
             html += `
                 <div class="member-card">
-                    <div class="member-info">
-                        <h4>${name} <span class="status-badge ${statusClass}">${status}</span></h4>
-                        <p>編號: ${memberId} | 帳號: ${account}</p>
-                        <p>電話: ${phone} | 註冊: ${createTime}</p>
+                    <div class="member-card-header">
+                        <div class="member-info">
+                            <h4>${name} <span class="status-badge ${statusClass}">${status}</span></h4>
+                            <p>編號: ${memberId} | 帳號: ${account}</p>
+                            <p>電話: ${phone} | 註冊: ${createTime}</p>
+                        </div>
+                        <div class="member-controls">
+                            <div class="control-group">
+                                <label>會員編號</label>
+                                <input type="text" id="m-id-${rowIndex}" class="input-field" style="padding:8px; width:120px;" value="${memberId}">
+                            </div>
+                            <div class="control-group">
+                                <label>權限等級</label>
+                                <select id="m-level-${rowIndex}" class="select-field" style="padding:8px; width:100px;">
+                                    <option value="一般" ${level==='一般'?'selected':''}>一般</option>
+                                    <option value="進階" ${level==='進階'?'selected':''}>進階</option>
+                                </select>
+                            </div>
+                            <div class="control-group">
+                                <label>狀態</label>
+                                <select id="m-status-${rowIndex}" class="select-field" style="padding:8px; width:110px;">
+                                    <option value="待審核" ${status==='待審核'?'selected':''}>待審核</option>
+                                    <option value="啟用" ${status==='啟用'?'selected':''}>啟用</option>
+                                    <option value="停用" ${status==='停用'?'selected':''}>停用</option>
+                                </select>
+                            </div>
+                            <div class="control-group">
+                                <label>到期日 (YYYY-MM-DD)</label>
+                                <input type="date" id="m-exp-${rowIndex}" class="input-field" style="padding:8px; width:140px;" value="${expiryDate ? new Date(expiryDate).toISOString().split('T')[0] : ''}">
+                            </div>
+                            <div class="control-group" style="justify-content: flex-end;">
+                                <button class="btn-primary" onclick="updateMember(${rowIndex})" style="padding:8px 15px;">儲存變更</button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="member-controls">
-                        <div class="control-group">
-                            <label>會員編號</label>
-                            <input type="text" id="m-id-${rowIndex}" class="input-field" style="padding:8px; width:120px;" value="${memberId}">
-                        </div>
-                        <div class="control-group">
-                            <label>權限等級</label>
-                            <select id="m-level-${rowIndex}" class="select-field" style="padding:8px; width:100px;">
-                                <option value="一般" ${level==='一般'?'selected':''}>一般</option>
-                                <option value="進階" ${level==='進階'?'selected':''}>進階</option>
-                            </select>
-                        </div>
-                        <div class="control-group">
-                            <label>狀態</label>
-                            <select id="m-status-${rowIndex}" class="select-field" style="padding:8px; width:100px;">
-                                <option value="停用" ${status==='停用'?'selected':''}>停用/待審</option>
-                                <option value="啟用" ${status==='啟用'?'selected':''}>啟用</option>
-                            </select>
-                        </div>
-                        <div class="control-group">
-                            <label>到期日 (YYYY-MM-DD)</label>
-                            <input type="date" id="m-exp-${rowIndex}" class="input-field" style="padding:8px; width:140px;" value="${expiryDate ? new Date(expiryDate).toISOString().split('T')[0] : ''}">
-                        </div>
-                        <div class="control-group" style="justify-content: flex-end;">
-                            <button class="btn-primary" onclick="updateMember(${rowIndex})" style="padding:8px 15px;">儲存變更</button>
-                        </div>
+                    
+                    <!-- 詳細資料區塊 -->
+                    <div class="details-box">
+                        <div><span>英文姓名:</span> ${enName}</div>
+                        <div><span>性別/生日:</span> ${gender} | ${birth ? new Date(birth).toISOString().split('T')[0] : ''}</div>
+                        <div><span>身分證號:</span> ${idNum}</div>
+                        <div><span>LINE ID:</span> ${lineId}</div>
+                        <div><span>電子郵件:</span> ${email}</div>
+                        <div><span>最高學歷:</span> ${edu}</div>
+                        <div><span>申請會籍:</span> ${memType}</div>
+                        <div style="grid-column: 1 / -1;"><span>專業領域:</span> ${fields}</div>
+                        <div style="grid-column: 1 / -1;"><span>現職機構:</span> ${company} ${jobTitle ? `(${jobTitle})` : ''}</div>
+                        <div style="grid-column: 1 / -1;"><span>通訊地址:</span> ${address}</div>
                     </div>
                 </div>
             `;
@@ -125,12 +149,10 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = html;
     }
 
-    // 搜尋功能
     document.getElementById('member-search').addEventListener('input', (e) => {
         const term = e.target.value.toLowerCase();
         if (!term) { renderMembers(allMembersData); return; }
-        
-        const filtered = [allMembersData[0]]; // 保留標題
+        const filtered = [allMembersData[0]]; 
         for (let i = 1; i < allMembersData.length; i++) {
             const rowStr = allMembersData[i].join(' ').toLowerCase();
             if (rowStr.includes(term)) filtered.push(allMembersData[i]);
@@ -138,35 +160,19 @@ document.addEventListener('DOMContentLoaded', () => {
         renderMembers(filtered);
     });
 
-    // 儲存會員變更的全域函數
     window.updateMember = async (rowIndex) => {
         const memberId = document.getElementById(`m-id-${rowIndex}`).value.trim();
         const level = document.getElementById(`m-level-${rowIndex}`).value;
         const status = document.getElementById(`m-status-${rowIndex}`).value;
         const expiryDate = document.getElementById(`m-exp-${rowIndex}`).value;
-
         try {
-            await fetch(GAS_URL, {
-                method: 'POST',
-                body: JSON.stringify({
-                    token: API_SECRET_TOKEN,
-                    action: 'updateMemberAdmin',
-                    rowIndex: rowIndex,
-                    memberId: memberId,
-                    level: level,
-                    status: status,
-                    expiryDate: expiryDate
-                })
-            });
-            alert('會員資料更新成功！前台驗證即刻生效。');
-            fetchMembers(); // 刷新列表
+            await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'updateMemberAdmin', rowIndex: rowIndex, memberId: memberId, level: level, status: status, expiryDate: expiryDate }) });
+            alert('會員資料更新成功！'); fetchMembers(); 
         } catch(e) { alert('更新失敗'); }
     };
 
-    // === 以下為原本的動態發佈與管理邏輯 ===
     const catSelect = document.getElementById('category-select');
     const formContainer = document.getElementById('dynamic-form-container');
-    
     const renderForm = () => {
         const cat = catSelect.value;
         const fields = FORM_FIELDS[cat];
@@ -175,27 +181,21 @@ document.addEventListener('DOMContentLoaded', () => {
             if(f.type === 'textarea') html += `<div class="form-group"><label>${f.name}</label><textarea class="textarea-field data-input" data-name="${f.name}"></textarea></div>`;
             else html += `<div class="form-group"><label>${f.name}</label><input type="text" class="input-field data-input" data-name="${f.name}"></div>`;
         });
-        if (cat !== '會員名單') {
-            html += `<div class="form-group"><label>上傳圖片/照片/封面 (可選多張)</label><input type="file" id="upload-files" class="input-field" accept="image/*" multiple><div style="font-size:12px; color:#888; margin-top:5px;">圖片將自動上傳並分類至專屬資料夾</div></div>`;
-        }
+        if (cat !== '會員名單') html += `<div class="form-group"><label>上傳圖片/照片/封面 (可選多張)</label><input type="file" id="upload-files" class="input-field" accept="image/*" multiple><div style="font-size:12px; color:#888; margin-top:5px;">圖片將自動上傳並分類至專屬資料夾</div></div>`;
         formContainer.innerHTML = html;
     };
-    catSelect.addEventListener('change', renderForm);
-    renderForm();
+    catSelect.addEventListener('change', renderForm); renderForm();
 
     document.getElementById('btn-submit-data').addEventListener('click', async (e) => {
         const btn = e.target;
         const cat = catSelect.value;
         const inputs = Array.from(formContainer.querySelectorAll('.data-input'));
-        
         if(!inputs[0].value.trim()) { alert('請填寫主要名稱/帳號'); return; }
-
         const ogText = btn.innerText; btn.innerText = '處理中...'; btn.disabled = true;
 
         try {
             const newRowData = [];
             let imgUrls = '';
-            
             if (cat !== '會員名單') {
                 const fileInput = document.getElementById('upload-files');
                 if(fileInput && fileInput.files.length > 0) {
@@ -224,14 +224,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             btn.innerText = '寫入資料庫...';
             await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'addData', sheetName: cat, newRowData: newRowData }) });
-            
-            alert('發佈成功！');
-            inputs.forEach(i => i.value = ''); 
-            if(document.getElementById('upload-files')) document.getElementById('upload-files').value = '';
-            
-            if(document.getElementById('manage-category-select').value === cat) fetchManageList();
-        } catch(err) { alert('失敗：'+err); }
-        finally { btn.innerText = ogText; btn.disabled = false; }
+            alert('發佈成功！'); inputs.forEach(i => i.value = ''); if(document.getElementById('upload-files')) document.getElementById('upload-files').value = '';
+        } catch(err) { alert('失敗：'+err); } finally { btn.innerText = ogText; btn.disabled = false; }
     });
 
     const mngSelect = document.getElementById('manage-category-select');
@@ -257,13 +251,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.deleteRow = async (sheetName, rowIndex) => {
         if(!confirm(`確定要刪除嗎？`)) return;
-        await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'deleteRow', sheetName, rowIndex }) });
-        fetchManageList();
+        await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'deleteRow', sheetName, rowIndex }) }); fetchManageList();
     };
     window.moveRow = async (sheetName, rowIndex, direction) => {
         const toIndex = rowIndex + direction;
         if(toIndex <= 1) return;
-        await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'moveRow', sheetName, fromIndex: rowIndex, toIndex }) });
-        fetchManageList();
+        await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'moveRow', sheetName, fromIndex: rowIndex, toIndex }) }); fetchManageList();
     };
 });
