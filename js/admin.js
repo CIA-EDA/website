@@ -1,6 +1,6 @@
 /**
  * 檔案名稱：js/admin.js
- * 職責：動態表單生成、會員管理系統 (加入自動生成 C+手機號碼 與 預設一年到期日)
+ * 職責：動態表單生成、會員管理系統 (分頁引擎與進階搜尋)
  */
 
 const ADMIN_PASSWORD = '6668888';
@@ -19,7 +19,12 @@ const FORM_FIELDS = {
 
 const readFileAsBase64 = (file) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.readAsDataURL(file); });
 
-let allMembersData = [];
+let allMembersData = []; 
+let currentDisplayData = []; // 目前搜尋條件下的資料池
+
+// 分頁設定
+const ITEMS_PER_PAGE = 20;
+let currentPage = 1;
 
 document.addEventListener('DOMContentLoaded', () => {
     const pwdInput = document.getElementById('admin-pwd');
@@ -42,25 +47,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchMembers() {
         const container = document.getElementById('members-container');
-        container.innerHTML = '<p style="text-align:center; color:#888;">資料載入中...</p>';
+        container.innerHTML = '<p style="text-align:center; color:#888;">資料載入中，請稍候...</p>';
+        document.getElementById('pagination-controls').style.display = 'none';
+
         try {
             const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'getAllMembers' }) });
             const result = await res.json();
             if (result.status === 'success' && result.data.length > 1) {
-                allMembersData = result.data;
-                renderMembers(allMembersData);
+                // 保存全域資料 (扣除標題列)
+                allMembersData = result.data.slice(1);
+                // 為了讓最新註冊的排在最前面，將陣列反轉 (保留原始 Row Index)
+                allMembersData = allMembersData.map((row, idx) => ({ data: row, originalIndex: idx + 2 })).reverse();
+                
+                document.getElementById('total-members-badge').innerText = `總計: ${allMembersData.length} 筆`;
+                currentDisplayData = [...allMembersData];
+                currentPage = 1;
+                renderMembersPage();
             } else {
                 container.innerHTML = '<p style="text-align:center; color:#888;">目前尚無會員資料。</p>';
             }
-        } catch (error) { container.innerHTML = '<p style="color:red; text-align:center;">載入失敗</p>'; }
+        } catch (error) { container.innerHTML = '<p style="color:red; text-align:center;">載入失敗，請檢查網路連線。</p>'; }
     }
 
-    function renderMembers(dataToRender) {
+    // 渲染特定頁面的資料
+    function renderMembersPage() {
         const container = document.getElementById('members-container');
-        let html = '';
+        const pagination = document.getElementById('pagination-controls');
         
-        for (let i = 1; i < dataToRender.length; i++) {
-            const m = dataToRender[i];
+        if (currentDisplayData.length === 0) {
+            container.innerHTML = '<p style="text-align:center; color:#888;">找不到符合條件的會員。</p>';
+            pagination.style.display = 'none';
+            return;
+        }
+
+        const totalPages = Math.ceil(currentDisplayData.length / ITEMS_PER_PAGE);
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        const endIndex = startIndex + ITEMS_PER_PAGE;
+        const pageData = currentDisplayData.slice(startIndex, endIndex);
+
+        let html = '';
+        pageData.forEach(item => {
+            const m = item.data;
+            const rowIndex = item.originalIndex; // 拿回在 Google Sheet 中真實的列號
+            
             const memberId = m[0] || '待審核';
             const account = m[2] || m[1] || '無';
             const level = m[4] || '一般';
@@ -85,23 +114,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const createTime = m[19] || '';
             const expiryDate = m[20] || '';
             const status = m[22] || '待審核';
-            const rowIndex = i + 1; 
             
             let statusClass = 'status-pending';
             if (status === '啟用') statusClass = 'status-active';
             if (status === '停用') statusClass = 'status-inactive';
 
-            // === 核心邏輯：自動計算預設值 ===
             let displayMemberId = memberId;
             if (memberId === '待審核' || memberId === '待設定' || !memberId) {
-                let cleanPhone = String(phone).replace(/\D/g, ''); // 只保留數字
+                let cleanPhone = String(phone).replace(/\D/g, ''); 
                 if (cleanPhone) displayMemberId = 'C' + cleanPhone;
             }
 
             let displayExpiry = expiryDate ? new Date(expiryDate).toISOString().split('T')[0] : '';
             if (!displayExpiry) {
                 let nextYear = new Date();
-                nextYear.setFullYear(nextYear.getFullYear() + 1); // 自動往後推一年
+                nextYear.setFullYear(nextYear.getFullYear() + 1); 
                 displayExpiry = nextYear.toISOString().split('T')[0];
             }
 
@@ -157,19 +184,33 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
             `;
-        }
+        });
+        
         container.innerHTML = html;
+
+        // 更新分頁控制按鈕
+        document.getElementById('page-info').innerText = `第 ${currentPage} 頁 / 共 ${totalPages} 頁 (符合條件：${currentDisplayData.length} 筆)`;
+        document.getElementById('btn-prev-page').disabled = currentPage === 1;
+        document.getElementById('btn-next-page').disabled = currentPage === totalPages;
+        
+        // 只有總資料大於一頁時才顯示分頁列
+        pagination.style.display = totalPages > 1 ? 'flex' : 'none';
     }
 
+    // 分頁按鈕事件
+    document.getElementById('btn-prev-page').addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderMembersPage(); window.scrollTo(0, 0); } });
+    document.getElementById('btn-next-page').addEventListener('click', () => { const totalPages = Math.ceil(currentDisplayData.length / ITEMS_PER_PAGE); if (currentPage < totalPages) { currentPage++; renderMembersPage(); window.scrollTo(0, 0); } });
+
+    // 進階搜尋：輸入文字時，自動將符合條件的資料撈出並強制顯示第一頁
     document.getElementById('member-search').addEventListener('input', (e) => {
         const term = e.target.value.toLowerCase();
-        if (!term) { renderMembers(allMembersData); return; }
-        const filtered = [allMembersData[0]]; 
-        for (let i = 1; i < allMembersData.length; i++) {
-            const rowStr = allMembersData[i].join(' ').toLowerCase();
-            if (rowStr.includes(term)) filtered.push(allMembersData[i]);
+        if (!term) { 
+            currentDisplayData = [...allMembersData]; 
+        } else {
+            currentDisplayData = allMembersData.filter(item => item.data.join(' ').toLowerCase().includes(term));
         }
-        renderMembers(filtered);
+        currentPage = 1;
+        renderMembersPage();
     });
 
     window.updateMember = async (rowIndex) => {
@@ -179,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const expiryDate = document.getElementById(`m-exp-${rowIndex}`).value;
         try {
             await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'updateMemberAdmin', rowIndex: rowIndex, memberId: memberId, level: level, status: status, expiryDate: expiryDate }) });
-            alert('會員資料更新成功！'); fetchMembers(); 
+            alert('會員資料更新成功！'); fetchMembers(); // 存檔後重新抓取最新資料
         } catch(e) { alert('更新失敗'); }
     };
 
@@ -208,7 +249,6 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const newRowData = [];
             let imgUrls = '';
-            
             const fileInput = document.getElementById('upload-files');
             if(fileInput && fileInput.files.length > 0) {
                 const urls = [];
