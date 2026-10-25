@@ -32,10 +32,14 @@
         .form-group { margin-bottom: 20px; }
         .form-group label { display: block; font-size: 14px; margin-bottom: 8px; color: var(--admin-dark); font-weight: 600; }
         
-        /* 核心修復：使用標準樣式，確保下拉選單能正常點擊 */
         .input-field, .select-field, .textarea-field { 
             width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; background-color: #fff; 
         }
+        
+        /* 強化搜尋框視覺 */
+        #member-search { border: 2px solid var(--admin-accent); padding: 15px; font-size: 16px; box-shadow: 0 4px 10px rgba(184,149,90,0.1); transition: 0.3s; }
+        #member-search:focus { outline: none; box-shadow: 0 4px 15px rgba(184,149,90,0.3); }
+
         .textarea-field { resize: vertical; height: 100px; }
         .btn-primary { background: var(--admin-accent); color: #fff; border: none; padding: 12px 25px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 15px; }
         .btn-primary:hover { filter: brightness(0.9); }
@@ -69,6 +73,13 @@
         .details-box { background: #f8f9fa; border-radius: 8px; padding: 15px; margin-top: 15px; width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 13px; color: #555; box-sizing: border-box; }
         .details-box div span { font-weight: bold; color: var(--admin-dark); display: inline-block; width: 75px; }
 
+        /* 分頁控制項樣式 */
+        .pagination-controls { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; }
+        .page-btn { background: #fff; border: 1px solid #ddd; padding: 8px 15px; border-radius: 6px; cursor: pointer; transition: 0.3s; font-weight: bold; color: var(--admin-dark); }
+        .page-btn:hover:not(:disabled) { background: var(--admin-bg); border-color: var(--admin-accent); color: var(--admin-accent); }
+        .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .page-info { font-size: 14px; color: #666; font-weight: bold; }
+
         @media (max-width: 768px) {
             body { flex-direction: column; height: auto; overflow: auto; }
             .sidebar { width: 100%; height: auto; position: static; box-shadow: none; }
@@ -97,7 +108,7 @@
     <aside class="sidebar">
         <div class="sidebar-header">
             <img src="images/CIAEDA_直式標準_標準彩色.png" alt="Logo">
-            <h2>CORE SYSTEM v5.1</h2>
+            <h2>CORE SYSTEM v6.0</h2>
         </div>
         <nav class="nav-menu">
             <div class="nav-item active" data-target="panel-members">👥 會員系統管理</div>
@@ -106,10 +117,10 @@
             <div class="nav-item" onclick="window.open('index.html', '_blank')">↗ 前往網站前台</div>
         </nav>
         <div class="system-status">
-            <div class="status-row"><span>Server Load</span><span>12%</span></div>
-            <div class="status-bar-bg"><div class="status-bar-fill" style="width: 12%;"></div></div>
-            <div class="status-row"><span>API Latency</span><span>24ms</span></div>
-            <div class="status-bar-bg"><div class="status-bar-fill" style="width: 24%; background: #2196f3;"></div></div>
+            <div class="status-row"><span>Server Load</span><span>4%</span></div>
+            <div class="status-bar-bg"><div class="status-bar-fill" style="width: 4%;"></div></div>
+            <div class="status-row"><span>API Latency</span><span>12ms</span></div>
+            <div class="status-bar-bg"><div class="status-bar-fill" style="width: 12%; background: #2196f3;"></div></div>
         </div>
     </aside>
 
@@ -122,17 +133,23 @@
         <div class="content-body">
             
             <div id="panel-members" class="panel active">
-                <h2>會員系統管理</h2>
-                <p style="color:#888; font-size:14px;">在此審核新註冊會員、檢視完整申請資料，以及設定到期日以控管影音平台存取權。</p>
-                <div style="margin-bottom: 20px;">
-                    <input type="text" id="member-search" class="input-field" placeholder="搜尋姓名、電話或編號..." style="max-width: 100%;">
+                <h2>會員系統管理 <span id="total-members-badge" style="font-size:14px; background:#eee; padding:4px 10px; border-radius:20px; color:#666;">總計: -</span></h2>
+                <p style="color:#888; font-size:14px;">強烈建議：請優先使用下方搜尋功能快速定位會員資料。</p>
+                <div style="margin-bottom: 25px;">
+                    <input type="text" id="member-search" class="input-field" placeholder="🔍 輸入姓名、電話、編號或任何關鍵字進行極速搜尋..." style="max-width: 100%;">
                 </div>
+                
                 <div id="members-container">
                     <p style="text-align:center; color:#888;">正在載入會員名單...</p>
                 </div>
+
+                <div id="pagination-controls" class="pagination-controls" style="display:none;">
+                    <button id="btn-prev-page" class="page-btn">上一頁</button>
+                    <span id="page-info" class="page-info">第 1 頁 / 共 1 頁</span>
+                    <button id="btn-next-page" class="page-btn">下一頁</button>
+                </div>
             </div>
 
-            <!-- 統一發佈中心 (修復選單：加入會員專屬影片) -->
             <div id="panel-add" class="panel">
                 <h2>統一發佈中心</h2>
                 <div class="form-group">
