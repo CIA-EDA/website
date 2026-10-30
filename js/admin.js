@@ -1,6 +1,6 @@
 /**
  * 檔案名稱：js/admin.js
- * 職責：管理後台分頁、會員 5 大等級設定、內容編輯
+ * 職責：全網域 10 大模組的動態表單、分頁管理、內容編輯寫入
  */
 
 const ADMIN_PASSWORD = '6668888';
@@ -8,15 +8,19 @@ const ADMIN_PASSWORD = '6668888';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
 
+// === 核心修復：完整對齊 10 大模組的表單結構 ===
 const FORM_FIELDS = {
     '課程介紹': [{name:'課程名稱', type:'text'}, {name:'簡介', type:'textarea'}, {name:'講師', type:'text'}, {name:'專屬付款網址', type:'text'}],
     '專業師資': [{name:'講師姓名', type:'text'}, {name:'專長項目', type:'text'}, {name:'個人簡介', type:'textarea'}, {name:'聯絡方式(IG/Line)', type:'text'}],
+    '專業顧問': [{name:'顧問姓名', type:'text'}, {name:'專長項目', type:'text'}, {name:'個人簡介', type:'textarea'}, {name:'聯絡方式(IG/Line)', type:'text'}],
+    '認證店家': [{name:'店家名稱', type:'text'}, {name:'負責人', type:'text'}, {name:'地址', type:'text'}, {name:'聯絡電話', type:'text'}, {name:'簡介', type:'textarea'}, {name:'連結', type:'text'}],
     '活動花絮': [{name:'活動名稱', type:'text'}, {name:'日期', type:'text'}],
     '關於我們': [{name:'標題', type:'text'}, {name:'內容', type:'textarea'}],
     '品牌推廣': [{name:'產品名稱', type:'text'}, {name:'產品簡介', type:'textarea'}],
     '徵才專區': [{name:'職缺名稱', type:'text'}, {name:'徵才機構', type:'text'}, {name:'工作地點', type:'text'}, {name:'薪資待遇', type:'text'}, {name:'聯絡方式', type:'text'}, {name:'條件要求', type:'textarea'}],
     '美業資訊交流': [{name:'發文者姓名', type:'text'}, {name:'主旨/標題', type:'text'}, {name:'交流內容', type:'textarea'}],
-    '會員專屬影片': [{name:'課程名稱', type:'text'}, {name:'影片嵌入網址', type:'text'}, {name:'最低權限要求(例如:一般會員)', type:'text'}, {name:'課程簡介', type:'textarea'}]
+    '交流留言': [{name:'文章標題', type:'text'}, {name:'文章發布時間', type:'text'}, {name:'留言者姓名', type:'text'}, {name:'留言時間', type:'text'}, {name:'留言內容', type:'textarea'}],
+    '會員專屬影片': [{name:'課程名稱', type:'text'}, {name:'影片嵌入網址(例如YouTube Embed)', type:'text'}, {name:'最低權限要求(例如:一般會員)', type:'text'}, {name:'課程簡介', type:'textarea'}]
 };
 
 const readFileAsBase64 = (file) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.readAsDataURL(file); });
@@ -131,7 +135,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 displayExpiry = nextYear.toISOString().split('T')[0];
             }
 
-            // 核心優化：更換為 5 大精細化會員等級
             html += `
                 <div class="member-card">
                     <div class="member-card-header">
@@ -226,12 +229,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderForm = () => {
         const cat = catSelect.value;
         const fields = FORM_FIELDS[cat];
+        if (!fields) return; // 防錯
         let html = '';
         fields.forEach(f => {
             if(f.type === 'textarea') html += `<div class="form-group"><label>${f.name}</label><textarea class="textarea-field data-input" data-name="${f.name}"></textarea></div>`;
             else html += `<div class="form-group"><label>${f.name}</label><input type="text" class="input-field data-input" data-name="${f.name}"></div>`;
         });
-        html += `<div class="form-group"><label>上傳圖片/照片/封面 (可選多張)</label><input type="file" id="upload-files" class="input-field" accept="image/*" multiple><div style="font-size:12px; color:#888; margin-top:5px;">圖片將自動上傳並分類至專屬資料夾</div></div>`;
+        // 留言板不需要上傳圖片
+        if (cat !== '交流留言') {
+            html += `<div class="form-group"><label>上傳圖片/照片/封面 (可選多張)</label><input type="file" id="upload-files" class="input-field" accept="image/*" multiple><div style="font-size:12px; color:#888; margin-top:5px;">圖片將自動上傳並分類至專屬資料夾</div></div>`;
+        }
         formContainer.innerHTML = html;
     };
     catSelect.addEventListener('change', renderForm); renderForm();
@@ -259,13 +266,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 imgUrls = urls.join(',');
             }
 
+            // 對標 10 大模組的欄位寫入邏輯
             if(cat === '課程介紹') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, imgUrls, inputs[3].value);
             if(cat === '專業師資') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, imgUrls, inputs[3].value);
+            if(cat === '專業顧問') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, imgUrls, inputs[3].value);
+            if(cat === '認證店家') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, inputs[4].value, imgUrls, inputs[5].value);
             if(cat === '活動花絮') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
             if(cat === '關於我們') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
             if(cat === '品牌推廣') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
             if(cat === '徵才專區') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, inputs[5].value, inputs[4].value, imgUrls, new Date().toISOString().split('T')[0]);
-            if(cat === '美業資訊交流') newRowData.push(inputs[0].value, new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }), inputs[1].value, inputs[2].value, imgUrls);
             if(cat === '會員專屬影片') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, imgUrls);
 
             btn.innerText = '寫入資料庫...';
@@ -292,6 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             let html = '<ul class="data-list">';
             for(let i = 1; i < result.data.length; i++) {
+                // 支援多種模組的主要標題顯示
                 const title = result.data[i][0] || result.data[i][2] || '未命名項目'; 
                 html += `
                     <li class="data-item">
@@ -323,6 +333,8 @@ document.addEventListener('DOMContentLoaded', () => {
     window.openEditModal = (sheetName, rowIndex) => {
         const dataRow = currentManageData[rowIndex - 1]; 
         const fields = FORM_FIELDS[sheetName];
+        if (!fields) return;
+        
         const formContainer = document.getElementById('edit-dynamic-form-container');
         let html = '';
 
@@ -335,21 +347,25 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // 判斷該模組圖片存放的位置
         let oldImg = '';
-        if (sheetName === '課程介紹' || sheetName === '專業師資') oldImg = dataRow[3];
+        if (sheetName === '課程介紹' || sheetName === '專業師資' || sheetName === '專業顧問') oldImg = dataRow[3];
         else if (sheetName === '活動花絮' || sheetName === '關於我們' || sheetName === '品牌推廣') oldImg = dataRow[2];
         else if (sheetName === '徵才專區') oldImg = dataRow[6];
+        else if (sheetName === '認證店家') oldImg = dataRow[5];
         else if (sheetName === '美業資訊交流') oldImg = dataRow[4];
         else if (sheetName === '會員專屬影片') oldImg = dataRow[4];
 
         document.getElementById('edit-old-images').value = oldImg || '';
 
-        html += `
-            <div class="form-group">
-                <label>上傳新圖片 <span style="color:#B8955A; font-weight:normal;">(若不更改，請留空)</span></label>
-                <input type="file" id="edit-upload-files" class="input-field" accept="image/*" multiple>
-            </div>`;
-        if (oldImg) html += `<div style="font-size:12px; color:#B8955A; margin-bottom: 20px;">✓ 系統內已存有該項目的圖片。</div>`;
+        if (sheetName !== '交流留言') {
+            html += `
+                <div class="form-group">
+                    <label>上傳新圖片 <span style="color:#B8955A; font-weight:normal;">(若不更改，請留空)</span></label>
+                    <input type="file" id="edit-upload-files" class="input-field" accept="image/*" multiple>
+                </div>`;
+            if (oldImg) html += `<div style="font-size:12px; color:#B8955A; margin-bottom: 20px;">✓ 系統內已存有該項目的圖片。</div>`;
+        }
 
         formContainer.innerHTML = html;
         document.getElementById('edit-row-index').value = rowIndex;
@@ -384,17 +400,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const newRowData = [];
+            // 對標寫入與覆蓋邏輯
             if(sheetName === '課程介紹') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, imgUrls, inputs[3].value);
             if(sheetName === '專業師資') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, imgUrls, inputs[3].value);
+            if(sheetName === '專業顧問') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, imgUrls, inputs[3].value);
+            if(sheetName === '認證店家') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, inputs[4].value, imgUrls, inputs[5].value);
             if(sheetName === '活動花絮') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
             if(sheetName === '關於我們') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
             if(sheetName === '品牌推廣') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
             if(sheetName === '徵才專區') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, inputs[5].value, inputs[4].value, imgUrls, new Date().toISOString().split('T')[0]);
             
-            // 保持舊有的發文時間
             if(sheetName === '美業資訊交流') {
                 const oldData = currentManageData[rowIndex - 1];
                 newRowData.push(inputs[0].value, oldData[1], inputs[1].value, inputs[2].value, imgUrls);
+            }
+            if(sheetName === '交流留言') {
+                newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, inputs[4].value);
             }
             if(sheetName === '會員專屬影片') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, imgUrls);
 
