@@ -1,6 +1,6 @@
 /**
  * 檔案名稱：js/admin.js
- * 職責：動態表單、分頁引擎、內容編輯更新、擴充徵才專區設定
+ * 職責：管理後台分頁、會員 5 大等級設定、內容編輯
  */
 
 const ADMIN_PASSWORD = '6668888';
@@ -8,7 +8,6 @@ const ADMIN_PASSWORD = '6668888';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
 
-// === 擴充表單欄位定義 ===
 const FORM_FIELDS = {
     '課程介紹': [{name:'課程名稱', type:'text'}, {name:'簡介', type:'textarea'}, {name:'講師', type:'text'}, {name:'專屬付款網址', type:'text'}],
     '專業師資': [{name:'講師姓名', type:'text'}, {name:'專長項目', type:'text'}, {name:'個人簡介', type:'textarea'}, {name:'聯絡方式(IG/Line)', type:'text'}],
@@ -17,7 +16,7 @@ const FORM_FIELDS = {
     '品牌推廣': [{name:'產品名稱', type:'text'}, {name:'產品簡介', type:'textarea'}],
     '徵才專區': [{name:'職缺名稱', type:'text'}, {name:'徵才機構', type:'text'}, {name:'工作地點', type:'text'}, {name:'薪資待遇', type:'text'}, {name:'聯絡方式', type:'text'}, {name:'條件要求', type:'textarea'}],
     '美業資訊交流': [{name:'發文者姓名', type:'text'}, {name:'主旨/標題', type:'text'}, {name:'交流內容', type:'textarea'}],
-    '會員專屬影片': [{name:'課程名稱', type:'text'}, {name:'影片嵌入網址(例如YouTube Embed)', type:'text'}, {name:'最低權限要求(一般/進階)', type:'text'}, {name:'課程簡介', type:'textarea'}]
+    '會員專屬影片': [{name:'課程名稱', type:'text'}, {name:'影片嵌入網址', type:'text'}, {name:'最低權限要求(例如:一般會員)', type:'text'}, {name:'課程簡介', type:'textarea'}]
 };
 
 const readFileAsBase64 = (file) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.readAsDataURL(file); });
@@ -92,7 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const memberId = m[0] || '待審核';
             const account = m[2] || m[1] || '無';
-            const level = m[4] || '一般';
+            const level = m[4] || '一般會員';
             const name = m[5] || '未填寫';
             const enName = m[6] || '無';
             const gender = m[7] || '未知';
@@ -132,6 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 displayExpiry = nextYear.toISOString().split('T')[0];
             }
 
+            // 核心優化：更換為 5 大精細化會員等級
             html += `
                 <div class="member-card">
                     <div class="member-card-header">
@@ -148,8 +148,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="control-group">
                                 <label>權限等級</label>
                                 <select id="m-level-${rowIndex}" class="select-field">
-                                    <option value="一般" ${level==='一般'?'selected':''}>一般</option>
-                                    <option value="進階" ${level==='進階'?'selected':''}>進階</option>
+                                    <option value="一般會員" ${level==='一般會員'?'selected':''}>一般會員</option>
+                                    <option value="VIP會員" ${level==='VIP會員'?'selected':''}>VIP會員</option>
+                                    <option value="講師會員" ${level==='講師會員'?'selected':''}>講師會員</option>
+                                    <option value="顧問會員" ${level==='顧問會員'?'selected':''}>顧問會員</option>
+                                    <option value="企業會員" ${level==='企業會員'?'selected':''}>企業會員</option>
                                 </select>
                             </div>
                             <div class="control-group">
@@ -228,7 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if(f.type === 'textarea') html += `<div class="form-group"><label>${f.name}</label><textarea class="textarea-field data-input" data-name="${f.name}"></textarea></div>`;
             else html += `<div class="form-group"><label>${f.name}</label><input type="text" class="input-field data-input" data-name="${f.name}"></div>`;
         });
-        html += `<div class="form-group"><label>上傳圖片/照片/公司Logo (可選多張)</label><input type="file" id="upload-files" class="input-field" accept="image/*" multiple></div>`;
+        html += `<div class="form-group"><label>上傳圖片/照片/封面 (可選多張)</label><input type="file" id="upload-files" class="input-field" accept="image/*" multiple><div style="font-size:12px; color:#888; margin-top:5px;">圖片將自動上傳並分類至專屬資料夾</div></div>`;
         formContainer.innerHTML = html;
     };
     catSelect.addEventListener('change', renderForm); renderForm();
@@ -262,6 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if(cat === '關於我們') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
             if(cat === '品牌推廣') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
             if(cat === '徵才專區') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, inputs[5].value, inputs[4].value, imgUrls, new Date().toISOString().split('T')[0]);
+            if(cat === '美業資訊交流') newRowData.push(inputs[0].value, new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }), inputs[1].value, inputs[2].value, imgUrls);
             if(cat === '會員專屬影片') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, imgUrls);
 
             btn.innerText = '寫入資料庫...';
@@ -288,7 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             let html = '<ul class="data-list">';
             for(let i = 1; i < result.data.length; i++) {
-                const title = result.data[i][0] || result.data[i][2] || '未命名項目'; // 支援交流標題
+                const title = result.data[i][0] || result.data[i][2] || '未命名項目'; 
                 html += `
                     <li class="data-item">
                         <div class="data-item-title">${title}</div>
@@ -386,7 +390,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if(sheetName === '關於我們') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
             if(sheetName === '品牌推廣') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
             if(sheetName === '徵才專區') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, inputs[5].value, inputs[4].value, imgUrls, new Date().toISOString().split('T')[0]);
-            if(sheetName === '美業資訊交流') newRowData.push(inputs[0].value, new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }), inputs[1].value, inputs[2].value, imgUrls);
+            
+            // 保持舊有的發文時間
+            if(sheetName === '美業資訊交流') {
+                const oldData = currentManageData[rowIndex - 1];
+                newRowData.push(inputs[0].value, oldData[1], inputs[1].value, inputs[2].value, imgUrls);
+            }
             if(sheetName === '會員專屬影片') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, imgUrls);
 
             btn.innerText = '寫入資料庫...';
