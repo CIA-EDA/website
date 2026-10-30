@@ -1,6 +1,6 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：快取引擎、LINE登入、樹枝圖路由、半公開影音權限驗證
+ * 職責：快取引擎、LINE登入、樹枝圖路由、全 10 大模組智能排版引擎、半公開影音權限驗證
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
@@ -13,7 +13,7 @@ const LIFF_ID_MEMBER = '2012121201-DRHgrrOJ'; // ⚠️ 請確保這是您的官
 const AUTH_EXPIRY_MS = 3 * 60 * 60 * 1000; 
 const CACHE_EXPIRY_MS = 5 * 60 * 1000; 
 
-// === 路由擴充：加入專業顧問與認證店家，並將專屬課程平台全公開化 ===
+// === 路由設定 ===
 const PAGE_CONFIG = {
     '': { title: '重新定義美學與專業', subtitle: '打造全方位美業人才的孵化平台', sheet: '課程介紹', layout: 'card' },
     '#home': { title: '重新定義美學與專業', subtitle: '打造全方位美業人才的孵化平台', sheet: '課程介紹', layout: 'card' },
@@ -477,7 +477,6 @@ window.playCourseVideo = async function(event, courseTitle, reqLevel) {
             const courses = data.data.slice(1);
             const course = courses.find(c => c[0] === courseTitle);
             if (course && course[1]) {
-                // 驗證成功，解鎖並播放影片
                 document.getElementById('video-player-container').innerHTML = `<iframe src="${course[1]}" allowfullscreen></iframe>`;
                 document.getElementById('video-modal').classList.add('active');
             } else {
@@ -573,7 +572,6 @@ function setupMobileMenu() {
         mobileBtn.addEventListener('click', () => mainNav.classList.toggle('show'));
         mainNav.querySelectorAll('a:not(.dropdown-toggle)').forEach(link => { link.addEventListener('click', () => mainNav.classList.remove('show')); });
         
-        // 手機版下拉選單點擊展開
         const dropdowns = document.querySelectorAll('.dropdown-toggle');
         dropdowns.forEach(dropdown => {
             dropdown.addEventListener('click', (e) => {
@@ -640,6 +638,7 @@ function buildCommentsHtml(postTitle, postTime, dataIndex, isModal = false) {
     return html;
 }
 
+// === 核心修復：所有 10 大模組的智能排版渲染 ===
 function renderData(rawData, layoutType, container) {
     const headers = rawData[0];
     currentViewDataCache = []; 
@@ -660,6 +659,7 @@ function renderData(rawData, layoutType, container) {
         
         let extraHtml = ''; 
 
+        // 自動判斷對應排版
         if (item['徵才機構']) {
             desc = `🏢 機構：${item['徵才機構']}\n📍 地點：${item['工作地點']}\n💰 薪資：${item['薪資待遇']}\n📞 聯絡：${item['聯絡方式']}\n\n【條件要求】\n${item['條件要求']}`;
         } else if (item['發文者姓名']) {
@@ -675,7 +675,6 @@ function renderData(rawData, layoutType, container) {
         
         let paymentBtnHtml = linkRaw ? `<a href="${linkRaw}" target="_blank" class="candy-btn payment-btn" style="display:block; text-align:center; margin-top:20px;" onclick="event.stopPropagation();">💳 了解更多 / 報名</a>` : '';
         
-        // 核心修改：如果是專屬影片，按鈕改為鎖住的播放按鈕
         if (item['最低權限要求(例如:一般會員)'] !== undefined) {
             const reqLevel = item['最低權限要求(例如:一般會員)'] || '會員';
             paymentBtnHtml = `<button class="candy-btn member-btn" style="display:block; width:100%; text-align:center; margin-top:20px;" onclick="playCourseVideo(event, '${title}', '${reqLevel}')">▶️ 播放影片 (${reqLevel}專屬)</button>`;
