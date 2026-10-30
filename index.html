@@ -61,13 +61,6 @@
         .course-info { padding: 25px 20px; display: flex; flex-direction: column; flex: 1; }
         .course-title { margin: 0 0 12px 0; color: var(--ink-navy); font-size: 20px; line-height: 1.3; }
         .course-desc { color: var(--text-light); font-size: 14px; line-height: 1.6; flex: 1; margin: 0 0 15px 0; white-space: pre-wrap; }
-
-        /* 大廳九宮格 */
-        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 15px; margin-top: 25px; }
-        .dashboard-card { background: #fff; border: 1px solid #eee; border-radius: 16px; padding: 25px 10px; text-align: center; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.03); text-decoration: none; color: var(--ink-navy); display: flex; flex-direction: column; align-items: center; gap: 10px; }
-        .dashboard-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(184,149,90,0.15); border-color: var(--champagne); }
-        .dashboard-icon { font-size: 32px; }
-        .dashboard-title { font-weight: bold; font-size: 15px; }
         
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(31, 45, 74, 0.9); display: none; justify-content: center; align-items: center; z-index: 9999; opacity: 0; transition: opacity 0.3s ease; }
         .modal-overlay.active { display: flex; opacity: 1; }
@@ -105,9 +98,7 @@
         <a href="#home"><img src="images/CIAEDA_直式標準_標準彩色.png" alt="Logo" class="brand-logo-img"></a>
         <div class="menu-toggle" id="mobile-menu-btn">☰</div>
         <nav class="main-nav" id="main-nav-menu">
-            <!-- 直接在第一層放回線下標準課程 -->
             <a href="#courses" class="candy-btn nav-link">課程介紹</a>
-            
             <div class="dropdown candy-btn nav-link dropdown-toggle" style="cursor: pointer;">
                 關於協會
                 <div class="dropdown-content">
@@ -117,7 +108,6 @@
                     <a href="#consultants" class="nav-link">專業顧問</a>
                 </div>
             </div>
-            
             <div class="dropdown candy-btn nav-link dropdown-toggle" style="cursor: pointer;">
                 交流區
                 <div class="dropdown-content">
@@ -126,12 +116,10 @@
                     <a href="#exchange" class="nav-link">美業資訊交流</a>
                 </div>
             </div>
-            
             <a href="#brands" class="candy-btn nav-link">品牌推廣</a>
-            <!-- 名稱更新為線上課程平台 -->
             <a href="#course-platform" class="candy-btn nav-link">線上課程平台</a>
-            <a href="member_hub.html#join" class="candy-btn nav-link">入會申請</a>
-            <a href="member_hub.html#member-zone" class="candy-btn nav-link member-btn" id="nav-member-btn">👤 會員登入</a>
+            <a href="#join" class="candy-btn nav-link">入會申請</a>
+            <a href="#member-zone" class="candy-btn nav-link member-btn" id="nav-member-btn">👤 會員登入</a>
         </nav>
     </header>
 
@@ -145,6 +133,96 @@
             <div id="action-container" style="text-align: right; margin-bottom: 20px; display: none;"></div>
             
             <div id="data-container"></div>
+            
+            <div id="join-prompt-container" style="display: none; max-width: 500px; margin: 0 auto;">
+                <div class="form-section" style="text-align: center;">
+                    <h2 style="color:var(--primary-color); margin-top:0;">第一步：綁定官方 LINE</h2>
+                    <p style="font-size:15px; color:var(--taupe); margin-bottom:30px; line-height:1.6;">
+                        為了提供您最完善的服務與課程體驗，入會申請需綁定 CIA-EDA 官方 LINE 帳號。<br><br>請點擊下方按鈕進行綁定，完成後將自動引導您填寫入會申請表。
+                    </p>
+                    <button class="candy-btn line-btn line-login-trigger" style="width:100%; font-size:18px; padding:15px; border-radius:50px;">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg" style="width:24px; vertical-align:middle; margin-right:10px;"> 
+                        前往綁定 LINE 帳號
+                    </button>
+                </div>
+            </div>
+
+            <div id="login-container" style="display: none; max-width: 400px; margin: 0 auto;">
+                <div class="form-section" style="text-align: center;">
+                    <h3 id="login-form-title" style="color:var(--ink-navy); margin-top:0;">會員專區登入</h3>
+                    <p style="font-size:14px; color:var(--taupe); margin-bottom:30px;">請點擊下方按鈕進行安全的快速登入，以存取您的專屬內容。</p>
+                    <button class="candy-btn line-btn line-login-trigger" style="width:100%; font-size:16px;">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg" style="width:20px; vertical-align:middle; margin-right:8px;"> LINE 一鍵快速登入
+                    </button>
+                </div>
+            </div>
+
+            <div id="profile-completion-container" style="display: none; max-width: 800px; margin: 0 auto;">
+                <div class="form-section">
+                    <h2 style="color:var(--primary-color); text-align:center; margin-top:0;">第二步：填寫入會申請資料</h2>
+                    <p style="text-align:center; color:var(--text-light); font-size:14px; margin-bottom:20px;">LINE 帳號綁定成功！請詳細填寫以下資料。</p>
+                    <div class="form-row">
+                        <div class="form-group"><label>真實姓名 (中文) *</label><input type="text" id="p-name-zh" class="input-field"></div>
+                        <div class="form-group"><label>英文姓名</label><input type="text" id="p-name-en" class="input-field"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>性別 *</label><select id="p-gender" class="select-field"><option value="女">女</option><option value="男">男</option></select></div>
+                        <div class="form-group"><label>出生日期 *</label><input type="date" id="p-birth" class="input-field"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>身分證字號 *</label><input type="text" id="p-id" class="input-field"></div>
+                        <div class="form-group"><label>聯絡電話(手機) *</label><input type="tel" id="p-phone" class="input-field"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>LINE ID</label><input type="text" id="p-line" class="input-field"></div>
+                        <div class="form-group"><label>電子郵件 *</label><input type="email" id="p-email" class="input-field"></div>
+                    </div>
+                    <div class="form-row"><div class="form-group full-width"><label>通訊地址 (含縣市區) (選填)</label><input type="text" id="p-address" class="input-field"></div></div>
+                    <hr style="border:0; border-top:1px dashed #ddd; margin:20px 0;">
+                    <h4 style="color:var(--ink-navy);">專業背景資訊</h4>
+                    <div class="form-row">
+                        <div class="form-group"><label>最高學歷</label><select id="p-edu" class="select-field"><option value="">請選擇</option><option value="高中/職">高中/職</option><option value="專科">專科</option><option value="學士">學士</option><option value="碩士">碩士</option><option value="博士">博士</option><option value="其他">其他</option></select></div>
+                        <div class="form-group"><label>主要美學領域</label><input type="text" id="p-fields" class="input-field" placeholder="例如: 美甲, 紋繡"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>現職機構名稱</label><input type="text" id="p-company" class="input-field"></div>
+                        <div class="form-group"><label>現任職稱</label><input type="text" id="p-jobtitle" class="input-field"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group full-width"><label>申請會籍類別 *</label>
+                            <select id="p-membership" class="select-field">
+                                <option value="一般會員">一般會員</option><option value="VIP會員">VIP會員</option>
+                                <option value="講師會員">講師會員</option><option value="顧問會員">顧問會員</option>
+                                <option value="企業會員">企業會員</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button id="submit-profile-btn" class="submit-btn-full">確認送出申請</button>
+                </div>
+            </div>
+
+            <div id="edit-profile-container" style="display: none; max-width: 800px; margin: 0 auto;">
+                <div class="form-section">
+                    <button onclick="window.location.hash='#member-zone'" style="background:none; border:none; color:var(--taupe); cursor:pointer; font-size:14px; margin-bottom:15px; padding:0;">← 返回大廳</button>
+                    <h2 style="color:var(--ink-navy); text-align:center; margin-top:0;">修改個人設定</h2>
+                    <p style="text-align:center; color:var(--text-light); font-size:14px; margin-bottom:20px;">更新您的聯絡資訊，保持會員通訊順暢。</p>
+                    <div class="form-row">
+                        <div class="form-group"><label>真實姓名 (不可更改)</label><input type="text" id="e-name-zh" class="input-field" disabled style="background:#eee;"></div>
+                        <div class="form-group"><label>英文姓名</label><input type="text" id="e-name-en" class="input-field"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>性別</label><select id="e-gender" class="select-field"><option value="女">女</option><option value="男">男</option></select></div>
+                        <div class="form-group"><label>出生日期</label><input type="date" id="e-birth" class="input-field"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>聯絡電話(手機)</label><input type="tel" id="e-phone" class="input-field"></div>
+                        <div class="form-group"><label>LINE ID</label><input type="text" id="e-line" class="input-field"></div>
+                    </div>
+                    <div class="form-row"><div class="form-group full-width"><label>電子郵件</label><input type="email" id="e-email" class="input-field"></div></div>
+                    <div class="form-row"><div class="form-group full-width"><label>通訊地址 (含縣市區)</label><input type="text" id="e-address" class="input-field"></div></div>
+                    <button id="submit-edit-profile-btn" class="submit-btn-full">儲存變更</button>
+                </div>
+            </div>
             
             <div id="detail-modal" class="modal-overlay">
                 <div class="modal-content" style="max-width: 700px; padding: 0;">
