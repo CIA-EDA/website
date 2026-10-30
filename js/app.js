@@ -1,19 +1,19 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：極速快取引擎 (加入 5 分鐘強制更新)、資安鎖、LINE 登入路由、卡片點擊詳細視窗
+ * 職責：快取引擎、LINE 登入路由、會員發文系統(5MB限制)、全新智能排版引擎
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
 const PAYUNI_URL = 'https://api.payuni.com.tw/api/uop/receive_info/2/1/CCAT968310880001/hQjvQe2jfYEAWXlu2K21X';
 
-// 🔑 雙 LIFF 鑰匙設定
 const LIFF_ID_MAIN = '2012121201-JKa4hPdF'; 
-const LIFF_ID_MEMBER = '2012121201-DRHgrrOJ'; // ⚠️ 請確保這是您的官方 LINE 專屬 ID
+const LIFF_ID_MEMBER = '2012121201-DRHgrrOJ'; 
 
 const AUTH_EXPIRY_MS = 3 * 60 * 60 * 1000; 
-const CACHE_EXPIRY_MS = 5 * 60 * 1000; // === 新增：設定快取壽命為 5 分鐘 ===
+const CACHE_EXPIRY_MS = 5 * 60 * 1000; 
 
+// === 新增路由設定 ===
 const PAGE_CONFIG = {
     '': { title: '重新定義美學與專業', subtitle: '打造全方位美業人才的孵化平台', sheet: '課程介紹', layout: 'card' },
     '#home': { title: '重新定義美學與專業', subtitle: '打造全方位美業人才的孵化平台', sheet: '課程介紹', layout: 'card' },
@@ -22,6 +22,8 @@ const PAGE_CONFIG = {
     '#team': { title: '專業師資團隊', subtitle: '頂尖業界講師群，為您帶來最扎實的實戰教學。', sheet: '專業師資', layout: 'card' },
     '#gallery': { title: '精彩活動與花絮', subtitle: '見證協會與學員們共同成長的每一個珍貴時刻。', sheet: '活動花絮', layout: 'card' },
     '#brands': { title: '品牌推廣與合作', subtitle: '嚴選業界頂尖品牌，共創美業生態圈。', sheet: '品牌推廣', layout: 'card' },
+    '#jobs': { title: '徵才專區', subtitle: '網羅最新美業職缺與招募資訊，助您找到最適合的舞台。', sheet: '徵才專區', layout: 'card' },
+    '#exchange': { title: '美業資訊交流', subtitle: '會員專屬交流天地，分享最新資訊與技術探討。', sheet: '美業資訊交流', layout: 'card' },
     '#join': { title: '入會申請', subtitle: '歡迎加入中華國際美學教育發展協會。為保障您的權益，請詳實填寫以下資料。', isJoinIntent: true },
     '#member-zone': { title: '會員登入與大廳', subtitle: '驗證會員身分以進入專屬學習平台', isMember: true }
 };
@@ -49,32 +51,26 @@ function isAuthValid() {
     return true;
 }
 
-// === 修改：極速快取引擎加入過期檢查機制 ===
 async function fetchWithCache(sheetName) {
     const cacheKey = 'cia_cache_' + sheetName;
     const timeKey = 'cia_cache_time_' + sheetName;
-    
     const cachedData = sessionStorage.getItem(cacheKey);
     const cacheTime = sessionStorage.getItem(timeKey);
     
-    // 如果快取存在，且尚未過期 (小於 5 分鐘)，則直接使用快取
     if (cachedData && cacheTime && (Date.now() - parseInt(cacheTime) < CACHE_EXPIRY_MS)) {
-        console.log(`[Cache Hit] 載入暫存資料: ${sheetName}`);
         return JSON.parse(cachedData);
     }
-
-    console.log(`[Cache Miss] 重新抓取資料: ${sheetName}`);
-    // 沒有快取或已過期，重新發送請求
+    
     const res = await fetch(`${GAS_URL}?sheetName=${sheetName}`);
     const data = await res.json();
-    
-    // 成功後寫入新資料與新時間戳記
     if (data.status === 'success') {
         sessionStorage.setItem(cacheKey, JSON.stringify(data));
         sessionStorage.setItem(timeKey, Date.now().toString());
     }
     return data;
 }
+
+const readFileAsBase64 = (file) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.readAsDataURL(file); });
 
 async function initSystem() {
     try {
@@ -176,6 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initSystem(); setupMobileMenu(); setupMemberLogin(); updateMemberUI();
     setupProfileCompletionForm(); 
     setupContactModal(); 
+    setupPostModal(); // 初始化發文視窗事件
     window.addEventListener('hashchange', () => { handlePageTransition(); loadPage(); });
     window.addEventListener('beforeunload', () => { handlePageTransition(); });
     loadPage();
@@ -200,12 +197,34 @@ async function loadPage() {
     const loginContainer = document.getElementById('login-container');
     const profileContainer = document.getElementById('profile-completion-container');
     const joinPromptContainer = document.getElementById('join-prompt-container'); 
+    const actionContainer = document.getElementById('action-container'); // 功能按鈕區
 
     dataContainer.style.display = 'none';
     loginContainer.style.display = 'none';
     if(profileContainer) profileContainer.style.display = 'none';
     if(joinPromptContainer) joinPromptContainer.style.display = 'none';
+    actionContainer.style.display = 'none';
+    actionContainer.innerHTML = '';
     dataContainer.innerHTML = '';
+
+    // === 動態顯示發文按鈕 (美業資訊交流) ===
+    if (hash === '#exchange') {
+        actionContainer.style.display = 'block';
+        actionContainer.innerHTML = `<button id="btn-open-post" class="candy-btn" style="background: var(--ink-navy); color: white !important;">📝 我要發文</button>`;
+        document.getElementById('btn-open-post').addEventListener('click', () => {
+            const memberInfo = JSON.parse(localStorage.getItem('cia_member_info'));
+            if (!memberInfo || !isAuthValid()) {
+                alert('發文功能僅限會員使用，請先登入！');
+                window.location.hash = '#member-zone';
+                return;
+            }
+            if (memberInfo.memberStatus === '停用' || memberInfo.memberStatus === '待審核') {
+                alert(`您目前的狀態為【${memberInfo.memberStatus}】，無法發文。`);
+                return;
+            }
+            document.getElementById('post-modal').classList.add('active');
+        });
+    }
 
     if (config.isJoinIntent || config.isMember) {
         if (!isAuthValid()) return; 
@@ -273,10 +292,98 @@ async function loadPage() {
     dataContainer.style.display = 'grid'; 
     try {
         const result = await fetchWithCache(config.sheet);
-        if (result.status === 'success' && result.data.length > 1) renderData(result.data, config.layout, dataContainer);
-        else dataContainer.innerHTML = '<p style="text-align:center; width:100%; color:#7A7A7A;">目前資料庫尚無發佈資訊。</p>';
+        if (result.status === 'success' && result.data.length > 1) {
+            // == 如果是交流版面，把最新的排在最前面 ==
+            let finalData = result.data;
+            if (config.sheet === '美業資訊交流') {
+                const headers = finalData.shift();
+                finalData = finalData.reverse();
+                finalData.unshift(headers);
+            }
+            renderData(finalData, config.layout, dataContainer);
+        } else {
+            dataContainer.innerHTML = '<p style="text-align:center; width:100%; color:#7A7A7A;">目前資料庫尚無發佈資訊。</p>';
+        }
     } catch (error) { dataContainer.innerHTML = '<p style="text-align:center; width:100%; color:red;">資料載入異常。</p>'; } 
     finally { hidePreloader(); }
+}
+
+// === 新增：會員發文視窗與上傳邏輯 ===
+function setupPostModal() {
+    const postModal = document.getElementById('post-modal');
+    const closePostBtn = document.getElementById('close-post-btn');
+    const submitPostBtn = document.getElementById('submit-post-btn');
+    
+    if(closePostBtn) closePostBtn.addEventListener('click', () => postModal.classList.remove('active'));
+    window.addEventListener('click', (e) => { if (e.target === postModal) postModal.classList.remove('active'); });
+
+    if (submitPostBtn) {
+        submitPostBtn.addEventListener('click', async () => {
+            const title = document.getElementById('post-title').value.trim();
+            const content = document.getElementById('post-content').value.trim();
+            const fileInput = document.getElementById('post-image');
+
+            if (!title || !content) { alert('請填寫標題與內容！'); return; }
+
+            let base64Data = null;
+            let mimeType = null;
+            let fileName = null;
+
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                // 核心防護：限制 5MB
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('照片大小超過 5MB 上限，請壓縮後再上傳！');
+                    return;
+                }
+                base64Data = await readFileAsBase64(file);
+                mimeType = file.type;
+                fileName = file.name;
+            }
+
+            submitPostBtn.innerText = '發佈中...'; submitPostBtn.disabled = true;
+            
+            try {
+                const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
+                
+                let imgUrl = '';
+                if (base64Data) {
+                    submitPostBtn.innerText = '上傳圖片中...';
+                    const resImg = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'uploadImage', sheetName: '美業資訊交流', base64Data: base64Data, mimeType: mimeType, fileName: fileName }) });
+                    const imgData = await resImg.json();
+                    if (imgData.status === 'success') imgUrl = imgData.url;
+                }
+
+                submitPostBtn.innerText = '寫入資料庫...';
+                await fetch(GAS_URL, { 
+                    method: 'POST', 
+                    body: JSON.stringify({ 
+                        token: API_SECRET_TOKEN, 
+                        action: 'userPostExchange', 
+                        lineUid: credentials.lineUid, 
+                        postTitle: title, 
+                        postContent: content, 
+                        imgUrl: imgUrl 
+                    }) 
+                });
+                
+                alert('發佈成功！');
+                postModal.classList.remove('active');
+                document.getElementById('post-title').value = '';
+                document.getElementById('post-content').value = '';
+                fileInput.value = '';
+                
+                // 清除快取並重新載入
+                sessionStorage.removeItem('cia_cache_美業資訊交流');
+                loadPage();
+
+            } catch(e) { 
+                alert('發佈失敗：' + e.message); 
+            } finally { 
+                submitPostBtn.innerText = '確認發佈'; submitPostBtn.disabled = false; 
+            }
+        });
+    }
 }
 
 function setupProfileCompletionForm() {
@@ -329,7 +436,6 @@ function logoutMember() {
     localStorage.removeItem('cia_member_credentials');
     localStorage.removeItem('cia_member_info');
     localStorage.removeItem('cia_auth_time');
-    // === 同時清除頁面資料快取 ===
     sessionStorage.clear();
     
     if (liff.isLoggedIn()) { liff.logout(); }
@@ -404,6 +510,7 @@ function generateImageHTML(imgString) {
     return html;
 }
 
+// === 核心優化：智能排版渲染引擎 (支援徵才與發文格式) ===
 function renderData(rawData, layoutType, container) {
     const headers = rawData[0];
     currentViewDataCache = []; 
@@ -417,13 +524,25 @@ function renderData(rawData, layoutType, container) {
         currentViewDataCache.push(item);
         const dataIndex = currentViewDataCache.length - 1;
 
-        const title = item['課程名稱'] || item['講師姓名'] || item['活動名稱'] || item['產品名稱'] || item['名稱'] || item['標題'] || '';
-        const desc = item['簡介'] || item['個人簡介'] || item['專長項目'] || item['產品簡介'] || item['內容'] || '';
-        const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || item['產品logo及圖檔'] || '';
+        const title = item['課程名稱'] || item['講師姓名'] || item['活動名稱'] || item['產品名稱'] || item['標題'] || item['職缺名稱'] || item['主旨/標題'] || '';
+        let desc = item['簡介'] || item['個人簡介'] || item['產品簡介'] || item['內容'] || '';
+        const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || item['產品logo及圖檔'] || item['公司Logo或環境照片'] || item['附圖網址'] || '';
         const linkRaw = item['報名連結'] || item['專屬付款網址'] || ''; 
         
-        const imgHtml = generateImageHTML(imgRaw);
+        // 智能排版：徵才專區
+        if (item['徵才機構']) {
+            desc = `🏢 機構：${item['徵才機構']}\n📍 地點：${item['工作地點']}\n💰 薪資：${item['薪資待遇']}\n📞 聯絡：${item['聯絡方式']}\n\n【條件要求】\n${item['條件要求']}`;
+        } 
+        // 智能排版：美業資訊交流
+        else if (item['發文者姓名']) {
+            desc = `👤 發文者：${item['發文者姓名']}\n🕒 時間：${item['發文時間']}\n\n${item['交流內容']}`;
+        }
+        // 智能排版：師資專區
+        else if (item['專長項目']) {
+            desc = `【專長項目】\n${item['專長項目']}\n\n${desc}`;
+        }
         
+        const imgHtml = generateImageHTML(imgRaw);
         let paymentBtnHtml = linkRaw ? `<a href="${linkRaw}" target="_blank" class="candy-btn payment-btn" style="display:block; text-align:center; margin-top:20px;" onclick="event.stopPropagation();">💳 專屬線上付款</a>` : '';
         
         let shortDesc = desc.length > 60 ? desc.substring(0, 60) + '...' : desc;
@@ -432,7 +551,7 @@ function renderData(rawData, layoutType, container) {
             html += `<div style="margin-bottom: 50px;">`;
             if (title) html += `<h3 style="color:var(--ink-navy); border-bottom: 2px solid var(--champagne); padding-bottom:10px; margin-bottom:20px; font-size:24px;">${title}</h3>`;
             html += imgHtml;
-            if (desc) html += `<p style="color:var(--text-dark); font-size:16px; line-height:1.8; letter-spacing:0.05em;">${desc.replace(/\n/g, '<br>')}</p>`;
+            html += `<p style="color:var(--text-dark); font-size:16px; line-height:1.8; letter-spacing:0.05em;">${desc.replace(/\n/g, '<br>')}</p>`;
             html += paymentBtnHtml; 
             html += `</div>`;
         } else {
@@ -441,7 +560,7 @@ function renderData(rawData, layoutType, container) {
                     ${imgHtml}
                     <div class="course-info">
                         ${title ? `<h3 class="course-title">${title}</h3>` : ''}
-                        ${shortDesc ? `<p class="course-desc">${shortDesc}</p>` : ''}
+                        ${shortDesc ? `<p class="course-desc">${shortDesc.replace(/\n/g, '<br>')}</p>` : ''}
                         ${paymentBtnHtml}
                     </div>
                 </div>
@@ -456,10 +575,18 @@ window.openDetailModal = function(index) {
     const item = currentViewDataCache[index];
     if (!item) return;
 
-    const title = item['課程名稱'] || item['講師姓名'] || item['活動名稱'] || item['產品名稱'] || item['名稱'] || item['標題'] || '';
-    const desc = item['簡介'] || item['個人簡介'] || item['專長項目'] || item['產品簡介'] || item['內容'] || '';
-    const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || item['產品logo及圖檔'] || '';
+    const title = item['課程名稱'] || item['講師姓名'] || item['活動名稱'] || item['產品名稱'] || item['標題'] || item['職缺名稱'] || item['主旨/標題'] || '';
+    let desc = item['簡介'] || item['個人簡介'] || item['產品簡介'] || item['內容'] || '';
+    const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || item['產品logo及圖檔'] || item['公司Logo或環境照片'] || item['附圖網址'] || '';
     const linkRaw = item['報名連結'] || item['專屬付款網址'] || ''; 
+
+    if (item['徵才機構']) {
+        desc = `🏢 機構：${item['徵才機構']}\n📍 地點：${item['工作地點']}\n💰 薪資：${item['薪資待遇']}\n📞 聯絡：${item['聯絡方式']}\n\n【條件要求】\n${item['條件要求']}`;
+    } else if (item['發文者姓名']) {
+        desc = `👤 發文者：${item['發文者姓名']}\n🕒 時間：${item['發文時間']}\n\n${item['交流內容']}`;
+    } else if (item['專長項目']) {
+        desc = `【專長項目】\n${item['專長項目']}\n\n${desc}`;
+    }
 
     let imagesHtml = '';
     const rawUrls = imgRaw.split(',').map(u => u.trim()).filter(u => u);
