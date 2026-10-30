@@ -1,31 +1,33 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：快取引擎、LINE 登入路由、會員發文系統(5MB限制)、全新智能排版引擎
+ * 職責：快取引擎、LINE登入、樹枝圖路由、半公開影音權限驗證
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
-const PAYUNI_URL = 'https://api.payuni.com.tw/api/uop/receive_info/2/1/CCAT968310880001/hQjvQe2jfYEAWXlu2K21X';
 
+// 🔑 雙 LIFF 鑰匙設定
 const LIFF_ID_MAIN = '2012121201-JKa4hPdF'; 
-const LIFF_ID_MEMBER = '2012121201-DRHgrrOJ'; 
+const LIFF_ID_MEMBER = '2012121201-DRHgrrOJ'; // ⚠️ 請確保這是您的官方 LINE 專屬 ID
 
 const AUTH_EXPIRY_MS = 3 * 60 * 60 * 1000; 
 const CACHE_EXPIRY_MS = 5 * 60 * 1000; 
 
-// === 新增路由設定 ===
+// === 路由擴充：加入專業顧問與認證店家，並將專屬課程平台全公開化 ===
 const PAGE_CONFIG = {
     '': { title: '重新定義美學與專業', subtitle: '打造全方位美業人才的孵化平台', sheet: '課程介紹', layout: 'card' },
     '#home': { title: '重新定義美學與專業', subtitle: '打造全方位美業人才的孵化平台', sheet: '課程介紹', layout: 'card' },
-    '#about': { title: '關於協會', subtitle: '推動美業創新與專業標竿，我們堅信手的溫度能帶來改變。', sheet: '關於我們', layout: 'article' },
-    '#courses': { title: '精選課程與培訓', subtitle: '從技術到品牌經營，為您準備最完善的學習資源。', sheet: '課程介紹', layout: 'card' },
-    '#team': { title: '專業師資團隊', subtitle: '頂尖業界講師群，為您帶來最扎實的實戰教學。', sheet: '專業師資', layout: 'card' },
+    '#about': { title: '協會介紹', subtitle: '推動美業創新與專業標竿，我們堅信手的溫度能帶來改變。', sheet: '關於我們', layout: 'article' },
     '#gallery': { title: '精彩活動與花絮', subtitle: '見證協會與學員們共同成長的每一個珍貴時刻。', sheet: '活動花絮', layout: 'card' },
-    '#brands': { title: '品牌推廣與合作', subtitle: '嚴選業界頂尖品牌，共創美業生態圈。', sheet: '品牌推廣', layout: 'card' },
+    '#team': { title: '專業師資團隊', subtitle: '頂尖業界講師群，為您帶來最扎實的實戰教學。', sheet: '專業師資', layout: 'card' },
+    '#consultants': { title: '專業顧問', subtitle: '產業頂尖顧問群，提供全方位美業指導。', sheet: '專業顧問', layout: 'card' },
+    '#stores': { title: '認證店家', subtitle: 'CIA-EDA 嚴選認證，提供高品質的美業服務體驗。', sheet: '認證店家', layout: 'card' },
     '#jobs': { title: '徵才專區', subtitle: '網羅最新美業職缺與招募資訊，助您找到最適合的舞台。', sheet: '徵才專區', layout: 'card' },
     '#exchange': { title: '美業資訊交流', subtitle: '會員專屬交流天地，分享最新資訊與技術探討。', sheet: '美業資訊交流', layout: 'card' },
+    '#brands': { title: '品牌推廣與合作', subtitle: '嚴選業界頂尖品牌，共創美業生態圈。', sheet: '品牌推廣', layout: 'card' },
+    '#course-platform': { title: '專屬課程平台', subtitle: '高品質線上課程與培訓資源。(觀看影片需登入會員)', sheet: '會員專屬影片', layout: 'card' },
     '#join': { title: '入會申請', subtitle: '歡迎加入中華國際美學教育發展協會。為保障您的權益，請詳實填寫以下資料。', isJoinIntent: true },
-    '#member-zone': { title: '會員登入與大廳', subtitle: '驗證會員身分以進入專屬學習平台', isMember: true }
+    '#member-zone': { title: '會員登入與大廳', subtitle: '驗證會員身分以確認您的專屬權限', isMember: true }
 };
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -38,6 +40,12 @@ if (urlParams.get('zone') === 'member') {
 let currentTrackingHash = window.location.hash || '#home';
 let currentPageEntryTime = Date.now();
 let currentViewDataCache = [];
+window.currentCommentsCache = [];
+
+function getCleanTime() {
+    const now = new Date();
+    return now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+}
 
 function isAuthValid() {
     const authTime = localStorage.getItem('cia_auth_time');
@@ -126,10 +134,11 @@ async function handleLineLoginCallback(isSilent = false) {
             localStorage.setItem('cia_auth_time', Date.now().toString()); 
             
             updateMemberUI();
-            if (window.location.hash === '#member-zone' || window.location.hash === '#join') {
+            
+            if (data.member.needsProfileCompletion && window.location.hash !== '#join') {
+                window.location.hash = '#join';
+            } else {
                 loadPage();
-            } else if (!isSilent) {
-                window.location.hash = '#member-zone';
             }
         } else {
             if (!isSilent) alert('登入異常：' + data.message);
@@ -147,7 +156,7 @@ function updateMemberUI() {
     const memberBtn = document.getElementById('nav-member-btn');
     if (memberInfo && memberBtn) {
         if (memberInfo.memberStatus === '停用' || memberInfo.memberStatus === '待審核') memberBtn.innerHTML = '⏳ 會員審核中';
-        else memberBtn.innerHTML = '🎬 進入專屬課程平台';
+        else memberBtn.innerHTML = '👤 會員專區';
     }
 }
 
@@ -158,11 +167,11 @@ function handlePageTransition() {
     if (durationSeconds > 1) {
         let session = JSON.parse(localStorage.getItem('tracking_session') || 'null');
         if (!session || (now - session.lastActiveTime > 600000) || session.views >= 10) {
-            session = { id: 'SESS_' + now + '_' + Math.floor(Math.random() * 1000), entryTime: new Date(now - (durationSeconds * 1000)).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }), views: 0 };
+            session = { id: 'SESS_' + now + '_' + Math.floor(Math.random() * 1000), entryTime: getCleanTime(), views: 0 };
         }
         session.views += 1; session.lastActiveTime = now;
         localStorage.setItem('tracking_session', JSON.stringify(session));
-        fetch(GAS_URL, { method: 'POST', keepalive: true, body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'trackSession', sessionId: session.id, entryTime: session.entryTime, leaveTime: new Date(now).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }), ip: ip, path: currentTrackingHash, duration: durationSeconds, userAgent: navigator.userAgent }) }).catch(e=>e);
+        fetch(GAS_URL, { method: 'POST', keepalive: true, body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'trackSession', sessionId: session.id, entryTime: session.entryTime, leaveTime: getCleanTime(), ip: ip, path: currentTrackingHash, duration: durationSeconds, userAgent: navigator.userAgent }) }).catch(e=>e);
     }
     currentTrackingHash = window.location.hash || '#home';
     currentPageEntryTime = now;
@@ -172,7 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initSystem(); setupMobileMenu(); setupMemberLogin(); updateMemberUI();
     setupProfileCompletionForm(); 
     setupContactModal(); 
-    setupPostModal(); // 初始化發文視窗事件
+    setupPostModal(); 
     window.addEventListener('hashchange', () => { handlePageTransition(); loadPage(); });
     window.addEventListener('beforeunload', () => { handlePageTransition(); });
     loadPage();
@@ -182,6 +191,7 @@ function showPreloader() { const p = document.getElementById('preloader'); p.sty
 function hidePreloader() { const p = document.getElementById('preloader'); p.style.opacity = '0'; p.style.visibility = 'hidden'; setTimeout(() => { p.style.display = 'none'; }, 300); }
 
 async function loadPage() {
+    showPreloader(); 
     const hash = window.location.hash || '#home';
     const config = PAGE_CONFIG[hash] || PAGE_CONFIG['#home'];
 
@@ -197,7 +207,7 @@ async function loadPage() {
     const loginContainer = document.getElementById('login-container');
     const profileContainer = document.getElementById('profile-completion-container');
     const joinPromptContainer = document.getElementById('join-prompt-container'); 
-    const actionContainer = document.getElementById('action-container'); // 功能按鈕區
+    const actionContainer = document.getElementById('action-container'); 
 
     dataContainer.style.display = 'none';
     loginContainer.style.display = 'none';
@@ -207,7 +217,6 @@ async function loadPage() {
     actionContainer.innerHTML = '';
     dataContainer.innerHTML = '';
 
-    // === 動態顯示發文按鈕 (美業資訊交流) ===
     if (hash === '#exchange') {
         actionContainer.style.display = 'block';
         actionContainer.innerHTML = `<button id="btn-open-post" class="candy-btn" style="background: var(--ink-navy); color: white !important;">📝 我要發文</button>`;
@@ -227,7 +236,7 @@ async function loadPage() {
     }
 
     if (config.isJoinIntent || config.isMember) {
-        if (!isAuthValid()) return; 
+        if (!isAuthValid()) { hidePreloader(); return; } 
         const credentials = localStorage.getItem('cia_member_credentials');
         const memberInfo = JSON.parse(localStorage.getItem('cia_member_info') || 'null');
         
@@ -237,23 +246,26 @@ async function loadPage() {
             } else {
                 loginContainer.style.display = 'block';
             }
+            hidePreloader(); 
             return;
         }
 
         if (memberInfo && memberInfo.needsProfileCompletion) {
             profileContainer.style.display = 'block';
             document.getElementById('p-name-zh').value = memberInfo.name || '';
+            document.getElementById('page-subtitle').innerHTML = `<span style="color:var(--champagne); font-weight:bold;">LINE 授權成功！請繼續完成第二步。</span>`;
+            hidePreloader(); 
             return;
         }
         
         if (config.isJoinIntent && !memberInfo.needsProfileCompletion) {
-            document.getElementById('page-subtitle').innerHTML = `<span style="color:#e53e3e;">您已完成入會申請，目前狀態：${memberInfo.level}會員。</span><br>若權限遭停用或審核中，請靜候管理員通知或聯絡協會。`;
+            document.getElementById('page-subtitle').innerHTML = `<span style="color:#e53e3e;">您已完成入會申請，目前狀態：${memberInfo.level}。</span><br>若權限遭停用或審核中，請靜候管理員通知或聯絡協會。`;
         } else {
-            document.getElementById('page-subtitle').innerHTML = `身分驗證成功，點擊下方按鈕進入安全金庫。`;
+            document.getElementById('page-subtitle').innerHTML = `身分驗證成功，點擊下方按鈕可快速切換專區。`;
         }
 
         let avatarHtml = memberInfo && memberInfo.avatar ? `<img src="${memberInfo.avatar}" style="width:50px; height:50px; border-radius:50%; vertical-align:middle; margin-right:15px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">` : '';
-        let badgeHtml = memberInfo && memberInfo.level ? `<span style="background:var(--champagne); color:#fff; font-size:14px; padding:4px 12px; border-radius:20px; font-weight:bold;">${memberInfo.level} 會員</span>` : '';
+        let badgeHtml = memberInfo && memberInfo.level ? `<span style="background:var(--champagne); color:#fff; font-size:14px; padding:4px 12px; border-radius:20px; font-weight:bold;">${memberInfo.level}</span>` : '';
         
         if (memberInfo && (memberInfo.memberStatus === '停用' || memberInfo.memberStatus === '待審核')) {
             document.getElementById('page-subtitle').innerHTML = `<span style="color:#e53e3e;">您已完成資料綁定，目前狀態：${memberInfo.memberStatus}。</span>`;
@@ -265,11 +277,12 @@ async function loadPage() {
                         <h3 style="display:inline-block; margin:0; color:var(--ink-navy); font-size:24px; vertical-align:middle;">${memberInfo.name}，您好！</h3>
                     </div>
                     <div style="padding:20px; background:#fff3cd; color:#856404; border-radius:8px; margin-bottom:30px; text-align:left; font-size:15px; line-height:1.6;">
-                        <strong>⏳ 您的會員資格正在審核中</strong><br>協會顧問將盡快為您確認資料。<br>在審核通過前，專屬課程平台將暫時無法進入，但您仍可自由瀏覽網站的其他公開資訊。
+                        <strong>⏳ 您的會員資格正在審核中</strong><br>請前往官方 LINE 聯繫客服人員進行人工確認與繳費。<br>在審核通過前，專屬課程平台將暫時無法觀看，但您仍可自由瀏覽網站的其他公開資訊。
                     </div>
                     <button onclick="logoutMember()" style="display:block; margin:20px auto 0; background:none; border:none; color:red; text-decoration:underline; cursor:pointer;">登出帳號</button>
                 </div>
             `;
+            hidePreloader(); 
             return;
         }
 
@@ -281,19 +294,26 @@ async function loadPage() {
                     <h3 style="display:inline-block; margin:0; color:var(--ink-navy); font-size:24px; vertical-align:middle;">${memberInfo ? memberInfo.name : '尊榮會員'}，歡迎回來！</h3>
                 </div>
                 <div style="margin-bottom:40px;">${badgeHtml}</div>
-                <a href="course_platform.html" class="candy-btn" style="font-size:20px; padding:15px 40px; border-radius:50px; background:linear-gradient(135deg, var(--ink-navy) 0%, #3a4a6b 100%); color:#fff !important;">🚀 進入專屬課程平台</a>
+                <a href="#course-platform" class="candy-btn" style="font-size:20px; padding:15px 40px; border-radius:50px; background:linear-gradient(135deg, var(--ink-navy) 0%, #3a4a6b 100%); color:#fff !important;">🚀 前往專屬課程平台</a>
                 <button onclick="logoutMember()" style="display:block; margin:20px auto 0; background:none; border:none; color:red; text-decoration:underline; cursor:pointer;">登出帳號</button>
             </div>
         `;
+        hidePreloader(); 
         return;
     }
 
-    showPreloader();
     dataContainer.style.display = 'grid'; 
     try {
         const result = await fetchWithCache(config.sheet);
+        
+        if (config.sheet === '美業資訊交流') {
+            const commentsRes = await fetchWithCache('交流留言');
+            if (commentsRes.status === 'success' && commentsRes.data.length > 1) {
+                window.currentCommentsCache = commentsRes.data.slice(1);
+            }
+        }
+
         if (result.status === 'success' && result.data.length > 1) {
-            // == 如果是交流版面，把最新的排在最前面 ==
             let finalData = result.data;
             if (config.sheet === '美業資訊交流') {
                 const headers = finalData.shift();
@@ -308,7 +328,6 @@ async function loadPage() {
     finally { hidePreloader(); }
 }
 
-// === 新增：會員發文視窗與上傳邏輯 ===
 function setupPostModal() {
     const postModal = document.getElementById('post-modal');
     const closePostBtn = document.getElementById('close-post-btn');
@@ -331,7 +350,6 @@ function setupPostModal() {
 
             if (fileInput.files.length > 0) {
                 const file = fileInput.files[0];
-                // 核心防護：限制 5MB
                 if (file.size > 5 * 1024 * 1024) {
                     alert('照片大小超過 5MB 上限，請壓縮後再上傳！');
                     return;
@@ -345,7 +363,6 @@ function setupPostModal() {
             
             try {
                 const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
-                
                 let imgUrl = '';
                 if (base64Data) {
                     submitPostBtn.innerText = '上傳圖片中...';
@@ -357,14 +374,7 @@ function setupPostModal() {
                 submitPostBtn.innerText = '寫入資料庫...';
                 await fetch(GAS_URL, { 
                     method: 'POST', 
-                    body: JSON.stringify({ 
-                        token: API_SECRET_TOKEN, 
-                        action: 'userPostExchange', 
-                        lineUid: credentials.lineUid, 
-                        postTitle: title, 
-                        postContent: content, 
-                        imgUrl: imgUrl 
-                    }) 
+                    body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'userPostExchange', lineUid: credentials.lineUid, postTitle: title, postContent: content, imgUrl: imgUrl }) 
                 });
                 
                 alert('發佈成功！');
@@ -373,7 +383,6 @@ function setupPostModal() {
                 document.getElementById('post-content').value = '';
                 fileInput.value = '';
                 
-                // 清除快取並重新載入
                 sessionStorage.removeItem('cia_cache_美業資訊交流');
                 loadPage();
 
@@ -418,7 +427,8 @@ function setupProfileCompletionForm() {
                 method: 'POST', 
                 body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'updateMemberProfile', lineUid: credentials.lineUid, profileData: profileData }) 
             });
-            alert('入會申請送出成功！管理員審核通過後即可開通權限。\n即將引導至線上付款頁面。');
+            
+            alert('入會申請送出成功！\n\n請前往「官方 LINE」聯繫客服人員，我們提供【現金 / 轉帳 / 刷卡】服務。\n繳費並經管理員審核通過後，即可為您開通會員權限！');
             
             let memberInfo = JSON.parse(localStorage.getItem('cia_member_info'));
             memberInfo.needsProfileCompletion = false;
@@ -426,11 +436,113 @@ function setupProfileCompletionForm() {
             memberInfo.memberStatus = '待審核';
             localStorage.setItem('cia_member_info', JSON.stringify(memberInfo));
             
-            window.location.href = PAYUNI_URL;
+            loadPage();
         } catch(e) { alert('儲存失敗，請稍後再試。'); } 
-        finally { submitBtn.innerText = '確認送出申請並前往繳費'; submitBtn.disabled = false; }
+        finally { submitBtn.innerText = '確認送出申請'; submitBtn.disabled = false; }
     });
 }
+
+// === 全新：影片權限防護鎖與播放邏輯 ===
+window.playCourseVideo = async function(event, courseTitle, reqLevel) {
+    event.stopPropagation();
+    if (!isAuthValid()) {
+         alert('請先登入會員！');
+         window.location.hash = '#member-zone';
+         return;
+    }
+    const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
+    const memberInfo = JSON.parse(localStorage.getItem('cia_member_info'));
+    if (!credentials || !memberInfo) {
+         alert('請先登入會員！');
+         window.location.hash = '#member-zone';
+         return;
+    }
+    if (memberInfo.memberStatus === '停用' || memberInfo.memberStatus === '待審核') {
+        alert(`您的狀態為【${memberInfo.memberStatus}】，無法觀看課程。`);
+        return;
+    }
+    
+    const btn = event.target;
+    const ogText = btn.innerText;
+    btn.innerText = '驗證專屬權限中...';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(GAS_URL, {
+            method: 'POST',
+            body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'verifyAndGetCourses', credentials: credentials })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            const courses = data.data.slice(1);
+            const course = courses.find(c => c[0] === courseTitle);
+            if (course && course[1]) {
+                // 驗證成功，解鎖並播放影片
+                document.getElementById('video-player-container').innerHTML = `<iframe src="${course[1]}" allowfullscreen></iframe>`;
+                document.getElementById('video-modal').classList.add('active');
+            } else {
+                alert(`權限不足或找不到該課程影片。此課程需為【${reqLevel}】。`);
+            }
+        } else {
+            alert(data.message || '驗證失敗');
+        }
+    } catch(e) {
+        alert('連線失敗，請稍後再試。');
+    } finally {
+        btn.innerText = ogText;
+        btn.disabled = false;
+    }
+}
+
+window.submitComment = async function(event, index, postTitle, postTime, isModal = false) {
+    if(event) event.stopPropagation(); 
+    
+    const inputId = isModal ? `modal-comment-input-${index}` : `comment-input-${index}`;
+    const input = document.getElementById(inputId);
+    const content = input.value.trim();
+    if (!content) { alert('請輸入留言內容！'); return; }
+
+    const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
+    const memberInfo = JSON.parse(localStorage.getItem('cia_member_info'));
+    
+    if (!credentials || !memberInfo) {
+        alert('請先登入會員才能留言！');
+        return;
+    }
+    if (memberInfo.memberStatus === '停用' || memberInfo.memberStatus === '待審核') {
+        alert(`您的狀態為【${memberInfo.memberStatus}】，無法留言。`);
+        return;
+    }
+
+    const btn = event.target;
+    const ogText = btn.innerText;
+    btn.innerText = '傳送中...';
+    btn.disabled = true;
+
+    try {
+        await fetch(GAS_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                token: API_SECRET_TOKEN,
+                action: 'submitComment',
+                lineUid: credentials.lineUid,
+                postTitle: postTitle,
+                postTime: postTime,
+                content: content
+            })
+        });
+        alert('留言成功！');
+        input.value = '';
+        sessionStorage.removeItem('cia_cache_交流留言'); 
+        document.getElementById('detail-modal').classList.remove('active');
+        loadPage(); 
+    } catch(e) {
+        alert('留言失敗，請稍後再試。');
+    } finally {
+        btn.innerText = ogText;
+        btn.disabled = false;
+    }
+};
 
 function logoutMember() {
     localStorage.removeItem('cia_member_credentials');
@@ -452,26 +564,6 @@ function setupMemberLogin() {
             else handleLineLoginCallback();
         });
     });
-
-    const btn = document.getElementById('submit-login-btn');
-    if(!btn) return;
-    btn.addEventListener('click', async () => {
-        const acc = document.getElementById('m-account').value.trim();
-        const pwd = document.getElementById('m-password').value.trim();
-        if(!acc || !pwd) { alert('請輸入帳號密碼！'); return; }
-        
-        btn.innerText = '驗證中...'; btn.disabled = true;
-        try {
-            const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'memberLogin', account: acc, password: pwd }) });
-            const data = await res.json();
-            if (data.status === 'success') {
-                localStorage.setItem('cia_member_credentials', JSON.stringify({ account: acc, password: pwd }));
-                localStorage.setItem('cia_member_info', JSON.stringify(data.member));
-                updateMemberUI(); loadPage(); 
-            } else { alert(data.message); }
-        } catch(e) { alert('登入失敗，請稍後再試。'); }
-        finally { btn.innerText = '一般登入'; btn.disabled = false; document.getElementById('m-password').value=''; }
-    });
 }
 
 function setupMobileMenu() {
@@ -479,7 +571,17 @@ function setupMobileMenu() {
     const mainNav = document.getElementById('main-nav-menu');
     if (mobileBtn && mainNav) {
         mobileBtn.addEventListener('click', () => mainNav.classList.toggle('show'));
-        mainNav.querySelectorAll('a').forEach(link => { link.addEventListener('click', () => mainNav.classList.remove('show')); });
+        mainNav.querySelectorAll('a:not(.dropdown-toggle)').forEach(link => { link.addEventListener('click', () => mainNav.classList.remove('show')); });
+        
+        // 手機版下拉選單點擊展開
+        const dropdowns = document.querySelectorAll('.dropdown-toggle');
+        dropdowns.forEach(dropdown => {
+            dropdown.addEventListener('click', (e) => {
+                if (window.innerWidth <= 768) {
+                    dropdown.classList.toggle('mobile-active');
+                }
+            });
+        });
     }
 }
 
@@ -499,7 +601,6 @@ function generateImageHTML(imgString) {
     }
     
     const urls = rawUrls.map(url => optimizeImageUrl(url));
-    
     if (urls.length === 1) {
         return `<div class="img-wrapper"><img src="${urls[0]}" alt="Course Image"></div>`;
     }
@@ -510,7 +611,35 @@ function generateImageHTML(imgString) {
     return html;
 }
 
-// === 核心優化：智能排版渲染引擎 (支援徵才與發文格式) ===
+function buildCommentsHtml(postTitle, postTime, dataIndex, isModal = false) {
+    const comments = (window.currentCommentsCache || []).filter(c => c[0] === postTitle && c[1] === postTime);
+    let html = '<div class="comments-section" style="margin-top:20px; border-top:1px dashed #eee; padding-top:15px; text-align:left;">';
+    
+    if (comments.length > 0) {
+        comments.forEach(c => {
+            html += `
+            <div style="font-size:14px; margin-bottom:10px; padding:10px; background:#f8f9fa; border-radius:8px; border-left:3px solid var(--champagne);">
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                    <strong style="color:var(--ink-navy);">${c[2]}</strong>
+                    <span style="color:#aaa; font-size:12px;">${c[3]}</span>
+                </div>
+                <div style="color:var(--text-dark); line-height:1.5;">${c[4].replace(/\n/g, '<br>')}</div>
+            </div>`;
+        });
+    } else {
+        html += `<div style="font-size:13px; color:#aaa; margin-bottom:10px; text-align:center;">目前尚無留言，來搶頭香吧！</div>`;
+    }
+    
+    const inputId = isModal ? `modal-comment-input-${dataIndex}` : `comment-input-${dataIndex}`;
+    html += `
+        <div style="display:flex; gap:10px; margin-top:10px;" onclick="event.stopPropagation();">
+            <input type="text" id="${inputId}" class="input-field" placeholder="輸入留言..." style="padding:10px; flex:1; font-size:14px;">
+            <button class="candy-btn" onclick="submitComment(event, ${dataIndex}, '${postTitle}', '${postTime}', ${isModal})" style="padding:10px 20px; font-size:14px; border:none; cursor:pointer;">留言</button>
+        </div>
+    </div>`;
+    return html;
+}
+
 function renderData(rawData, layoutType, container) {
     const headers = rawData[0];
     currentViewDataCache = []; 
@@ -524,26 +653,33 @@ function renderData(rawData, layoutType, container) {
         currentViewDataCache.push(item);
         const dataIndex = currentViewDataCache.length - 1;
 
-        const title = item['課程名稱'] || item['講師姓名'] || item['活動名稱'] || item['產品名稱'] || item['標題'] || item['職缺名稱'] || item['主旨/標題'] || '';
+        const title = item['課程名稱'] || item['講師姓名'] || item['顧問姓名'] || item['店家名稱'] || item['活動名稱'] || item['產品名稱'] || item['標題'] || item['職缺名稱'] || item['主旨/標題'] || '';
         let desc = item['簡介'] || item['個人簡介'] || item['產品簡介'] || item['內容'] || '';
         const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || item['產品logo及圖檔'] || item['公司Logo或環境照片'] || item['附圖網址'] || '';
-        const linkRaw = item['報名連結'] || item['專屬付款網址'] || ''; 
+        const linkRaw = item['報名連結'] || item['專屬付款網址'] || item['連結'] || ''; 
         
-        // 智能排版：徵才專區
+        let extraHtml = ''; 
+
         if (item['徵才機構']) {
             desc = `🏢 機構：${item['徵才機構']}\n📍 地點：${item['工作地點']}\n💰 薪資：${item['薪資待遇']}\n📞 聯絡：${item['聯絡方式']}\n\n【條件要求】\n${item['條件要求']}`;
-        } 
-        // 智能排版：美業資訊交流
-        else if (item['發文者姓名']) {
+        } else if (item['發文者姓名']) {
             desc = `👤 發文者：${item['發文者姓名']}\n🕒 時間：${item['發文時間']}\n\n${item['交流內容']}`;
-        }
-        // 智能排版：師資專區
-        else if (item['專長項目']) {
+            extraHtml = buildCommentsHtml(item['主旨/標題']||'', item['發文時間']||'', dataIndex, false);
+        } else if (item['專長項目']) {
             desc = `【專長項目】\n${item['專長項目']}\n\n${desc}`;
+        } else if (item['店家名稱']) {
+            desc = `👤 負責人：${item['負責人']}\n📍 地址：${item['地址']}\n📞 電話：${item['聯絡電話']}\n\n${item['簡介']}`;
         }
         
         const imgHtml = generateImageHTML(imgRaw);
-        let paymentBtnHtml = linkRaw ? `<a href="${linkRaw}" target="_blank" class="candy-btn payment-btn" style="display:block; text-align:center; margin-top:20px;" onclick="event.stopPropagation();">💳 專屬線上付款</a>` : '';
+        
+        let paymentBtnHtml = linkRaw ? `<a href="${linkRaw}" target="_blank" class="candy-btn payment-btn" style="display:block; text-align:center; margin-top:20px;" onclick="event.stopPropagation();">💳 了解更多 / 報名</a>` : '';
+        
+        // 核心修改：如果是專屬影片，按鈕改為鎖住的播放按鈕
+        if (item['最低權限要求(例如:一般會員)'] !== undefined) {
+            const reqLevel = item['最低權限要求(例如:一般會員)'] || '會員';
+            paymentBtnHtml = `<button class="candy-btn member-btn" style="display:block; width:100%; text-align:center; margin-top:20px;" onclick="playCourseVideo(event, '${title}', '${reqLevel}')">▶️ 播放影片 (${reqLevel}專屬)</button>`;
+        }
         
         let shortDesc = desc.length > 60 ? desc.substring(0, 60) + '...' : desc;
 
@@ -562,6 +698,7 @@ function renderData(rawData, layoutType, container) {
                         ${title ? `<h3 class="course-title">${title}</h3>` : ''}
                         ${shortDesc ? `<p class="course-desc">${shortDesc.replace(/\n/g, '<br>')}</p>` : ''}
                         ${paymentBtnHtml}
+                        ${extraHtml}
                     </div>
                 </div>
             `;
@@ -575,17 +712,22 @@ window.openDetailModal = function(index) {
     const item = currentViewDataCache[index];
     if (!item) return;
 
-    const title = item['課程名稱'] || item['講師姓名'] || item['活動名稱'] || item['產品名稱'] || item['標題'] || item['職缺名稱'] || item['主旨/標題'] || '';
+    const title = item['課程名稱'] || item['講師姓名'] || item['顧問姓名'] || item['店家名稱'] || item['活動名稱'] || item['產品名稱'] || item['標題'] || item['職缺名稱'] || item['主旨/標題'] || '';
     let desc = item['簡介'] || item['個人簡介'] || item['產品簡介'] || item['內容'] || '';
     const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || item['產品logo及圖檔'] || item['公司Logo或環境照片'] || item['附圖網址'] || '';
-    const linkRaw = item['報名連結'] || item['專屬付款網址'] || ''; 
+    const linkRaw = item['報名連結'] || item['專屬付款網址'] || item['連結'] || ''; 
+
+    let extraHtml = '';
 
     if (item['徵才機構']) {
         desc = `🏢 機構：${item['徵才機構']}\n📍 地點：${item['工作地點']}\n💰 薪資：${item['薪資待遇']}\n📞 聯絡：${item['聯絡方式']}\n\n【條件要求】\n${item['條件要求']}`;
     } else if (item['發文者姓名']) {
         desc = `👤 發文者：${item['發文者姓名']}\n🕒 時間：${item['發文時間']}\n\n${item['交流內容']}`;
+        extraHtml = buildCommentsHtml(item['主旨/標題']||'', item['發文時間']||'', index, true);
     } else if (item['專長項目']) {
         desc = `【專長項目】\n${item['專長項目']}\n\n${desc}`;
+    } else if (item['店家名稱']) {
+        desc = `👤 負責人：${item['負責人']}\n📍 地址：${item['地址']}\n📞 電話：${item['聯絡電話']}\n\n${item['簡介']}`;
     }
 
     let imagesHtml = '';
@@ -597,11 +739,16 @@ window.openDetailModal = function(index) {
         });
     }
 
-    let actionHtml = linkRaw ? `<a href="${linkRaw}" target="_blank" class="candy-btn payment-btn" style="font-size: 18px; padding: 12px 30px;">💳 前往報名/付款</a>` : '';
+    let actionHtml = linkRaw ? `<a href="${linkRaw}" target="_blank" class="candy-btn payment-btn" style="font-size: 18px; padding: 12px 30px;">💳 了解更多 / 報名</a>` : '';
+    
+    if (item['最低權限要求(例如:一般會員)'] !== undefined) {
+        const reqLevel = item['最低權限要求(例如:一般會員)'] || '會員';
+        actionHtml = `<button class="candy-btn member-btn" style="width:100%; font-size:18px; padding: 12px 30px;" onclick="playCourseVideo(event, '${title}', '${reqLevel}')">▶️ 播放影片 (${reqLevel}專屬)</button>`;
+    }
 
     document.getElementById('detail-modal-images').innerHTML = imagesHtml;
     document.getElementById('detail-modal-title').innerText = title;
-    document.getElementById('detail-modal-desc').innerHTML = desc.replace(/\n/g, '<br>');
+    document.getElementById('detail-modal-desc').innerHTML = desc.replace(/\n/g, '<br>') + extraHtml;
     document.getElementById('detail-modal-action').innerHTML = actionHtml;
 
     document.getElementById('detail-modal').classList.add('active');
@@ -634,7 +781,7 @@ function setupContactModal() {
             if (!name || !phone || !subject || !msg) { alert('請填寫所有必填欄位！'); return; }
             submitBtn.innerText = '傳送中...'; submitBtn.disabled = true;
             try {
-                const timestamp = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+                const timestamp = getCleanTime();
                 await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, sheetName: '聯絡我們', newRowData: [timestamp, name, phone, line, subject, msg], action: 'submitContact' }) });
                 alert('訊息已成功送出！'); contactModal.classList.remove('active');
                 ['c-name', 'c-phone', 'c-line', 'c-subject', 'c-message'].forEach(id => document.getElementById(id).value = '');
