@@ -32,14 +32,9 @@
         .form-group { margin-bottom: 20px; }
         .form-group label { display: block; font-size: 14px; margin-bottom: 8px; color: var(--admin-dark); font-weight: 600; }
         
-        .input-field, .select-field, .textarea-field { 
-            width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; background-color: #fff; 
-        }
-        
-        /* 強化搜尋框視覺 */
+        .input-field, .select-field, .textarea-field { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; background-color: #fff; }
         #member-search { border: 2px solid var(--admin-accent); padding: 15px; font-size: 16px; box-shadow: 0 4px 10px rgba(184,149,90,0.1); transition: 0.3s; }
         #member-search:focus { outline: none; box-shadow: 0 4px 15px rgba(184,149,90,0.3); }
-
         .textarea-field { resize: vertical; height: 100px; }
         .btn-primary { background: var(--admin-accent); color: #fff; border: none; padding: 12px 25px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 15px; }
         .btn-primary:hover { filter: brightness(0.9); }
@@ -48,7 +43,7 @@
         .data-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #eee; margin-bottom: 10px; border-radius: 8px; background: #fafafa; flex-wrap: wrap; gap: 10px; }
         .data-item-title { font-weight: 600; color: var(--admin-dark); }
         .action-btns { display: flex; gap: 10px; }
-        .btn-icon { background: #fff; border: 1px solid #ddd; padding: 6px 12px; border-radius: 4px; cursor: pointer; transition: 0.3s; font-size: 13px; }
+        .btn-icon { background: #fff; border: 1px solid #ddd; padding: 6px 12px; border-radius: 4px; cursor: pointer; transition: 0.3s; font-size: 13px; font-weight:bold; color:var(--admin-dark); }
         .btn-icon:hover { background: #eee; }
         .btn-icon.danger { color: #d32f2f; border-color: #ffcdd2; }
         .btn-icon.danger:hover { background: #ffebee; }
@@ -56,6 +51,11 @@
         #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--admin-dark); display: flex; justify-content: center; align-items: center; z-index: 9999; }
         .login-box { background: #fff; padding: 40px; border-radius: 12px; text-align: center; width: 90%; max-width: 350px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
         
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(31, 45, 74, 0.8); display: none; justify-content: center; align-items: center; z-index: 9999; opacity: 0; transition: opacity 0.3s ease; }
+        .modal-overlay.active { display: flex; opacity: 1; }
+        .modal-content { background: #ffffff; padding: 40px; border-radius: 12px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; position: relative; box-shadow: 0 15px 30px rgba(0,0,0,0.2); }
+        .modal-close-btn { position: absolute; top: 15px; right: 20px; background: none; border: none; font-size: 28px; color: #aaa; cursor: pointer; transition: 0.3s; }
+
         .member-card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin-bottom: 15px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
         .member-card-header { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; justify-content: space-between;}
         .member-info { flex: 1; min-width: 250px; }
@@ -73,7 +73,6 @@
         .details-box { background: #f8f9fa; border-radius: 8px; padding: 15px; margin-top: 15px; width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 13px; color: #555; box-sizing: border-box; }
         .details-box div span { font-weight: bold; color: var(--admin-dark); display: inline-block; width: 75px; }
 
-        /* 分頁控制項樣式 */
         .pagination-controls { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; }
         .page-btn { background: #fff; border: 1px solid #ddd; padding: 8px 15px; border-radius: 6px; cursor: pointer; transition: 0.3s; font-weight: bold; color: var(--admin-dark); }
         .page-btn:hover:not(:disabled) { background: var(--admin-bg); border-color: var(--admin-accent); color: var(--admin-accent); }
@@ -105,10 +104,22 @@
         </div>
     </div>
 
+    <div id="edit-content-modal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="modal-close-btn" onclick="document.getElementById('edit-content-modal').classList.remove('active')">&times;</button>
+            <h2 style="margin-top:0; color:var(--admin-dark);">編輯內容</h2>
+            <div id="edit-dynamic-form-container"></div>
+            <input type="hidden" id="edit-row-index">
+            <input type="hidden" id="edit-sheet-name">
+            <input type="hidden" id="edit-old-images">
+            <button id="btn-save-edit" class="btn-primary" style="width:100%; margin-top:20px;">儲存變更</button>
+        </div>
+    </div>
+
     <aside class="sidebar">
         <div class="sidebar-header">
             <img src="images/CIAEDA_直式標準_標準彩色.png" alt="Logo">
-            <h2>CORE SYSTEM v6.0</h2>
+            <h2>CORE SYSTEM v7.0</h2>
         </div>
         <nav class="nav-menu">
             <div class="nav-item active" data-target="panel-members">👥 會員系統管理</div>
@@ -160,6 +171,8 @@
                         <option value="活動花絮">活動花絮</option>
                         <option value="關於我們">關於我們</option>
                         <option value="品牌推廣">品牌推廣</option>
+                        <!-- 全新：徵才專區 (僅限後台發佈) -->
+                        <option value="徵才專區">🏢 徵才專區</option>
                         <option disabled>────── 專屬內容 ──────</option>
                         <option value="會員專屬影片">🎬 會員專屬影片</option>
                     </select>
@@ -180,6 +193,9 @@
                         <option value="活動花絮">活動花絮</option>
                         <option value="關於我們">關於我們</option>
                         <option value="品牌推廣">品牌推廣</option>
+                        <!-- 全新：包含徵才與交流的管理 -->
+                        <option value="徵才專區">徵才專區</option>
+                        <option value="美業資訊交流">美業資訊交流 (刪除違規文章)</option>
                         <option value="會員專屬影片">會員專屬影片</option>
                     </select>
                 </div>
