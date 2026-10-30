@@ -1,6 +1,6 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：極速快取引擎 (0.1秒載入)、3小時資安鎖、LINE 登入與路由、更新圖片渲染邏輯
+ * 職責：極速快取引擎 (加入 5 分鐘強制更新)、資安鎖、LINE 登入路由、卡片點擊詳細視窗
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
@@ -9,9 +9,10 @@ const PAYUNI_URL = 'https://api.payuni.com.tw/api/uop/receive_info/2/1/CCAT96831
 
 // 🔑 雙 LIFF 鑰匙設定
 const LIFF_ID_MAIN = '2012121201-JKa4hPdF'; 
-const LIFF_ID_MEMBER = '2012121201-DRHgrrOJ'; 
+const LIFF_ID_MEMBER = '2012121201-DRHgrrOJ'; // ⚠️ 請確保這是您的官方 LINE 專屬 ID
 
 const AUTH_EXPIRY_MS = 3 * 60 * 60 * 1000; 
+const CACHE_EXPIRY_MS = 5 * 60 * 1000; // === 新增：設定快取壽命為 5 分鐘 ===
 
 const PAGE_CONFIG = {
     '': { title: '重新定義美學與專業', subtitle: '打造全方位美業人才的孵化平台', sheet: '課程介紹', layout: 'card' },
@@ -34,6 +35,7 @@ if (urlParams.get('zone') === 'member') {
 
 let currentTrackingHash = window.location.hash || '#home';
 let currentPageEntryTime = Date.now();
+let currentViewDataCache = [];
 
 function isAuthValid() {
     const authTime = localStorage.getItem('cia_auth_time');
@@ -47,15 +49,29 @@ function isAuthValid() {
     return true;
 }
 
+// === 修改：極速快取引擎加入過期檢查機制 ===
 async function fetchWithCache(sheetName) {
     const cacheKey = 'cia_cache_' + sheetName;
+    const timeKey = 'cia_cache_time_' + sheetName;
+    
     const cachedData = sessionStorage.getItem(cacheKey);
-    if (cachedData) return JSON.parse(cachedData);
+    const cacheTime = sessionStorage.getItem(timeKey);
+    
+    // 如果快取存在，且尚未過期 (小於 5 分鐘)，則直接使用快取
+    if (cachedData && cacheTime && (Date.now() - parseInt(cacheTime) < CACHE_EXPIRY_MS)) {
+        console.log(`[Cache Hit] 載入暫存資料: ${sheetName}`);
+        return JSON.parse(cachedData);
+    }
 
+    console.log(`[Cache Miss] 重新抓取資料: ${sheetName}`);
+    // 沒有快取或已過期，重新發送請求
     const res = await fetch(`${GAS_URL}?sheetName=${sheetName}`);
     const data = await res.json();
+    
+    // 成功後寫入新資料與新時間戳記
     if (data.status === 'success') {
         sessionStorage.setItem(cacheKey, JSON.stringify(data));
+        sessionStorage.setItem(timeKey, Date.now().toString());
     }
     return data;
 }
@@ -159,6 +175,7 @@ function handlePageTransition() {
 document.addEventListener('DOMContentLoaded', () => {
     initSystem(); setupMobileMenu(); setupMemberLogin(); updateMemberUI();
     setupProfileCompletionForm(); 
+    setupContactModal(); 
     window.addEventListener('hashchange', () => { handlePageTransition(); loadPage(); });
     window.addEventListener('beforeunload', () => { handlePageTransition(); });
     loadPage();
@@ -312,6 +329,9 @@ function logoutMember() {
     localStorage.removeItem('cia_member_credentials');
     localStorage.removeItem('cia_member_info');
     localStorage.removeItem('cia_auth_time');
+    // === 同時清除頁面資料快取 ===
+    sessionStorage.clear();
+    
     if (liff.isLoggedIn()) { liff.logout(); }
     alert('已登出。');
     window.location.hash = '#home';
@@ -365,7 +385,6 @@ function optimizeImageUrl(url) {
     return url;
 }
 
-// 核心修復：使用 CSS 架構中的 .img-wrapper 來包裹圖片
 function generateImageHTML(imgString) {
     const rawUrls = imgString.split(',').map(u => u.trim()).filter(u => u);
     
@@ -387,18 +406,28 @@ function generateImageHTML(imgString) {
 
 function renderData(rawData, layoutType, container) {
     const headers = rawData[0];
+    currentViewDataCache = []; 
+    
     let html = layoutType === 'article' ? '<div style="max-width: 800px; margin: 0 auto; width:100%;">' : '<div class="course-grid" style="width:100%;">';
+    
     for (let i = 1; i < rawData.length; i++) {
         let item = {};
         for (let j = 0; j < headers.length; j++) item[headers[j]] = rawData[i][j];
+        
+        currentViewDataCache.push(item);
+        const dataIndex = currentViewDataCache.length - 1;
+
         const title = item['課程名稱'] || item['講師姓名'] || item['活動名稱'] || item['產品名稱'] || item['名稱'] || item['標題'] || '';
         const desc = item['簡介'] || item['個人簡介'] || item['專長項目'] || item['產品簡介'] || item['內容'] || '';
         const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || item['產品logo及圖檔'] || '';
         const linkRaw = item['報名連結'] || item['專屬付款網址'] || ''; 
         
         const imgHtml = generateImageHTML(imgRaw);
-        let paymentBtnHtml = linkRaw ? `<a href="${linkRaw}" target="_blank" class="candy-btn payment-btn" style="display:block; text-align:center; margin-top:20px;">💳 專屬線上付款</a>` : '';
         
+        let paymentBtnHtml = linkRaw ? `<a href="${linkRaw}" target="_blank" class="candy-btn payment-btn" style="display:block; text-align:center; margin-top:20px;" onclick="event.stopPropagation();">💳 專屬線上付款</a>` : '';
+        
+        let shortDesc = desc.length > 60 ? desc.substring(0, 60) + '...' : desc;
+
         if (layoutType === 'article') {
             html += `<div style="margin-bottom: 50px;">`;
             if (title) html += `<h3 style="color:var(--ink-navy); border-bottom: 2px solid var(--champagne); padding-bottom:10px; margin-bottom:20px; font-size:24px;">${title}</h3>`;
@@ -407,18 +436,83 @@ function renderData(rawData, layoutType, container) {
             html += paymentBtnHtml; 
             html += `</div>`;
         } else {
-            html += `<div class="course-card">${imgHtml}<div class="course-info">${title ? `<h3 class="course-title">${title}</h3>` : ''}${desc ? `<p class="course-desc">${desc}</p>` : ''}${paymentBtnHtml}</div></div>`;
+            html += `
+                <div class="course-card" onclick="openDetailModal(${dataIndex})" style="cursor: pointer;" title="點擊查看詳細資料">
+                    ${imgHtml}
+                    <div class="course-info">
+                        ${title ? `<h3 class="course-title">${title}</h3>` : ''}
+                        ${shortDesc ? `<p class="course-desc">${shortDesc}</p>` : ''}
+                        ${paymentBtnHtml}
+                    </div>
+                </div>
+            `;
         }
     }
     html += '</div>';
     container.innerHTML = html;
 }
 
+window.openDetailModal = function(index) {
+    const item = currentViewDataCache[index];
+    if (!item) return;
+
+    const title = item['課程名稱'] || item['講師姓名'] || item['活動名稱'] || item['產品名稱'] || item['名稱'] || item['標題'] || '';
+    const desc = item['簡介'] || item['個人簡介'] || item['專長項目'] || item['產品簡介'] || item['內容'] || '';
+    const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || item['產品logo及圖檔'] || '';
+    const linkRaw = item['報名連結'] || item['專屬付款網址'] || ''; 
+
+    let imagesHtml = '';
+    const rawUrls = imgRaw.split(',').map(u => u.trim()).filter(u => u);
+    if (rawUrls.length > 0) {
+        rawUrls.forEach(url => {
+            const optimized = optimizeImageUrl(url);
+            imagesHtml += `<img src="${optimized}" style="width: 100%; display: block; border-bottom: 1px solid #eee;">`;
+        });
+    }
+
+    let actionHtml = linkRaw ? `<a href="${linkRaw}" target="_blank" class="candy-btn payment-btn" style="font-size: 18px; padding: 12px 30px;">💳 前往報名/付款</a>` : '';
+
+    document.getElementById('detail-modal-images').innerHTML = imagesHtml;
+    document.getElementById('detail-modal-title').innerText = title;
+    document.getElementById('detail-modal-desc').innerHTML = desc.replace(/\n/g, '<br>');
+    document.getElementById('detail-modal-action').innerHTML = actionHtml;
+
+    document.getElementById('detail-modal').classList.add('active');
+};
+
 function setupContactModal() {
-    const modal = document.getElementById('contact-modal');
-    const openBtn = document.getElementById('open-contact-btn');
-    const closeBtn = document.getElementById('close-contact-btn');
+    const contactModal = document.getElementById('contact-modal');
+    const openContactBtn = document.getElementById('open-contact-btn');
+    const closeContactBtn = document.getElementById('close-contact-btn');
+    if(openContactBtn) openContactBtn.addEventListener('click', () => contactModal.classList.add('active'));
+    if(closeContactBtn) closeContactBtn.addEventListener('click', () => contactModal.classList.remove('active'));
+    
+    const detailModal = document.getElementById('detail-modal');
+    const closeDetailBtn = document.getElementById('close-detail-btn');
+    if(closeDetailBtn) closeDetailBtn.addEventListener('click', () => detailModal.classList.remove('active'));
+
+    window.addEventListener('click', (e) => { 
+        if (e.target === contactModal) contactModal.classList.remove('active'); 
+        if (e.target === detailModal) detailModal.classList.remove('active');
+    });
+
     const submitBtn = document.getElementById('submit-contact-btn');
-    if(openBtn) openBtn.addEventListener('click', () => modal.classList.add('active'));
-    if(closeBtn) closeBtn.addEventListener('click', () => modal.classList.remove('active'));
+    if (submitBtn) {
+        submitBtn.addEventListener('click', async () => {
+            const name = document.getElementById('c-name').value.trim();
+            const phone = document.getElementById('c-phone').value.trim();
+            const line = document.getElementById('c-line').value.trim();
+            const subject = document.getElementById('c-subject').value.trim();
+            const msg = document.getElementById('c-message').value.trim();
+            if (!name || !phone || !subject || !msg) { alert('請填寫所有必填欄位！'); return; }
+            submitBtn.innerText = '傳送中...'; submitBtn.disabled = true;
+            try {
+                const timestamp = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+                await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, sheetName: '聯絡我們', newRowData: [timestamp, name, phone, line, subject, msg], action: 'submitContact' }) });
+                alert('訊息已成功送出！'); contactModal.classList.remove('active');
+                ['c-name', 'c-phone', 'c-line', 'c-subject', 'c-message'].forEach(id => document.getElementById(id).value = '');
+            } catch (err) { alert('失敗請稍後重試'); } 
+            finally { submitBtn.innerText = '確認送出'; submitBtn.disabled = false; }
+        });
+    }
 }
