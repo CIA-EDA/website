@@ -4,11 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CIA-EDA | 中華國際美學教育發展協會</title>
-    
     <meta name="description" content="中華國際美學教育發展協會 CIA-EDA，致力於推動美業標準化與國際化，打造全方位美業人才的孵化平台。">
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@500;700&display=swap" rel="stylesheet">
-    
     <style>
         :root { --ink-navy: #1F2D4A; --mist-rose: #E8D3CB; --champagne: #B8955A; --pearl: #FAF7F2; --taupe: #8C8279; --primary-color: var(--champagne); --secondary-color: var(--pearl); }
         body { margin: 0; font-family: 'Noto Sans TC', sans-serif; background-color: var(--secondary-color); color: var(--ink-navy); display: flex; flex-direction: column; min-height: 100vh; }
@@ -42,9 +40,74 @@
         
         .hero-section { padding: 80px 40px; text-align: center; background-color: var(--secondary-color); }
         .content-section { padding: 50px 8%; background-color: #ffffff; min-height: 40vh; }
+        
+        /* 核心修復：圖片跑版與卡片變形問題 */
         .course-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; margin-top: 30px; }
-        .course-card { border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.03); padding-bottom: 15px; }
-        .course-info { padding: 0 20px; }
+        
+        .course-card { 
+            border: 1px solid #eee; 
+            border-radius: 12px; 
+            overflow: hidden; 
+            background: #fff; 
+            transition: 0.3s; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03); 
+            display: flex; 
+            flex-direction: column; 
+            height: 100%; /* 讓網格內的卡片等高 */
+        }
+        
+        .course-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
+
+        /* 單張圖片與多圖容器的共用樣式 */
+        .img-wrapper {
+            width: 100%;
+            /* 使用固定比例，例如 4:3，確保所有圖片區塊高度一致，不會忽高忽低 */
+            aspect-ratio: 4 / 3; 
+            overflow: hidden;
+            background-color: var(--secondary-color);
+            position: relative;
+        }
+
+        .img-wrapper img, 
+        .carousel-container img {
+            width: 100%;
+            height: 100%;
+            /* 重點！使用 object-fit: cover 讓圖片填滿容器不變形 */
+            object-fit: cover; 
+            /* 如果是人物照，重點通常在上方(臉)，所以設定對齊上方 */
+            object-position: top; 
+            transition: transform 0.5s ease;
+        }
+        
+        /* 滑鼠移上去時有微放大效果，增加高級感 */
+        .course-card:hover .img-wrapper img { transform: scale(1.05); }
+
+        /* 多張圖片水平滑動容器 (Carousel) */
+        .carousel-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            /* 隱藏預設捲軸讓畫面更乾淨 */
+            -ms-overflow-style: none;  
+            scrollbar-width: none;  
+        }
+        .carousel-container::-webkit-scrollbar { display: none; }
+        
+        .carousel-container img {
+            flex: 0 0 100%; /* 每張圖片佔滿容器寬度 */
+            scroll-snap-align: start;
+            object-fit: cover;
+            object-position: top;
+        }
+
+        .carousel-hint { text-align: center; font-size: 11px; color: var(--taupe); padding: 5px 0; background: #fff; }
+
+        .course-info { padding: 25px 20px; display: flex; flex-direction: column; flex: 1; }
+        .course-title { margin: 0 0 12px 0; color: var(--ink-navy); font-size: 20px; line-height: 1.3; }
+        .course-desc { color: var(--text-light); font-size: 14px; line-height: 1.6; flex: 1; margin: 0 0 15px 0; }
+        
         .video-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 12px; margin-bottom: 15px; background: #000; }
         .video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
 
@@ -73,6 +136,8 @@
             .main-nav.show { display: flex; align-items: center; }
             .hero-title { font-size: 26px !important; }
             .footer-links { flex-direction: column; gap: 15px; align-items: center; }
+            /* 在手機版稍微調整圖片容器比例，讓圖片多露出一點 */
+            .img-wrapper { aspect-ratio: 1 / 1; }
         }
     </style>
 </head>
@@ -103,26 +168,24 @@
         <section class="content-section">
             <div id="data-container"></div>
             
-            <!-- 全新：入會專屬引導畫面 (未登入時點擊入會申請顯示) -->
             <div id="join-prompt-container" style="display: none; max-width: 500px; margin: 0 auto;">
                 <div class="form-section" style="text-align: center;">
                     <h2 style="color:var(--primary-color); margin-top:0;">第一步：綁定官方 LINE</h2>
                     <p style="font-size:15px; color:var(--taupe); margin-bottom:30px; line-height:1.6;">
                         為了提供您最完善的服務與課程體驗，入會申請需綁定 CIA-EDA 官方 LINE 帳號。<br><br>請點擊下方按鈕進行綁定，完成後將自動引導您填寫入會申請表。
                     </p>
-                    <button id="btn-join-line-login" class="candy-btn line-btn" style="width:100%; font-size:18px; padding:15px; border-radius:50px;">
+                    <button class="candy-btn line-btn line-login-trigger" style="width:100%; font-size:18px; padding:15px; border-radius:50px;">
                         <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg" style="width:24px; vertical-align:middle; margin-right:10px;"> 
                         前往綁定 LINE 帳號
                     </button>
                 </div>
             </div>
 
-            <!-- 一般會員登入畫面 (點擊專屬影音時顯示) -->
             <div id="login-container" style="display: none; max-width: 400px; margin: 0 auto;">
                 <div class="form-section" style="text-align: center;">
                     <h3 id="login-form-title" style="color:var(--ink-navy); margin-top:0;">會員專區登入</h3>
                     <p style="font-size:14px; color:var(--taupe); margin-bottom:30px;">請點擊下方按鈕進行安全的快速登入，以存取您的專屬內容。</p>
-                    <button id="btn-line-login" class="candy-btn line-btn" style="width:100%; font-size:16px;">
+                    <button class="candy-btn line-btn line-login-trigger" style="width:100%; font-size:16px;">
                         <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg" style="width:20px; vertical-align:middle; margin-right:8px;"> LINE 一鍵快速登入
                     </button>
                     <div style="margin: 20px 0; border-bottom: 1px solid #ddd; position: relative;">
@@ -134,7 +197,6 @@
                 </div>
             </div>
 
-            <!-- 第二步：入會申請暨資料補全表單 (LINE 綁定後自動展開) -->
             <div id="profile-completion-container" style="display: none; max-width: 800px; margin: 0 auto;">
                 <div class="form-section">
                     <h2 style="color:var(--primary-color); text-align:center; margin-top:0;">第二步：填寫入會申請資料</h2>
