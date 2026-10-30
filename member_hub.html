@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CIA-EDA | 會員專屬中心</title>
+    <!-- 這是專門為 LINE 內部瀏覽器設計的乾淨介面 -->
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --ink-navy: #1F2D4A; --mist-rose: #E8D3CB; --champagne: #B8955A; --pearl: #FAF7F2; --taupe: #8C8279; }
+        body { margin: 0; font-family: 'Noto Sans TC', sans-serif; background-color: var(--pearl); color: var(--ink-navy); padding-bottom: 50px; }
+        
+        #preloader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--pearl); display: flex; justify-content: center; align-items: center; z-index: 99999; transition: 0.5s ease; }
+        .preloader-logo { width: 120px; animation: pulseFade 1.5s infinite; }
+        @keyframes pulseFade { 0%, 100% { opacity: 0.3; transform: scale(0.95); } 50% { opacity: 1; transform: scale(1.05); } }
+        
+        /* 極簡頂部列，不包含多餘導覽 */
+        header { padding: 15px 20px; display: flex; justify-content: center; align-items: center; background-color: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 9000; }
+        .brand-logo-img { height: 40px; }
+        
+        .content-section { padding: 30px 5%; max-width: 800px; margin: 0 auto; }
+        
+        /* 應用程式風 Dashboard Grid */
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 15px; margin-top: 25px; }
+        .dashboard-card { background: #fff; border: 1px solid #eee; border-radius: 16px; padding: 25px 10px; text-align: center; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.03); text-decoration: none; color: var(--ink-navy); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .dashboard-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(184,149,90,0.15); border-color: var(--champagne); }
+        .dashboard-icon { font-size: 32px; }
+        .dashboard-title { font-weight: bold; font-size: 15px; }
+
+        .form-section { background: #fff; padding: 30px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
+        .form-row { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; }
+        .form-group { flex: 1; min-width: 250px; text-align: left; margin-bottom: 10px; }
+        .form-group.full-width { flex: 100%; }
+        .form-group label { display: block; font-size: 13px; margin-bottom: 8px; color: var(--ink-navy); font-weight: bold; }
+        .input-field, .select-field { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 15px; background: #fafafa; }
+        
+        .submit-btn-full { width: 100%; padding: 15px; background: linear-gradient(135deg, var(--champagne) 0%, #967a4a 100%); color: white; border: none; border-radius: 50px; cursor: pointer; transition: 0.3s; font-size: 16px; font-weight: bold; margin-top: 20px; box-shadow: 0 4px 15px rgba(184, 149, 90, 0.4); }
+        .line-btn { background: #06C755; color: white !important; border: none; box-shadow: 0 4px 10px rgba(6, 199, 85, 0.3); border-radius: 50px; width: 100%; padding: 15px; font-size: 16px; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; margin-top: 20px;}
+        
+        /* 隱藏區塊 */
+        .hub-panel { display: none; }
+        .hub-panel.active { display: block; }
+    </style>
+</head>
+<body>
+    <div id="preloader"><img src="images/CIAEDA_直式標準_標準彩色.png" alt="Loading" class="preloader-logo"></div>
+
+    <header>
+        <a href="index.html"><img src="images/CIAEDA_直式標準_標準彩色.png" alt="Logo" class="brand-logo-img"></a>
+    </header>
+
+    <main class="content-section">
+        
+        <!-- 登入與引導區 -->
+        <div id="panel-login" class="hub-panel">
+            <div class="form-section" style="text-align: center; margin-top: 30px;">
+                <h2 style="color:var(--champagne); margin-top:0;">會員專屬中心</h2>
+                <p style="font-size:15px; color:var(--taupe); margin-bottom:30px; line-height:1.6;">
+                    歡迎來到 CIA-EDA 會員大廳。<br>請點擊下方按鈕進行安全的快速登入，或開始您的入會申請流程。
+                </p>
+                <button id="btn-line-login" class="line-btn">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg" style="width:24px; margin-right:10px;"> LINE 一鍵快速登入
+                </button>
+                <a href="index.html" style="display:block; margin-top: 30px; color: var(--taupe); text-decoration: none; font-size: 14px;">返回官方首頁</a>
+            </div>
+        </div>
+
+        <!-- 會員高階九宮格大廳 -->
+        <div id="panel-dashboard" class="hub-panel">
+            <div id="dashboard-header" style="background:#fff; border-radius:12px; padding:30px; box-shadow:0 10px 30px rgba(0,0,0,0.05);">
+                <!-- 由 JS 動態注入頭像與歡迎詞 -->
+            </div>
+            
+            <div class="dashboard-grid">
+                <!-- 指向外部 index.html 的特定錨點 -->
+                <a href="index.html#course-platform" class="dashboard-card">
+                    <div class="dashboard-icon">🎬</div>
+                    <div class="dashboard-title">專屬課程</div>
+                </a>
+                <a href="index.html#exchange" class="dashboard-card">
+                    <div class="dashboard-icon">💬</div>
+                    <div class="dashboard-title">美業交流</div>
+                </a>
+                <a href="index.html#jobs" class="dashboard-card">
+                    <div class="dashboard-icon">🏢</div>
+                    <div class="dashboard-title">徵才專區</div>
+                </a>
+                <a href="#edit-profile" class="dashboard-card" onclick="switchPanel('panel-edit'); return false;">
+                    <div class="dashboard-icon">⚙️</div>
+                    <div class="dashboard-title">修改資料</div>
+                </a>
+            </div>
+            <button onclick="logoutMember()" style="display:block; width:100%; margin-top:25px; padding:15px; background:none; border:none; color:#e53e3e; text-decoration:underline; cursor:pointer; font-size:15px;">安全登出</button>
+        </div>
+
+        <!-- 審核中畫面 -->
+        <div id="panel-pending" class="hub-panel">
+            <div class="form-section" style="text-align:center;">
+                <h2 style="color:var(--ink-navy); margin-top:0;">資格審核中</h2>
+                <div style="padding:20px; background:#fff3cd; color:#856404; border-radius:8px; margin:20px 0; text-align:left; font-size:15px; line-height:1.6;">
+                    <strong>⏳ 您已完成資料綁定</strong><br>請前往官方 LINE 聯繫客服人員進行人工確認與繳費。<br>在審核通過前，無法存取專屬功能，但您仍可自由瀏覽網站公開資訊。
+                </div>
+                <a href="index.html" class="submit-btn-full" style="display:inline-block; text-decoration:none; box-sizing:border-box;">前往官方首頁</a>
+                <button onclick="logoutMember()" style="display:block; width:100%; margin-top:20px; background:none; border:none; color:red; text-decoration:underline; cursor:pointer;">登出帳號</button>
+            </div>
+        </div>
+
+        <!-- 首次入會申請表單 -->
+        <div id="panel-join" class="hub-panel">
+            <div class="form-section">
+                <h2 style="color:var(--champagne); text-align:center; margin-top:0;">第二步：填寫入會申請資料</h2>
+                <p style="text-align:center; color:var(--taupe); font-size:14px; margin-bottom:20px;">LINE 帳號綁定成功！請詳細填寫以下資料。</p>
+                <div class="form-row">
+                    <div class="form-group"><label>真實姓名 (中文) *</label><input type="text" id="p-name-zh" class="input-field"></div>
+                    <div class="form-group"><label>英文姓名</label><input type="text" id="p-name-en" class="input-field"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>性別 *</label><select id="p-gender" class="select-field"><option value="女">女</option><option value="男">男</option></select></div>
+                    <div class="form-group"><label>出生日期 *</label><input type="date" id="p-birth" class="input-field"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>身分證字號 *</label><input type="text" id="p-id" class="input-field"></div>
+                    <div class="form-group"><label>聯絡電話(手機) *</label><input type="tel" id="p-phone" class="input-field"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>LINE ID</label><input type="text" id="p-line" class="input-field"></div>
+                    <div class="form-group"><label>電子郵件 *</label><input type="email" id="p-email" class="input-field"></div>
+                </div>
+                <div class="form-row"><div class="form-group full-width"><label>通訊地址 (含縣市區) (選填)</label><input type="text" id="p-address" class="input-field"></div></div>
+                <hr style="border:0; border-top:1px dashed #ddd; margin:20px 0;">
+                <h4 style="color:var(--ink-navy); margin-bottom:10px;">專業背景資訊</h4>
+                <div class="form-row">
+                    <div class="form-group"><label>最高學歷</label><select id="p-edu" class="select-field"><option value="">請選擇</option><option value="高中/職">高中/職</option><option value="專科">專科</option><option value="學士">學士</option><option value="碩士">碩士</option><option value="博士">博士</option><option value="其他">其他</option></select></div>
+                    <div class="form-group"><label>主要美學領域</label><input type="text" id="p-fields" class="input-field" placeholder="例如: 美甲, 紋繡"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>現職機構名稱</label><input type="text" id="p-company" class="input-field"></div>
+                    <div class="form-group"><label>現任職稱</label><input type="text" id="p-jobtitle" class="input-field"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group full-width"><label>申請會籍類別 *</label>
+                        <select id="p-membership" class="select-field">
+                            <option value="一般會員">一般會員</option><option value="VIP會員">VIP會員</option>
+                            <option value="講師會員">講師會員</option><option value="顧問會員">顧問會員</option>
+                            <option value="企業會員">企業會員</option>
+                        </select>
+                    </div>
+                </div>
+                <button id="submit-profile-btn" class="submit-btn-full">確認送出申請</button>
+            </div>
+        </div>
+
+        <!-- 會員自主修改資料表單 -->
+        <div id="panel-edit" class="hub-panel">
+            <div class="form-section">
+                <button onclick="switchPanel('panel-dashboard')" style="background:none; border:none; color:var(--taupe); cursor:pointer; font-size:14px; margin-bottom:15px; padding:0;">← 返回大廳</button>
+                <h2 style="color:var(--ink-navy); margin-top:0;">修改個人設定</h2>
+                <p style="color:var(--taupe); font-size:14px; margin-bottom:20px;">更新您的聯絡資訊，保持會員通訊順暢。</p>
+                
+                <div class="form-row">
+                    <div class="form-group"><label>真實姓名 (不可更改)</label><input type="text" id="e-name-zh" class="input-field" disabled style="background:#eee;"></div>
+                    <div class="form-group"><label>英文姓名</label><input type="text" id="e-name-en" class="input-field"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>性別</label><select id="e-gender" class="select-field"><option value="女">女</option><option value="男">男</option></select></div>
+                    <div class="form-group"><label>出生日期</label><input type="date" id="e-birth" class="input-field"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>聯絡電話(手機)</label><input type="tel" id="e-phone" class="input-field"></div>
+                    <div class="form-group"><label>LINE ID</label><input type="text" id="e-line" class="input-field"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group full-width"><label>電子郵件</label><input type="email" id="e-email" class="input-field"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group full-width"><label>通訊地址 (含縣市區)</label><input type="text" id="e-address" class="input-field"></div>
+                </div>
+                
+                <button id="submit-edit-profile-btn" class="submit-btn-full">儲存變更</button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 專門控制獨立大廳邏輯的精簡 JS -->
+    <script>
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
+        const API_SECRET_TOKEN = 'cla-eda-secure-2026';
+        const LIFF_ID_MEMBER = '2012121201-DRHgrrOJ'; // ⚠️ 請確保這是您的官方 LINE 專屬 ID
+
+        function showPreloader() { document.getElementById('preloader').style.opacity = '1'; document.getElementById('preloader').style.visibility = 'visible'; }
+        function hidePreloader() { document.getElementById('preloader').style.opacity = '0'; document.getElementById('preloader').style.visibility = 'hidden'; }
+
+        function switchPanel(panelId) {
+            document.querySelectorAll('.hub-panel').forEach(p => p.classList.remove('active'));
+            document.getElementById(panelId).classList.add('active');
+            
+            // 如果是切換到修改資料，自動填入暫存資料
+            if (panelId === 'panel-edit') {
+                const memberInfo = JSON.parse(localStorage.getItem('cia_member_info'));
+                if(memberInfo) {
+                    document.getElementById('e-name-zh').value = memberInfo.name || '';
+                    document.getElementById('e-name-en').value = memberInfo.nameEn || '';
+                    if(memberInfo.gender) document.getElementById('e-gender').value = memberInfo.gender;
+                    if(memberInfo.birth) document.getElementById('e-birth').value = new Date(memberInfo.birth).toISOString().split('T')[0];
+                    document.getElementById('e-phone').value = memberInfo.phone || '';
+                    document.getElementById('e-line').value = memberInfo.lineId || '';
+                    document.getElementById('e-email').value = memberInfo.email || '';
+                    document.getElementById('e-address').value = memberInfo.address || '';
+                }
+            }
+        }
+
+        async function initHub() {
+            try {
+                await liff.init({ liffId: LIFF_ID_MEMBER });
+                if (liff.isLoggedIn()) {
+                    await handleHubLogin(true);
+                } else {
+                    const credentials = localStorage.getItem('cia_member_credentials');
+                    if (credentials) checkMemberState();
+                    else switchPanel('panel-login');
+                    hidePreloader();
+                }
+            } catch (err) { alert('LIFF 載入失敗'); hidePreloader(); }
+        }
+
+        async function handleHubLogin(isSilent = false) {
+            if (!isSilent) showPreloader();
+            try {
+                const profile = await liff.getProfile();
+                const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'lineLogin', lineUid: profile.userId, displayName: profile.displayName, pictureUrl: profile.pictureUrl }) });
+                const data = await res.json();
+                
+                if (data.status === 'success') {
+                    localStorage.setItem('cia_member_credentials', JSON.stringify({ lineUid: profile.userId }));
+                    localStorage.setItem('cia_member_info', JSON.stringify(data.member));
+                    localStorage.setItem('cia_auth_time', Date.now().toString()); 
+                    checkMemberState();
+                } else {
+                    if (!isSilent) alert('登入異常：' + data.message);
+                    switchPanel('panel-login');
+                }
+            } catch(e) { 
+                if (!isSilent) alert('LINE 登入連線失敗。'); 
+                switchPanel('panel-login');
+            } finally { hidePreloader(); }
+        }
+
+        function checkMemberState() {
+            const memberInfo = JSON.parse(localStorage.getItem('cia_member_info'));
+            if (!memberInfo) { switchPanel('panel-login'); return; }
+            
+            // 如果還沒補齊資料，強制導向申請表
+            if (memberInfo.needsProfileCompletion) {
+                switchPanel('panel-join');
+                document.getElementById('p-name-zh').value = memberInfo.name || '';
+                return;
+            }
+
+            // 如果審核中
+            if (memberInfo.memberStatus === '停用' || memberInfo.memberStatus === '待審核') {
+                switchPanel('panel-pending');
+                return;
+            }
+
+            // 完全正常，顯示大廳
+            let avatarHtml = memberInfo.avatar ? `<img src="${memberInfo.avatar}" style="width:60px; height:60px; border-radius:50%; vertical-align:middle; margin-right:15px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">` : '';
+            let badgeHtml = memberInfo.level ? `<span style="background:var(--champagne); color:#fff; font-size:13px; padding:4px 12px; border-radius:20px; font-weight:bold;">${memberInfo.level}</span>` : '';
+            document.getElementById('dashboard-header').innerHTML = `
+                <div style="display:flex; align-items:center; justify-content:center; flex-wrap:wrap;">
+                    ${avatarHtml}
+                    <div style="text-align:left;">
+                        <h3 style="margin:0 0 5px 0; color:var(--ink-navy); font-size:22px;">${memberInfo.name}，您好！</h3>
+                        ${badgeHtml}
+                    </div>
+                </div>
+            `;
+            
+            // 檢查網址有沒有錨點 (例如從外面連進來要直接改資料)
+            if (window.location.hash === '#edit-profile') switchPanel('panel-edit');
+            else switchPanel('panel-dashboard');
+        }
+
+        function logoutMember() {
+            localStorage.removeItem('cia_member_credentials');
+            localStorage.removeItem('cia_member_info');
+            localStorage.removeItem('cia_auth_time');
+            if (liff.isLoggedIn()) liff.logout();
+            alert('已登出。');
+            window.location.href = 'index.html';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initHub();
+            
+            document.getElementById('btn-line-login').addEventListener('click', () => {
+                if (!liff.isLoggedIn()) liff.login();
+                else handleHubLogin();
+            });
+
+            // 處理入會申請送出
+            document.getElementById('submit-profile-btn').addEventListener('click', async (e) => {
+                const btn = e.target;
+                const profileData = {
+                    nameZh: document.getElementById('p-name-zh').value.trim(),
+                    nameEn: document.getElementById('p-name-en').value.trim(),
+                    gender: document.getElementById('p-gender').value,
+                    birth: document.getElementById('p-birth').value,
+                    idNum: document.getElementById('p-id').value.trim(),
+                    phone: document.getElementById('p-phone').value.trim(),
+                    line: document.getElementById('p-line').value.trim(),
+                    email: document.getElementById('p-email').value.trim(),
+                    address: document.getElementById('p-address').value.trim(),
+                    edu: document.getElementById('p-edu').value,
+                    fields: document.getElementById('p-fields').value.trim(),
+                    company: document.getElementById('p-company').value.trim(),
+                    jobTitle: document.getElementById('p-jobtitle').value.trim(),
+                    membership: document.getElementById('p-membership').value
+                };
+
+                if (!profileData.nameZh || !profileData.birth || !profileData.idNum || !profileData.phone || !profileData.email) {
+                    alert('請填寫所有標示星號 (*) 的必填欄位！'); return;
+                }
+
+                btn.innerText = '送出審核中...'; btn.disabled = true;
+                try {
+                    const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
+                    await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'updateMemberProfile', lineUid: credentials.lineUid, profileData: profileData }) });
+                    
+                    alert('入會申請送出成功！\n\n請前往「官方 LINE」聯繫客服人員，我們提供【現金 / 轉帳 / 刷卡】服務。\n繳費並經管理員審核通過後，即可為您開通會員權限！');
+                    
+                    let memberInfo = JSON.parse(localStorage.getItem('cia_member_info'));
+                    memberInfo.needsProfileCompletion = false;
+                    memberInfo.name = profileData.nameZh;
+                    memberInfo.memberStatus = '待審核';
+                    localStorage.setItem('cia_member_info', JSON.stringify(memberInfo));
+                    
+                    checkMemberState();
+                } catch(err) { alert('儲存失敗，請稍後再試。'); } 
+                finally { btn.innerText = '確認送出申請'; btn.disabled = false; }
+            });
+
+            // 處理修改資料送出
+            document.getElementById('submit-edit-profile-btn').addEventListener('click', async (e) => {
+                const btn = e.target;
+                const profileData = {
+                    nameZh: document.getElementById('e-name-zh').value.trim(),
+                    nameEn: document.getElementById('e-name-en').value.trim(),
+                    gender: document.getElementById('e-gender').value,
+                    birth: document.getElementById('e-birth').value,
+                    phone: document.getElementById('e-phone').value.trim(),
+                    line: document.getElementById('e-line').value.trim(),
+                    email: document.getElementById('e-email').value.trim(),
+                    address: document.getElementById('e-address').value.trim()
+                };
+
+                btn.innerText = '更新資料中...'; btn.disabled = true;
+                try {
+                    const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
+                    await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'editMemberProfile', lineUid: credentials.lineUid, profileData: profileData }) });
+                    
+                    let memberInfo = JSON.parse(localStorage.getItem('cia_member_info'));
+                    memberInfo.nameEn = profileData.nameEn;
+                    memberInfo.gender = profileData.gender;
+                    memberInfo.birth = profileData.birth;
+                    memberInfo.phone = profileData.phone;
+                    memberInfo.lineId = profileData.line;
+                    memberInfo.email = profileData.email;
+                    memberInfo.address = profileData.address;
+                    localStorage.setItem('cia_member_info', JSON.stringify(memberInfo));
+                    
+                    alert('個人資料更新成功！');
+                    window.location.hash = ''; // 清除錨點
+                    switchPanel('panel-dashboard');
+                } catch(err) { alert('儲存失敗，請稍後再試。'); } 
+                finally { btn.innerText = '儲存變更'; btn.disabled = false; }
+            });
+        });
+    </script>
+</body>
+</html>
