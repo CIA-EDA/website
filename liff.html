@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CIA-EDA 會員中心</title>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* === 專屬 App 風格 CSS === */
+        :root { --app-bg: #F2F2F6; --app-blue: #1F2D4A; --app-gold: #B8955A; --text-main: #333333; --text-sub: #8E8E93; }
+        body { margin: 0; padding: 0; font-family: 'Noto Sans TC', sans-serif; background-color: var(--app-bg); color: var(--text-main); -webkit-tap-highlight-color: transparent; user-select: none; }
+        
+        /* 頂部標題列 */
+        .app-header { position: fixed; top: 0; left: 0; width: 100%; height: 50px; background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); display: flex; justify-content: center; align-items: center; box-shadow: 0 1px 0 rgba(0,0,0,0.05); z-index: 1000; font-weight: bold; font-size: 16px; color: var(--app-blue); }
+        
+        /* 內容區塊 */
+        .app-main { padding: 65px 15px 90px 15px; height: 100vh; box-sizing: border-box; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .view-panel { display: none; animation: fadeIn 0.3s ease; }
+        .view-panel.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* 卡片設計 */
+        .card { background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 15px; }
+        .card-title { font-size: 18px; font-weight: bold; color: var(--app-blue); margin: 0 0 10px 0; display: flex; align-items: center; justify-content: space-between;}
+        .card-desc { font-size: 14px; color: var(--text-sub); line-height: 1.5; margin: 0; }
+        
+        /* 網格大廳 */
+        .grid-menu { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+        .grid-item { background: #fff; border-radius: 16px; padding: 25px 10px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.03); cursor: pointer; transition: 0.2s; border: 1px solid transparent; }
+        .grid-item:active { transform: scale(0.96); border-color: var(--app-gold); }
+        .grid-icon { font-size: 36px; margin-bottom: 10px; }
+        .grid-text { font-size: 14px; font-weight: bold; color: var(--app-blue); }
+
+        /* 表單元件 */
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 13px; color: var(--app-blue); margin-bottom: 6px; font-weight: bold; }
+        .input-field, .select-field, .textarea-field { width: 100%; padding: 14px; border: 1px solid #E5E5EA; border-radius: 12px; font-size: 15px; background: #FAFAFA; box-sizing: border-box; outline: none; transition: 0.3s; }
+        .input-field:focus { border-color: var(--app-gold); background: #fff; }
+        .textarea-field { height: 120px; resize: none; }
+        
+        /* 按鈕設計 */
+        .btn-primary { background: linear-gradient(135deg, var(--app-gold) 0%, #967a4a 100%); color: #fff; border: none; border-radius: 25px; padding: 15px; width: 100%; font-size: 16px; font-weight: bold; box-shadow: 0 4px 15px rgba(184, 149, 90, 0.3); cursor: pointer; }
+        .btn-primary:active { transform: scale(0.98); }
+        .btn-danger { background: #fff; color: #FF3B30; border: 1px solid #FF3B30; border-radius: 25px; padding: 12px; width: 100%; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 15px; }
+        .line-login-btn { background: #06C755; color: #fff; border: none; border-radius: 25px; padding: 15px; width: 100%; font-size: 16px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        
+        /* 底部導覽列 (Bottom Nav) */
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; height: 65px; background: rgba(255,255,255,0.9); backdrop-filter: blur(15px); border-top: 1px solid rgba(0,0,0,0.05); display: flex; justify-content: space-around; align-items: center; z-index: 1000; padding-bottom: env(safe-area-inset-bottom); }
+        .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-sub); width: 25%; font-size: 10px; font-weight: 500; text-decoration: none; cursor: pointer; }
+        .nav-item.active { color: var(--app-gold); }
+        .nav-icon { font-size: 22px; margin-bottom: 2px; }
+
+        /* 載入動畫 */
+        #preloader { position: fixed; top:0; left:0; width:100%; height:100%; background:var(--app-bg); z-index:99999; display:flex; flex-direction:column; justify-content:center; align-items:center; }
+        .spinner { border: 4px solid rgba(0,0,0,0.05); border-top: 4px solid var(--app-gold); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* 圖片處理 */
+        .post-img { width: 100%; border-radius: 12px; margin-top: 10px; object-fit: cover; aspect-ratio: 1/1; }
+        .video-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 12px; background: #000; margin-top:15px; display: none;}
+        .video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
+        
+        /* 浮動發文按鈕 */
+        .fab-btn { position: fixed; bottom: 85px; right: 20px; background: var(--app-gold); color: #fff; width: 55px; height: 55px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; box-shadow: 0 4px 15px rgba(184, 149, 90, 0.4); z-index: 900; }
+    </style>
+</head>
+<body>
+    <div id="preloader"><div class="spinner"></div><div style="color:var(--text-sub); font-size:14px; font-weight:bold;">安全連線中...</div></div>
+
+    <div class="app-header" id="app-title">會員中心</div>
+
+    <main class="app-main">
+        <!-- 登入 / 審核畫面 -->
+        <div id="view-login" class="view-panel">
+            <div class="card" style="text-align: center; margin-top: 20px; padding: 40px 20px;">
+                <img src="images/CIAEDA_直式標準_標準彩色.png" alt="Logo" style="height: 60px; margin-bottom: 20px;">
+                <h2 style="margin:0 0 10px 0; color:var(--app-blue);">專屬會員服務</h2>
+                <p class="card-desc" style="margin-bottom: 30px;">請授權 LINE 帳號以存取大廳。</p>
+                <button class="line-login-btn" onclick="triggerLineLogin()">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg" style="width:20px;"> LINE 一鍵登入
+                </button>
+            </div>
+        </div>
+
+        <div id="view-pending" class="view-panel">
+            <div class="card" style="text-align: center; margin-top: 20px;">
+                <div style="font-size: 50px; margin-bottom: 10px;">⏳</div>
+                <h2 style="margin:0 0 10px 0; color:var(--app-gold);">資格審核中</h2>
+                <p class="card-desc" style="margin-bottom: 20px;">您的資料已送出。<br>請返回官方 LINE 傳送訊息聯繫客服人員，以進行人工確認與繳費。</p>
+                <button class="btn-danger" onclick="logout()">登出帳號</button>
+            </div>
+        </div>
+
+        <!-- 註冊 / 完善資料 -->
+        <div id="view-register" class="view-panel">
+            <div class="card">
+                <h2 style="margin:0 0 5px 0; color:var(--app-blue); text-align:center;">會員資料建檔</h2>
+                <p class="card-desc" style="text-align:center; margin-bottom: 20px;">請完善以下資料以申請入會</p>
+                
+                <div class="form-group"><label>真實姓名 (中文) *</label><input type="text" id="r-name" class="input-field"></div>
+                <div class="form-group"><label>英文姓名</label><input type="text" id="r-enname" class="input-field"></div>
+                <div class="form-group"><label>性別 *</label><select id="r-gender" class="select-field"><option value="女">女</option><option value="男">男</option></select></div>
+                <div class="form-group"><label>出生日期 *</label><input type="date" id="r-birth" class="input-field"></div>
+                <div class="form-group"><label>身分證字號 *</label><input type="text" id="r-id" class="input-field"></div>
+                <div class="form-group"><label>聯絡電話(手機) *</label><input type="tel" id="r-phone" class="input-field"></div>
+                <div class="form-group"><label>LINE ID</label><input type="text" id="r-line" class="input-field"></div>
+                <div class="form-group"><label>電子郵件 *</label><input type="email" id="r-email" class="input-field"></div>
+                <div class="form-group"><label>通訊地址 (選填)</label><input type="text" id="r-address" class="input-field"></div>
+                
+                <h3 style="color:var(--app-blue); font-size:16px; margin: 25px 0 15px 0; border-bottom:1px solid #eee; padding-bottom:5px;">專業背景資訊</h3>
+                <div class="form-group"><label>最高學歷</label><select id="r-edu" class="select-field"><option value="高中/職">高中/職</option><option value="專科">專科</option><option value="學士">學士</option><option value="碩士">碩士</option><option value="其他">其他</option></select></div>
+                <div class="form-group"><label>主要美學領域</label><input type="text" id="r-fields" class="input-field" placeholder="如: 美甲, 紋繡"></div>
+                <div class="form-group"><label>現職機構名稱</label><input type="text" id="r-company" class="input-field"></div>
+                <div class="form-group"><label>申請會籍類別 *</label>
+                    <select id="r-membership" class="select-field">
+                        <option value="一般會員">一般會員</option><option value="VIP會員">VIP會員</option>
+                        <option value="講師會員">講師會員</option><option value="顧問會員">顧問會員</option>
+                        <option value="企業會員">企業會員</option>
+                    </select>
+                </div>
+                <button class="btn-primary" id="btn-submit-register" style="margin-top: 15px;">送出申請</button>
+            </div>
+        </div>
+
+        <!-- 大廳 -->
+        <div id="view-dashboard" class="view-panel">
+            <div class="card" style="display:flex; align-items:center; gap:15px; padding:15px;">
+                <img id="dash-avatar" src="" style="width:60px; height:60px; border-radius:50%; background:#eee;">
+                <div>
+                    <div style="font-size:18px; font-weight:bold; color:var(--app-blue);" id="dash-name">使用者</div>
+                    <div style="font-size:12px; color:#fff; background:var(--app-gold); padding:3px 10px; border-radius:12px; display:inline-block; margin-top:5px; font-weight:bold;" id="dash-level">會員等級</div>
+                </div>
+            </div>
+            
+            <h3 style="font-size: 16px; color: var(--app-blue); margin: 25px 0 10px 5px;">常用服務</h3>
+            <div class="grid-menu">
+                <div class="grid-item" onclick="switchNav('courses')"><div class="grid-icon">🎬</div><div class="grid-text">線上課程</div></div>
+                <div class="grid-item" onclick="switchNav('exchange')"><div class="grid-icon">💬</div><div class="grid-text">美業交流</div></div>
+                <div class="grid-item" onclick="switchNav('jobs')"><div class="grid-icon">🏢</div><div class="grid-text">徵才專區</div></div>
+                <div class="grid-item" onclick="switchNav('profile')"><div class="grid-icon">⚙️</div><div class="grid-text">設定資料</div></div>
+            </div>
+        </div>
+
+        <!-- 課程與專區列表共用容器 -->
+        <div id="view-list" class="view-panel">
+            <div id="list-container"></div>
+        </div>
+
+        <!-- 修改資料 -->
+        <div id="view-profile" class="view-panel">
+            <div class="card">
+                <h2 style="margin:0 0 15px 0; color:var(--app-blue);">修改個人設定</h2>
+                <div class="form-group"><label>真實姓名 (不可更改)</label><input type="text" id="e-name" class="input-field" disabled></div>
+                <div class="form-group"><label>英文姓名</label><input type="text" id="e-enname" class="input-field"></div>
+                <div class="form-group"><label>性別</label><select id="e-gender" class="select-field"><option value="女">女</option><option value="男">男</option></select></div>
+                <div class="form-group"><label>出生日期</label><input type="date" id="e-birth" class="input-field"></div>
+                <div class="form-group"><label>聯絡電話</label><input type="tel" id="e-phone" class="input-field"></div>
+                <div class="form-group"><label>LINE ID</label><input type="text" id="e-line" class="input-field"></div>
+                <div class="form-group"><label>電子郵件</label><input type="email" id="e-email" class="input-field"></div>
+                <div class="form-group"><label>通訊地址</label><input type="text" id="e-address" class="input-field"></div>
+                <button class="btn-primary" id="btn-save-profile" style="margin-top:10px;">儲存變更</button>
+                <button class="btn-danger" onclick="logout()">安全登出帳號</button>
+            </div>
+        </div>
+        
+        <!-- 發文表單 (隱藏於頁面底部，動態顯示) -->
+        <div id="view-post" class="view-panel">
+             <div class="card">
+                <h2 style="margin:0 0 15px 0; color:var(--app-blue);">發佈交流資訊</h2>
+                <div class="form-group"><label>標題 / 主旨 *</label><input type="text" id="post-title" class="input-field"></div>
+                <div class="form-group"><label>內容 *</label><textarea id="post-content" class="textarea-field"></textarea></div>
+                <div class="form-group"><label>附加圖片 (限5MB內)</label><input type="file" id="post-image" class="input-field" accept="image/*"></div>
+                <button class="btn-primary" id="btn-submit-post">確認發佈</button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 底部導覽列 (登入後顯示) -->
+    <nav class="bottom-nav" id="bottom-nav" style="display: none;">
+        <div class="nav-item active" data-target="dashboard" onclick="switchNav('dashboard')"><div class="nav-icon">🏠</div>大廳</div>
+        <div class="nav-item" data-target="courses" onclick="switchNav('courses')"><div class="nav-icon">🎬</div>課程</div>
+        <div class="nav-item" data-target="exchange" onclick="switchNav('exchange')"><div class="nav-icon">💬</div>交流</div>
+        <div class="nav-item" data-target="profile" onclick="switchNav('profile')"><div class="nav-icon">⚙️</div>設定</div>
+    </nav>
+    
+    <div class="fab-btn" id="fab-post" style="display:none;" onclick="switchNav('post')">✏️</div>
+
+    <script>
+        // === 系統參數設定 ===
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
+        const API_SECRET_TOKEN = 'cla-eda-secure-2026';
+        const LIFF_ID_MEMBER = '2012121201-DRHgrrOJ'; // ⚠️ 請填入您的 LIFF ID
+        
+        let currentTab = 'dashboard';
+
+        // === 基礎控制 ===
+        function showPreloader() { document.getElementById('preloader').style.display = 'flex'; }
+        function hidePreloader() { document.getElementById('preloader').style.display = 'none'; }
+        
+        function setHeader(title) { document.getElementById('app-title').innerText = title; }
+
+        function showView(viewId) {
+            document.querySelectorAll('.view-panel').forEach(v => v.classList.remove('active'));
+            document.getElementById('view-' + viewId).classList.add('active');
+            
+            // 處理底部導覽狀態
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            const activeNav = document.querySelector(`.nav-item[data-target="${viewId}"]`);
+            if (activeNav) activeNav.classList.add('active');
+            
+            // 處理浮動發文按鈕
+            document.getElementById('fab-post').style.display = (viewId === 'exchange') ? 'flex' : 'none';
+        }
+
+        // === 導覽路由切換 ===
+        async function switchNav(target) {
+            currentTab = target;
+            if (target === 'dashboard') { setHeader('會員中心'); showView('dashboard'); }
+            else if (target === 'profile') { 
+                setHeader('設定資料'); fillProfileForm(); showView('profile'); 
+            }
+            else if (target === 'post') {
+                 setHeader('我要發文'); showView('post');
+            }
+            else {
+                // 讀取資料表 (課程、交流、徵才)
+                let sheetName = '';
+                if(target === 'courses') { sheetName = '會員專屬影片'; setHeader('線上課程平台'); }
+                if(target === 'exchange') { sheetName = '美業資訊交流'; setHeader('美業資訊交流'); }
+                if(target === 'jobs') { sheetName = '徵才專區'; setHeader('徵才專區'); }
+                
+                showView('list');
+                await loadListData(sheetName);
+            }
+        }
+
+        // === 初始化 LIFF 與登入邏輯 ===
+        async function initApp() {
+            try {
+                await liff.init({ liffId: LIFF_ID_MEMBER });
+                if (liff.isLoggedIn()) {
+                    await processLogin();
+                } else {
+                    hidePreloader();
+                    showView('login');
+                }
+            } catch (err) { alert('系統初始化失敗，請在 LINE 中開啟'); hidePreloader(); }
+        }
+
+        async function triggerLineLogin() {
+            if (!liff.isLoggedIn()) liff.login();
+            else await processLogin();
+        }
+
+        async function processLogin() {
+            showPreloader();
+            try {
+                const profile = await liff.getProfile();
+                const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'lineLogin', lineUid: profile.userId, displayName: profile.displayName, pictureUrl: profile.pictureUrl }) });
+                const data = await res.json();
+                
+                if (data.status === 'success') {
+                    localStorage.setItem('cia_member_credentials', JSON.stringify({ lineUid: profile.userId }));
+                    localStorage.setItem('cia_member_info', JSON.stringify(data.member));
+                    checkMemberState(data.member);
+                } else {
+                    alert('登入失敗：' + data.message);
+                    showView('login');
+                }
+            } catch(e) { alert('連線異常'); showView('login'); }
+            finally { hidePreloader(); }
+        }
+
+        function checkMemberState(member) {
+            if (member.needsProfileCompletion) {
+                document.getElementById('r-name').value = member.name || '';
+                setHeader('建立資料');
+                showView('register');
+            } else if (member.memberStatus === '停用' || member.memberStatus === '待審核') {
+                setHeader('審核中');
+                showView('pending');
+            } else {
+                // 正常會員，設定大廳資訊並顯示底部導覽
+                document.getElementById('bottom-nav').style.display = 'flex';
+                document.getElementById('dash-avatar').src = member.avatar || 'https://via.placeholder.com/60';
+                document.getElementById('dash-name').innerText = member.name;
+                document.getElementById('dash-level').innerText = member.level;
+                switchNav('dashboard');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('cia_member_credentials');
+            localStorage.removeItem('cia_member_info');
+            if(liff.isLoggedIn()) liff.logout();
+            document.getElementById('bottom-nav').style.display = 'none';
+            document.getElementById('fab-post').style.display = 'none';
+            setHeader('會員中心');
+            showView('login');
+        }
+
+        // === 動態資料載入引擎 ===
+        async function loadListData(sheetName) {
+            const container = document.getElementById('list-container');
+            container.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">載入中...</div>';
+            try {
+                // 發送請求並包含 credentials 以便後端驗證權限拿影片
+                const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
+                let res;
+                if (sheetName === '會員專屬影片') {
+                     res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'verifyAndGetCourses', credentials: credentials }) });
+                } else {
+                     res = await fetch(`${GAS_URL}?sheetName=${sheetName}`);
+                }
+                
+                const dataObj = await res.json();
+                
+                if (dataObj.status === 'success' && dataObj.data.length > 1) {
+                    let dataArray = dataObj.data;
+                    const headers = dataArray.shift();
+                    
+                    if (sheetName === '美業資訊交流' || sheetName === '徵才專區') dataArray = dataArray.reverse();
+                    
+                    let html = '';
+                    dataArray.forEach((row, idx) => {
+                        let item = {};
+                        headers.forEach((h, i) => item[h] = row[i]);
+                        
+                        const title = item['職缺名稱'] || item['主旨/標題'] || item['課程名稱'] || '無標題';
+                        let desc = item['交流內容'] || item['課程簡介'] || '';
+                        let extra = '';
+                        let imgUrl = item['公司Logo或環境照片'] || item['附圖網址'] || item['封面圖片網址'] || '';
+                        
+                        if (sheetName === '徵才專區') {
+                            desc = `機構：${item['徵才機構']}<br>地點：${item['工作地點']}<br>薪資：${item['薪資待遇']}<br>聯絡：${item['聯絡方式']}`;
+                        } else if (sheetName === '美業資訊交流') {
+                            extra = `<div style="font-size:12px; color:var(--app-gold); margin-top:10px;">${item['發文者姓名']} • ${item['發文時間']}</div>`;
+                        } else if (sheetName === '會員專屬影片') {
+                            const vLink = item['影片嵌入網址'];
+                            if (vLink) {
+                                extra = `<div class="video-container" id="vid-${idx}"><iframe src="${vLink}" allowfullscreen></iframe></div>
+                                         <button class="btn-primary" style="margin-top:15px; padding:10px;" onclick="document.getElementById('vid-${idx}').style.display='block'; this.style.display='none';">▶️ 播放影片</button>`;
+                            }
+                        }
+                        
+                        let imgHtml = '';
+                        if (imgUrl) {
+                            const firstImg = imgUrl.split(',')[0].trim();
+                            imgHtml = `<img src="${firstImg}" class="post-img">`;
+                        }
+
+                        html += `
+                            <div class="card">
+                                <div class="card-title">${title}</div>
+                                <div class="card-desc">${desc.replace(/\n/g, '<br>')}</div>
+                                ${imgHtml}
+                                ${extra}
+                            </div>
+                        `;
+                    });
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">目前尚無資料</div>';
+                }
+            } catch(e) { container.innerHTML = '<div style="text-align:center; padding:30px; color:red;">連線失敗</div>'; }
+        }
+
+        // === 表單送出事件綁定 ===
+        document.addEventListener('DOMContentLoaded', () => {
+            initApp();
+
+            // 1. 入會註冊
+            document.getElementById('btn-submit-register').addEventListener('click', async (e) => {
+                const btn = e.target;
+                const profileData = {
+                    nameZh: document.getElementById('r-name').value.trim(), nameEn: document.getElementById('r-enname').value.trim(),
+                    gender: document.getElementById('r-gender').value, birth: document.getElementById('r-birth').value,
+                    idNum: document.getElementById('r-id').value.trim(), phone: document.getElementById('r-phone').value.trim(),
+                    line: document.getElementById('r-line').value.trim(), email: document.getElementById('r-email').value.trim(),
+                    address: document.getElementById('r-address').value.trim(), edu: document.getElementById('r-edu').value,
+                    fields: document.getElementById('r-fields').value.trim(), company: document.getElementById('r-company').value.trim(),
+                    membership: document.getElementById('r-membership').value
+                };
+                if (!profileData.nameZh || !profileData.birth || !profileData.idNum || !profileData.phone || !profileData.email) {
+                    alert('請填寫必填星號欄位！'); return;
+                }
+                btn.innerText = '處理中...'; btn.disabled = true; showPreloader();
+                try {
+                    const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
+                    await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'updateMemberProfile', lineUid: credentials.lineUid, profileData: profileData }) });
+                    alert('入會申請已送出！請於 LINE 中聯絡客服。');
+                    let memberInfo = JSON.parse(localStorage.getItem('cia_member_info'));
+                    memberInfo.needsProfileCompletion = false; memberInfo.memberStatus = '待審核';
+                    localStorage.setItem('cia_member_info', JSON.stringify(memberInfo));
+                    checkMemberState(memberInfo);
+                } catch(err) { alert('儲存失敗'); } finally { btn.innerText = '送出申請'; btn.disabled = false; hidePreloader(); }
+            });
+
+            // 2. 修改資料
+            document.getElementById('btn-save-profile').addEventListener('click', async (e) => {
+                const btn = e.target;
+                const profileData = {
+                    nameZh: document.getElementById('e-name').value.trim(), nameEn: document.getElementById('e-enname').value.trim(),
+                    gender: document.getElementById('e-gender').value, birth: document.getElementById('e-birth').value,
+                    phone: document.getElementById('e-phone').value.trim(), line: document.getElementById('e-line').value.trim(),
+                    email: document.getElementById('e-email').value.trim(), address: document.getElementById('e-address').value.trim()
+                };
+                btn.innerText = '更新中...'; btn.disabled = true; showPreloader();
+                try {
+                    const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
+                    await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'editMemberProfile', lineUid: credentials.lineUid, profileData: profileData }) });
+                    let memberInfo = JSON.parse(localStorage.getItem('cia_member_info'));
+                    Object.assign(memberInfo, {nameEn: profileData.nameEn, gender: profileData.gender, birth: profileData.birth, phone: profileData.phone, lineId: profileData.line, email: profileData.email, address: profileData.address});
+                    localStorage.setItem('cia_member_info', JSON.stringify(memberInfo));
+                    alert('資料更新成功！');
+                    switchNav('dashboard');
+                } catch(err) { alert('更新失敗'); } finally { btn.innerText = '儲存變更'; btn.disabled = false; hidePreloader(); }
+            });
+
+            // 3. 會員發文
+            document.getElementById('btn-submit-post').addEventListener('click', async (e) => {
+                const btn = e.target;
+                const title = document.getElementById('post-title').value.trim();
+                const content = document.getElementById('post-content').value.trim();
+                const fileInput = document.getElementById('post-image');
+                if (!title || !content) { alert('請填寫標題與內容！'); return; }
+                
+                let base64Data = null; let mimeType = null; let fileName = null;
+                if (fileInput.files.length > 0) {
+                    const file = fileInput.files[0];
+                    if (file.size > 5 * 1024 * 1024) { alert('照片超過 5MB 上限！'); return; }
+                    base64Data = await new Promise(r => { const rd = new FileReader(); rd.onload = () => r(rd.result.split(',')[1]); rd.readAsDataURL(file); });
+                    mimeType = file.type; fileName = file.name;
+                }
+
+                btn.innerText = '發佈中...'; btn.disabled = true; showPreloader();
+                try {
+                    const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
+                    let imgUrl = '';
+                    if (base64Data) {
+                        const resImg = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'uploadImage', sheetName: '美業資訊交流', base64Data: base64Data, mimeType: mimeType, fileName: fileName }) });
+                        imgUrl = (await resImg.json()).url;
+                    }
+                    await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'userPostExchange', lineUid: credentials.lineUid, postTitle: title, postContent: content, imgUrl: imgUrl }) });
+                    alert('發佈成功！');
+                    document.getElementById('post-title').value = ''; document.getElementById('post-content').value = ''; fileInput.value = '';
+                    switchNav('exchange'); // 回到列表並重整
+                } catch(err) { alert('發佈失敗'); } finally { btn.innerText = '確認發佈'; btn.disabled = false; hidePreloader(); }
+            });
+        });
+
+        function fillProfileForm() {
+            const m = JSON.parse(localStorage.getItem('cia_member_info'));
+            if(!m) return;
+            document.getElementById('e-name').value = m.name || '';
+            document.getElementById('e-enname').value = m.nameEn || '';
+            if(m.gender) document.getElementById('e-gender').value = m.gender;
+            if(m.birth) document.getElementById('e-birth').value = new Date(m.birth).toISOString().split('T')[0];
+            document.getElementById('e-phone').value = m.phone || '';
+            document.getElementById('e-line').value = m.lineId || '';
+            document.getElementById('e-email').value = m.email || '';
+            document.getElementById('e-address').value = m.address || '';
+        }
+    </script>
+</body>
+</html>
