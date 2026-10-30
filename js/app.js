@@ -1,14 +1,13 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：快取引擎、前台路由、全模組智能排版引擎、半公開線上課程權限驗證
+ * 職責：快取引擎、前台路由、單一 LIFF 驗證通道、全模組智能排版、半公開影音防護
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
 
-// 🔑 雙 LIFF 鑰匙設定
-const LIFF_ID_MAIN = '2012121201-JKa4hPdF'; 
-const LIFF_ID_MEMBER = '2012121201-DRHgrrOJ'; // ⚠️ 請確保這是您的官方 LINE 專屬 ID
+// 🔑 核心優化：只需要單一 LIFF ID
+const LIFF_ID = '2012121201-XXXXXXXX'; // ⚠️ 請填寫您唯一的官方 LINE LIFF ID
 
 const AUTH_EXPIRY_MS = 3 * 60 * 60 * 1000; 
 const CACHE_EXPIRY_MS = 5 * 60 * 1000; 
@@ -30,6 +29,13 @@ const PAGE_CONFIG = {
     '#member-zone': { title: '會員專屬大廳', subtitle: '掌握最新行業動態與您的專屬權限', isMember: true },
     '#edit-profile': { title: '修改個人設定', subtitle: '保持最新的聯絡資訊，確保會員權益', isEditProfile: true }
 };
+
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('zone') === 'member') {
+    document.body.classList.add('is-exclusive-zone');
+    window.location.hash = '#member-zone'; 
+    window.history.replaceState(null, '', window.location.pathname + '#member-zone');
+}
 
 let currentTrackingHash = window.location.hash || '#home';
 let currentPageEntryTime = Date.now();
@@ -84,12 +90,14 @@ async function initSystem() {
         }
     } catch(e) {}
 
-    let activeLiffId = window.location.hash.includes('member-zone') ? LIFF_ID_MEMBER : LIFF_ID_MAIN;
-
+    // 核心優化：單一 LIFF 初始化
     try {
-        await liff.init({ liffId: activeLiffId });
+        await liff.init({ liffId: LIFF_ID });
         if (liff.isInClient() || document.body.classList.contains('is-exclusive-zone')) {
             document.body.classList.add('is-exclusive-zone'); 
+            if (window.location.hash !== '#member-zone' && window.location.hash !== '#join' && window.location.hash !== '#edit-profile') {
+                window.location.hash = '#member-zone';
+            }
             if (liff.isLoggedIn() && !localStorage.getItem('cia_member_credentials')) {
                 await handleLineLoginCallback(true); 
             } else if (!liff.isLoggedIn()) {
@@ -100,7 +108,7 @@ async function initSystem() {
                 await handleLineLoginCallback(true); 
             }
         }
-    } catch (err) {}
+    } catch (err) { console.error('LIFF 初始化失敗', err); }
 }
 
 async function handleLineLoginCallback(isSilent = false) {
@@ -608,26 +616,6 @@ function setupMemberLogin() {
             if (!liff.isLoggedIn()) liff.login();
             else handleLineLoginCallback();
         });
-    });
-
-    const btn = document.getElementById('submit-login-btn');
-    if(!btn) return;
-    btn.addEventListener('click', async () => {
-        const acc = document.getElementById('m-account').value.trim();
-        const pwd = document.getElementById('m-password').value.trim();
-        if(!acc || !pwd) { alert('請輸入帳號密碼！'); return; }
-        
-        btn.innerText = '驗證中...'; btn.disabled = true;
-        try {
-            const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'memberLogin', account: acc, password: pwd }) });
-            const data = await res.json();
-            if (data.status === 'success') {
-                localStorage.setItem('cia_member_credentials', JSON.stringify({ account: acc, password: pwd }));
-                localStorage.setItem('cia_member_info', JSON.stringify(data.member));
-                updateMemberUI(); loadPage(); 
-            } else { alert(data.message); }
-        } catch(e) { alert('登入失敗，請稍後再試。'); }
-        finally { btn.innerText = '一般登入'; btn.disabled = false; document.getElementById('m-password').value=''; }
     });
 }
 
