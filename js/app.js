@@ -13,7 +13,6 @@ const LIFF_ID_MEMBER = '2012121201-DRHgrrOJ'; // ⚠️ 請確保這是您的官
 const AUTH_EXPIRY_MS = 3 * 60 * 60 * 1000; 
 const CACHE_EXPIRY_MS = 5 * 60 * 1000; 
 
-// === 更新：首頁指向關於我們 ===
 const PAGE_CONFIG = {
     '': { title: '協會介紹', subtitle: '推動美業創新與專業標竿，我們堅信手的溫度能帶來改變。', sheet: '關於我們', layout: 'article' },
     '#home': { title: '協會介紹', subtitle: '推動美業創新與專業標竿，我們堅信手的溫度能帶來改變。', sheet: '關於我們', layout: 'article' },
@@ -609,6 +608,26 @@ function setupMemberLogin() {
             if (!liff.isLoggedIn()) liff.login();
             else handleLineLoginCallback();
         });
+    });
+
+    const btn = document.getElementById('submit-login-btn');
+    if(!btn) return;
+    btn.addEventListener('click', async () => {
+        const acc = document.getElementById('m-account').value.trim();
+        const pwd = document.getElementById('m-password').value.trim();
+        if(!acc || !pwd) { alert('請輸入帳號密碼！'); return; }
+        
+        btn.innerText = '驗證中...'; btn.disabled = true;
+        try {
+            const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'memberLogin', account: acc, password: pwd }) });
+            const data = await res.json();
+            if (data.status === 'success') {
+                localStorage.setItem('cia_member_credentials', JSON.stringify({ account: acc, password: pwd }));
+                localStorage.setItem('cia_member_info', JSON.stringify(data.member));
+                updateMemberUI(); loadPage(); 
+            } else { alert(data.message); }
+        } catch(e) { alert('登入失敗，請稍後再試。'); }
+        finally { btn.innerText = '一般登入'; btn.disabled = false; document.getElementById('m-password').value=''; }
     });
 }
 
