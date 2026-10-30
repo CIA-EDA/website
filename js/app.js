@@ -1,6 +1,6 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：極速快取引擎 (0.1秒載入)、3小時資安鎖、LINE 登入與路由
+ * 職責：極速快取引擎 (0.1秒載入)、3小時資安鎖、LINE 登入與路由、更新圖片渲染邏輯
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
@@ -9,9 +9,8 @@ const PAYUNI_URL = 'https://api.payuni.com.tw/api/uop/receive_info/2/1/CCAT96831
 
 // 🔑 雙 LIFF 鑰匙設定
 const LIFF_ID_MAIN = '2012121201-JKa4hPdF'; 
-const LIFF_ID_MEMBER = '2012121201-DRHgrrOJ'; // ⚠️ 請確保這是您的官方 LINE 專屬 ID
+const LIFF_ID_MEMBER = '2012121201-DRHgrrOJ'; 
 
-// 資安鎖：設定登入時效為 3 小時 (毫秒)
 const AUTH_EXPIRY_MS = 3 * 60 * 60 * 1000; 
 
 const PAGE_CONFIG = {
@@ -36,7 +35,6 @@ if (urlParams.get('zone') === 'member') {
 let currentTrackingHash = window.location.hash || '#home';
 let currentPageEntryTime = Date.now();
 
-// === 資安優化：檢查登入時效 ===
 function isAuthValid() {
     const authTime = localStorage.getItem('cia_auth_time');
     if (authTime && (Date.now() - parseInt(authTime) > AUTH_EXPIRY_MS)) {
@@ -49,19 +47,13 @@ function isAuthValid() {
     return true;
 }
 
-// === 效能優化：前端極速快取引擎 ===
 async function fetchWithCache(sheetName) {
     const cacheKey = 'cia_cache_' + sheetName;
     const cachedData = sessionStorage.getItem(cacheKey);
-    
-    // 如果快取存在，0.1秒瞬間回傳資料
     if (cachedData) return JSON.parse(cachedData);
 
-    // 沒有快取才發送請求
     const res = await fetch(`${GAS_URL}?sheetName=${sheetName}`);
     const data = await res.json();
-    
-    // 成功後寫入快取，直到關閉瀏覽器才會清除
     if (data.status === 'success') {
         sessionStorage.setItem(cacheKey, JSON.stringify(data));
     }
@@ -119,7 +111,7 @@ async function handleLineLoginCallback(isSilent = false) {
         if (data.status === 'success') {
             localStorage.setItem('cia_member_credentials', JSON.stringify({ lineUid: profile.userId }));
             localStorage.setItem('cia_member_info', JSON.stringify(data.member));
-            localStorage.setItem('cia_auth_time', Date.now().toString()); // 寫入登入時間戳記
+            localStorage.setItem('cia_auth_time', Date.now().toString()); 
             
             updateMemberUI();
             if (window.location.hash === '#member-zone' || window.location.hash === '#join') {
@@ -138,7 +130,7 @@ async function handleLineLoginCallback(isSilent = false) {
 }
 
 function updateMemberUI() {
-    if (!isAuthValid()) return; // 檢查時效
+    if (!isAuthValid()) return; 
     const memberInfo = JSON.parse(localStorage.getItem('cia_member_info'));
     const memberBtn = document.getElementById('nav-member-btn');
     if (memberInfo && memberBtn) {
@@ -199,7 +191,7 @@ async function loadPage() {
     dataContainer.innerHTML = '';
 
     if (config.isJoinIntent || config.isMember) {
-        if (!isAuthValid()) return; // 進入會員相關頁面前檢查時效鎖
+        if (!isAuthValid()) return; 
         const credentials = localStorage.getItem('cia_member_credentials');
         const memberInfo = JSON.parse(localStorage.getItem('cia_member_info') || 'null');
         
@@ -260,7 +252,6 @@ async function loadPage() {
         return;
     }
 
-    // === 使用極速快取引擎載入資料 ===
     showPreloader();
     dataContainer.style.display = 'grid'; 
     try {
@@ -328,12 +319,32 @@ function logoutMember() {
 }
 
 function setupMemberLogin() {
-    const lineBtns = document.querySelectorAll('.line-btn');
+    const lineBtns = document.querySelectorAll('.line-login-trigger');
     lineBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             if (!liff.isLoggedIn()) liff.login();
             else handleLineLoginCallback();
         });
+    });
+
+    const btn = document.getElementById('submit-login-btn');
+    if(!btn) return;
+    btn.addEventListener('click', async () => {
+        const acc = document.getElementById('m-account').value.trim();
+        const pwd = document.getElementById('m-password').value.trim();
+        if(!acc || !pwd) { alert('請輸入帳號密碼！'); return; }
+        
+        btn.innerText = '驗證中...'; btn.disabled = true;
+        try {
+            const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'memberLogin', account: acc, password: pwd }) });
+            const data = await res.json();
+            if (data.status === 'success') {
+                localStorage.setItem('cia_member_credentials', JSON.stringify({ account: acc, password: pwd }));
+                localStorage.setItem('cia_member_info', JSON.stringify(data.member));
+                updateMemberUI(); loadPage(); 
+            } else { alert(data.message); }
+        } catch(e) { alert('登入失敗，請稍後再試。'); }
+        finally { btn.innerText = '一般登入'; btn.disabled = false; document.getElementById('m-password').value=''; }
     });
 }
 
@@ -354,14 +365,23 @@ function optimizeImageUrl(url) {
     return url;
 }
 
+// 核心修復：使用 CSS 架構中的 .img-wrapper 來包裹圖片
 function generateImageHTML(imgString) {
     const rawUrls = imgString.split(',').map(u => u.trim()).filter(u => u);
-    if (rawUrls.length === 0) return `<img src="https://via.placeholder.com/600x400/E8D3CB/1F2D4A?text=CIA-EDA" class="course-img" style="border-radius:12px;">`;
+    
+    if (rawUrls.length === 0) {
+        return `<div class="img-wrapper"><img src="https://via.placeholder.com/800x600/E8D3CB/1F2D4A?text=CIA-EDA" alt="Placeholder"></div>`;
+    }
+    
     const urls = rawUrls.map(url => optimizeImageUrl(url));
-    if (urls.length === 1) return `<img src="${urls[0]}" class="course-img" style="border-radius:12px;">`;
-    let html = `<div style="display:flex; overflow-x:auto; scroll-snap-type: x mandatory; border-radius:12px; margin-bottom:10px;">`;
-    urls.forEach(url => { html += `<img src="${url}" style="flex: 0 0 100%; scroll-snap-align: start; width:100%; height:200px; object-fit:cover; background-color:#FAF7F2;">`; });
-    html += `</div><div style="text-align:center; font-size:12px; color:var(--taupe); margin-top:-5px; margin-bottom:10px;">← 左右滑動查看多圖 →</div>`;
+    
+    if (urls.length === 1) {
+        return `<div class="img-wrapper"><img src="${urls[0]}" alt="Course Image"></div>`;
+    }
+    
+    let html = `<div class="img-wrapper"><div class="carousel-container">`;
+    urls.forEach(url => { html += `<img src="${url}" alt="Course Image">`; });
+    html += `</div></div><div class="carousel-hint">← 左右滑動查看多圖 →</div>`;
     return html;
 }
 
@@ -387,7 +407,7 @@ function renderData(rawData, layoutType, container) {
             html += paymentBtnHtml; 
             html += `</div>`;
         } else {
-            html += `<div class="course-card">${imgHtml}<div class="course-info">${title ? `<h3 style="margin-top:0; color:var(--ink-navy);">${title}</h3>` : ''}${desc ? `<p style="color:var(--text-light); font-size:14px; line-height:1.5;">${desc}</p>` : ''}${paymentBtnHtml}</div></div>`;
+            html += `<div class="course-card">${imgHtml}<div class="course-info">${title ? `<h3 class="course-title">${title}</h3>` : ''}${desc ? `<p class="course-desc">${desc}</p>` : ''}${paymentBtnHtml}</div></div>`;
         }
     }
     html += '</div>';
@@ -398,7 +418,7 @@ function setupContactModal() {
     const modal = document.getElementById('contact-modal');
     const openBtn = document.getElementById('open-contact-btn');
     const closeBtn = document.getElementById('close-contact-btn');
-    const submitBtn = document.getElementById('contact-submit-btn'); // 防衝突改名
+    const submitBtn = document.getElementById('submit-contact-btn');
     if(openBtn) openBtn.addEventListener('click', () => modal.classList.add('active'));
     if(closeBtn) closeBtn.addEventListener('click', () => modal.classList.remove('active'));
 }
