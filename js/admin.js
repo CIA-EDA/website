@@ -1,6 +1,6 @@
 /**
  * 檔案名稱：js/admin.js
- * 職責：動態表單生成、會員管理系統 (分頁引擎與進階搜尋)
+ * 職責：動態表單、分頁引擎、內容編輯更新、擴充徵才專區設定
  */
 
 const ADMIN_PASSWORD = '6668888';
@@ -8,21 +8,24 @@ const ADMIN_PASSWORD = '6668888';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
 
+// === 擴充表單欄位定義 ===
 const FORM_FIELDS = {
     '課程介紹': [{name:'課程名稱', type:'text'}, {name:'簡介', type:'textarea'}, {name:'講師', type:'text'}, {name:'專屬付款網址', type:'text'}],
     '專業師資': [{name:'講師姓名', type:'text'}, {name:'專長項目', type:'text'}, {name:'個人簡介', type:'textarea'}, {name:'聯絡方式(IG/Line)', type:'text'}],
     '活動花絮': [{name:'活動名稱', type:'text'}, {name:'日期', type:'text'}],
     '關於我們': [{name:'標題', type:'text'}, {name:'內容', type:'textarea'}],
     '品牌推廣': [{name:'產品名稱', type:'text'}, {name:'產品簡介', type:'textarea'}],
+    '徵才專區': [{name:'職缺名稱', type:'text'}, {name:'徵才機構', type:'text'}, {name:'工作地點', type:'text'}, {name:'薪資待遇', type:'text'}, {name:'聯絡方式', type:'text'}, {name:'條件要求', type:'textarea'}],
+    '美業資訊交流': [{name:'發文者姓名', type:'text'}, {name:'主旨/標題', type:'text'}, {name:'交流內容', type:'textarea'}],
     '會員專屬影片': [{name:'課程名稱', type:'text'}, {name:'影片嵌入網址(例如YouTube Embed)', type:'text'}, {name:'最低權限要求(一般/進階)', type:'text'}, {name:'課程簡介', type:'textarea'}]
 };
 
 const readFileAsBase64 = (file) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.readAsDataURL(file); });
 
 let allMembersData = []; 
-let currentDisplayData = []; // 目前搜尋條件下的資料池
+let currentDisplayData = []; 
+let currentManageData = []; 
 
-// 分頁設定
 const ITEMS_PER_PAGE = 20;
 let currentPage = 1;
 
@@ -54,9 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'getAllMembers' }) });
             const result = await res.json();
             if (result.status === 'success' && result.data.length > 1) {
-                // 保存全域資料 (扣除標題列)
                 allMembersData = result.data.slice(1);
-                // 為了讓最新註冊的排在最前面，將陣列反轉 (保留原始 Row Index)
                 allMembersData = allMembersData.map((row, idx) => ({ data: row, originalIndex: idx + 2 })).reverse();
                 
                 document.getElementById('total-members-badge').innerText = `總計: ${allMembersData.length} 筆`;
@@ -69,7 +70,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) { container.innerHTML = '<p style="color:red; text-align:center;">載入失敗，請檢查網路連線。</p>'; }
     }
 
-    // 渲染特定頁面的資料
     function renderMembersPage() {
         const container = document.getElementById('members-container');
         const pagination = document.getElementById('pagination-controls');
@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let html = '';
         pageData.forEach(item => {
             const m = item.data;
-            const rowIndex = item.originalIndex; // 拿回在 Google Sheet 中真實的列號
+            const rowIndex = item.originalIndex; 
             
             const memberId = m[0] || '待審核';
             const account = m[2] || m[1] || '無';
@@ -187,21 +187,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         container.innerHTML = html;
-
-        // 更新分頁控制按鈕
         document.getElementById('page-info').innerText = `第 ${currentPage} 頁 / 共 ${totalPages} 頁 (符合條件：${currentDisplayData.length} 筆)`;
         document.getElementById('btn-prev-page').disabled = currentPage === 1;
         document.getElementById('btn-next-page').disabled = currentPage === totalPages;
-        
-        // 只有總資料大於一頁時才顯示分頁列
         pagination.style.display = totalPages > 1 ? 'flex' : 'none';
     }
 
-    // 分頁按鈕事件
     document.getElementById('btn-prev-page').addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderMembersPage(); window.scrollTo(0, 0); } });
     document.getElementById('btn-next-page').addEventListener('click', () => { const totalPages = Math.ceil(currentDisplayData.length / ITEMS_PER_PAGE); if (currentPage < totalPages) { currentPage++; renderMembersPage(); window.scrollTo(0, 0); } });
 
-    // 進階搜尋：輸入文字時，自動將符合條件的資料撈出並強制顯示第一頁
     document.getElementById('member-search').addEventListener('input', (e) => {
         const term = e.target.value.toLowerCase();
         if (!term) { 
@@ -220,7 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const expiryDate = document.getElementById(`m-exp-${rowIndex}`).value;
         try {
             await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'updateMemberAdmin', rowIndex: rowIndex, memberId: memberId, level: level, status: status, expiryDate: expiryDate }) });
-            alert('會員資料更新成功！'); fetchMembers(); // 存檔後重新抓取最新資料
+            alert('會員資料更新成功！'); fetchMembers(); 
         } catch(e) { alert('更新失敗'); }
     };
 
@@ -234,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if(f.type === 'textarea') html += `<div class="form-group"><label>${f.name}</label><textarea class="textarea-field data-input" data-name="${f.name}"></textarea></div>`;
             else html += `<div class="form-group"><label>${f.name}</label><input type="text" class="input-field data-input" data-name="${f.name}"></div>`;
         });
-        html += `<div class="form-group"><label>上傳圖片/照片/封面 (可選多張)</label><input type="file" id="upload-files" class="input-field" accept="image/*" multiple><div style="font-size:12px; color:#888; margin-top:5px;">圖片將自動上傳並分類至專屬資料夾</div></div>`;
+        html += `<div class="form-group"><label>上傳圖片/照片/公司Logo (可選多張)</label><input type="file" id="upload-files" class="input-field" accept="image/*" multiple></div>`;
         formContainer.innerHTML = html;
     };
     catSelect.addEventListener('change', renderForm); renderForm();
@@ -267,16 +261,20 @@ document.addEventListener('DOMContentLoaded', () => {
             if(cat === '活動花絮') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
             if(cat === '關於我們') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
             if(cat === '品牌推廣') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
+            if(cat === '徵才專區') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, inputs[5].value, inputs[4].value, imgUrls, new Date().toISOString().split('T')[0]);
             if(cat === '會員專屬影片') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, imgUrls);
 
             btn.innerText = '寫入資料庫...';
             await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'addData', sheetName: cat, newRowData: newRowData }) });
             alert('發佈成功！'); inputs.forEach(i => i.value = ''); if(document.getElementById('upload-files')) document.getElementById('upload-files').value = '';
+            
+            if(document.getElementById('manage-category-select').value === cat) document.getElementById('manage-category-select').dispatchEvent(new Event('change'));
         } catch(err) { alert('失敗：'+err); } finally { btn.innerText = ogText; btn.disabled = false; }
     });
 
     const mngSelect = document.getElementById('manage-category-select');
     const mngContainer = document.getElementById('manage-list-container');
+    
     const fetchManageList = async () => {
         const cat = mngSelect.value;
         if(!cat) return;
@@ -285,10 +283,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch(`${GAS_URL}?sheetName=${cat}`);
             const result = await res.json();
             if(result.data.length <= 1) { mngContainer.innerHTML = '<p>尚無資料</p>'; return; }
+            
+            currentManageData = result.data; 
+            
             let html = '<ul class="data-list">';
             for(let i = 1; i < result.data.length; i++) {
-                const title = result.data[i][0] || '未命名項目';
-                html += `<li class="data-item"><div class="data-item-title">${title}</div><div class="action-btns"><button class="btn-icon" onclick="moveRow('${cat}', ${i+1}, -1)">▲</button><button class="btn-icon" onclick="moveRow('${cat}', ${i+1}, 1)">▼</button><button class="btn-icon danger" onclick="deleteRow('${cat}', ${i+1})">刪除</button></div></li>`;
+                const title = result.data[i][0] || result.data[i][2] || '未命名項目'; // 支援交流標題
+                html += `
+                    <li class="data-item">
+                        <div class="data-item-title">${title}</div>
+                        <div class="action-btns">
+                            <button class="btn-icon" onclick="openEditModal('${cat}', ${i+1})">編輯</button>
+                            <button class="btn-icon" onclick="moveRow('${cat}', ${i+1}, -1)">▲</button>
+                            <button class="btn-icon" onclick="moveRow('${cat}', ${i+1}, 1)">▼</button>
+                            <button class="btn-icon danger" onclick="deleteRow('${cat}', ${i+1})">刪除</button>
+                        </div>
+                    </li>`;
             }
             html += '</ul>';
             mngContainer.innerHTML = html;
@@ -305,4 +315,87 @@ document.addEventListener('DOMContentLoaded', () => {
         if(toIndex <= 1) return;
         await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'moveRow', sheetName, fromIndex: rowIndex, toIndex }) }); fetchManageList();
     };
+
+    window.openEditModal = (sheetName, rowIndex) => {
+        const dataRow = currentManageData[rowIndex - 1]; 
+        const fields = FORM_FIELDS[sheetName];
+        const formContainer = document.getElementById('edit-dynamic-form-container');
+        let html = '';
+
+        fields.forEach((f, idx) => {
+            const val = dataRow[idx] || '';
+            if(f.type === 'textarea') {
+                html += `<div class="form-group"><label>${f.name}</label><textarea class="textarea-field edit-data-input" data-name="${f.name}">${val}</textarea></div>`;
+            } else {
+                html += `<div class="form-group"><label>${f.name}</label><input type="text" class="input-field edit-data-input" data-name="${f.name}" value="${val}"></div>`;
+            }
+        });
+
+        let oldImg = '';
+        if (sheetName === '課程介紹' || sheetName === '專業師資') oldImg = dataRow[3];
+        else if (sheetName === '活動花絮' || sheetName === '關於我們' || sheetName === '品牌推廣') oldImg = dataRow[2];
+        else if (sheetName === '徵才專區') oldImg = dataRow[6];
+        else if (sheetName === '美業資訊交流') oldImg = dataRow[4];
+        else if (sheetName === '會員專屬影片') oldImg = dataRow[4];
+
+        document.getElementById('edit-old-images').value = oldImg || '';
+
+        html += `
+            <div class="form-group">
+                <label>上傳新圖片 <span style="color:#B8955A; font-weight:normal;">(若不更改，請留空)</span></label>
+                <input type="file" id="edit-upload-files" class="input-field" accept="image/*" multiple>
+            </div>`;
+        if (oldImg) html += `<div style="font-size:12px; color:#B8955A; margin-bottom: 20px;">✓ 系統內已存有該項目的圖片。</div>`;
+
+        formContainer.innerHTML = html;
+        document.getElementById('edit-row-index').value = rowIndex;
+        document.getElementById('edit-sheet-name').value = sheetName;
+        
+        document.getElementById('edit-content-modal').classList.add('active');
+    };
+
+    document.getElementById('btn-save-edit').addEventListener('click', async (e) => {
+        const btn = e.target;
+        const sheetName = document.getElementById('edit-sheet-name').value;
+        const rowIndex = document.getElementById('edit-row-index').value;
+        const inputs = Array.from(document.querySelectorAll('.edit-data-input'));
+
+        if(!inputs[0].value.trim()) { alert('請填寫主要名稱/標題'); return; }
+        btn.innerText = '處理中...'; btn.disabled = true;
+
+        try {
+            let imgUrls = document.getElementById('edit-old-images').value;
+            const fileInput = document.getElementById('edit-upload-files');
+
+            if(fileInput && fileInput.files.length > 0) {
+                const urls = [];
+                for(let i=0; i<fileInput.files.length; i++) {
+                    btn.innerText = `上傳新圖 (${i+1}/${fileInput.files.length})...`;
+                    const base64Data = await readFileAsBase64(fileInput.files[i]);
+                    const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'uploadImage', sheetName: sheetName, base64Data: base64Data, mimeType: fileInput.files[i].type, fileName: fileInput.files[i].name }) });
+                    const resData = await res.json();
+                    if(resData.status === 'success') urls.push(resData.url);
+                }
+                imgUrls = urls.join(','); 
+            }
+
+            const newRowData = [];
+            if(sheetName === '課程介紹') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, imgUrls, inputs[3].value);
+            if(sheetName === '專業師資') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, imgUrls, inputs[3].value);
+            if(sheetName === '活動花絮') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
+            if(sheetName === '關於我們') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
+            if(sheetName === '品牌推廣') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
+            if(sheetName === '徵才專區') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, inputs[5].value, inputs[4].value, imgUrls, new Date().toISOString().split('T')[0]);
+            if(sheetName === '美業資訊交流') newRowData.push(inputs[0].value, new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }), inputs[1].value, inputs[2].value, imgUrls);
+            if(sheetName === '會員專屬影片') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, imgUrls);
+
+            btn.innerText = '寫入資料庫...';
+            await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'updateContentRow', sheetName: sheetName, rowIndex: rowIndex, newRowData: newRowData }) });
+
+            alert('內容修改成功！');
+            document.getElementById('edit-content-modal').classList.remove('active');
+            fetchManageList(); 
+        } catch(err) { alert('失敗：'+err); }
+        finally { btn.innerText = '儲存變更'; btn.disabled = false; }
+    });
 });
