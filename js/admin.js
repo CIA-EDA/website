@@ -1,431 +1,223 @@
-/**
- * 檔案名稱：js/admin.js
- * 職責：全網域 10 大模組的動態表單、分頁管理、內容編輯寫入
- */
-
-const ADMIN_PASSWORD = '6668888';
-// ⚠️ 請確保填入您最新部署的 GAS 網址
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
-const API_SECRET_TOKEN = 'cla-eda-secure-2026';
-
-// === 核心修復：完整對齊 10 大模組的表單結構 ===
-const FORM_FIELDS = {
-    '課程介紹': [{name:'課程名稱', type:'text'}, {name:'簡介', type:'textarea'}, {name:'講師', type:'text'}, {name:'專屬付款網址', type:'text'}],
-    '專業師資': [{name:'講師姓名', type:'text'}, {name:'專長項目', type:'text'}, {name:'個人簡介', type:'textarea'}, {name:'聯絡方式(IG/Line)', type:'text'}],
-    '專業顧問': [{name:'顧問姓名', type:'text'}, {name:'專長項目', type:'text'}, {name:'個人簡介', type:'textarea'}, {name:'聯絡方式(IG/Line)', type:'text'}],
-    '認證店家': [{name:'店家名稱', type:'text'}, {name:'負責人', type:'text'}, {name:'地址', type:'text'}, {name:'聯絡電話', type:'text'}, {name:'簡介', type:'textarea'}, {name:'連結', type:'text'}],
-    '活動花絮': [{name:'活動名稱', type:'text'}, {name:'日期', type:'text'}],
-    '關於我們': [{name:'標題', type:'text'}, {name:'內容', type:'textarea'}],
-    '品牌推廣': [{name:'產品名稱', type:'text'}, {name:'產品簡介', type:'textarea'}],
-    '徵才專區': [{name:'職缺名稱', type:'text'}, {name:'徵才機構', type:'text'}, {name:'工作地點', type:'text'}, {name:'薪資待遇', type:'text'}, {name:'聯絡方式', type:'text'}, {name:'條件要求', type:'textarea'}],
-    '美業資訊交流': [{name:'發文者姓名', type:'text'}, {name:'主旨/標題', type:'text'}, {name:'交流內容', type:'textarea'}],
-    '交流留言': [{name:'文章標題', type:'text'}, {name:'文章發布時間', type:'text'}, {name:'留言者姓名', type:'text'}, {name:'留言時間', type:'text'}, {name:'留言內容', type:'textarea'}],
-    '會員專屬影片': [{name:'課程名稱', type:'text'}, {name:'影片嵌入網址(例如YouTube Embed)', type:'text'}, {name:'最低權限要求(例如:一般會員)', type:'text'}, {name:'課程簡介', type:'textarea'}]
-};
-
-const readFileAsBase64 = (file) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.readAsDataURL(file); });
-
-let allMembersData = []; 
-let currentDisplayData = []; 
-let currentManageData = []; 
-
-const ITEMS_PER_PAGE = 20;
-let currentPage = 1;
-
-document.addEventListener('DOMContentLoaded', () => {
-    const pwdInput = document.getElementById('admin-pwd');
-    document.getElementById('btn-login').addEventListener('click', () => {
-        if(pwdInput.value === ADMIN_PASSWORD) {
-            document.getElementById('login-overlay').style.display = 'none';
-            fetchMembers(); 
-        } else { alert('Access Denied'); pwdInput.value = ''; }
-    });
-
-    document.querySelectorAll('.nav-item[data-target]').forEach(item => {
-        item.addEventListener('click', (e) => {
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-            e.currentTarget.classList.add('active');
-            document.getElementById(e.currentTarget.getAttribute('data-target')).classList.add('active');
-            if (e.currentTarget.getAttribute('data-target') === 'panel-members') fetchMembers();
-        });
-    });
-
-    async function fetchMembers() {
-        const container = document.getElementById('members-container');
-        container.innerHTML = '<p style="text-align:center; color:#888;">資料載入中，請稍候...</p>';
-        document.getElementById('pagination-controls').style.display = 'none';
-
-        try {
-            const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'getAllMembers' }) });
-            const result = await res.json();
-            if (result.status === 'success' && result.data.length > 1) {
-                allMembersData = result.data.slice(1);
-                allMembersData = allMembersData.map((row, idx) => ({ data: row, originalIndex: idx + 2 })).reverse();
-                
-                document.getElementById('total-members-badge').innerText = `總計: ${allMembersData.length} 筆`;
-                currentDisplayData = [...allMembersData];
-                currentPage = 1;
-                renderMembersPage();
-            } else {
-                container.innerHTML = '<p style="text-align:center; color:#888;">目前尚無會員資料。</p>';
-            }
-        } catch (error) { container.innerHTML = '<p style="color:red; text-align:center;">載入失敗，請檢查網路連線。</p>'; }
-    }
-
-    function renderMembersPage() {
-        const container = document.getElementById('members-container');
-        const pagination = document.getElementById('pagination-controls');
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CIA-EDA | Core Management System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --admin-bg: #f4f6f9; --admin-dark: #1F2D4A; --admin-accent: #B8955A; --admin-text: #333; }
+        body { margin: 0; font-family: 'Noto Sans TC', sans-serif; background-color: var(--admin-bg); color: var(--admin-text); display: flex; height: 100vh; overflow: hidden; }
         
-        if (currentDisplayData.length === 0) {
-            container.innerHTML = '<p style="text-align:center; color:#888;">找不到符合條件的會員。</p>';
-            pagination.style.display = 'none';
-            return;
+        .sidebar { width: 280px; background-color: var(--admin-dark); color: #fff; display: flex; flex-direction: column; box-shadow: 2px 0 15px rgba(0,0,0,0.1); z-index: 100; flex-shrink: 0; }
+        .sidebar-header { padding: 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sidebar-header img { height: 40px; margin-bottom: 10px; filter: brightness(0) invert(1); }
+        .sidebar-header h2 { margin: 0; font-size: 14px; font-family: 'JetBrains Mono', monospace; color: var(--admin-accent); letter-spacing: 2px; }
+        .nav-menu { padding: 20px 0; flex: 1; overflow-y: auto; }
+        .nav-item { padding: 15px 25px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 15px; border-left: 4px solid transparent; transition: 0.3s; }
+        .nav-item:hover, .nav-item.active { background: rgba(255,255,255,0.05); border-left-color: var(--admin-accent); color: var(--admin-accent); font-weight: bold; }
+        
+        .system-status { padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8ba2c4; }
+        .status-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .status-bar-bg { width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-bottom: 15px; }
+        .status-bar-fill { height: 100%; background: #4caf50; border-radius: 2px; width: 92%; }
+        
+        .main-content { flex: 1; overflow-y: auto; position: relative; background-color: var(--admin-bg); }
+        .topbar { background: #fff; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.02); position: sticky; top: 0; z-index: 50; }
+        .content-body { padding: 40px; }
+        
+        .panel { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.03); display: none; }
+        .panel.active { display: block; }
+        
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-size: 14px; margin-bottom: 8px; color: var(--admin-dark); font-weight: 600; }
+        
+        .input-field, .select-field, .textarea-field { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; background-color: #fff; }
+        #member-search { border: 2px solid var(--admin-accent); padding: 15px; font-size: 16px; box-shadow: 0 4px 10px rgba(184,149,90,0.1); transition: 0.3s; }
+        #member-search:focus { outline: none; box-shadow: 0 4px 15px rgba(184,149,90,0.3); }
+        .textarea-field { resize: vertical; height: 100px; }
+        .btn-primary { background: var(--admin-accent); color: #fff; border: none; padding: 12px 25px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 15px; }
+        .btn-primary:hover { filter: brightness(0.9); }
+        
+        .data-list { list-style: none; padding: 0; margin: 0; }
+        .data-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #eee; margin-bottom: 10px; border-radius: 8px; background: #fafafa; flex-wrap: wrap; gap: 10px; }
+        .data-item-title { font-weight: 600; color: var(--admin-dark); }
+        .action-btns { display: flex; gap: 10px; }
+        .btn-icon { background: #fff; border: 1px solid #ddd; padding: 6px 12px; border-radius: 4px; cursor: pointer; transition: 0.3s; font-size: 13px; font-weight:bold; color:var(--admin-dark); }
+        .btn-icon:hover { background: #eee; }
+        .btn-icon.danger { color: #d32f2f; border-color: #ffcdd2; }
+        .btn-icon.danger:hover { background: #ffebee; }
+        
+        #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--admin-dark); display: flex; justify-content: center; align-items: center; z-index: 9999; }
+        .login-box { background: #fff; padding: 40px; border-radius: 12px; text-align: center; width: 90%; max-width: 350px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(31, 45, 74, 0.8); display: none; justify-content: center; align-items: center; z-index: 9999; opacity: 0; transition: opacity 0.3s ease; }
+        .modal-overlay.active { display: flex; opacity: 1; }
+        .modal-content { background: #ffffff; padding: 40px; border-radius: 12px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; position: relative; box-shadow: 0 15px 30px rgba(0,0,0,0.2); }
+        .modal-close-btn { position: absolute; top: 15px; right: 20px; background: none; border: none; font-size: 28px; color: #aaa; cursor: pointer; transition: 0.3s; }
+
+        .member-card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin-bottom: 15px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+        .member-card-header { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; justify-content: space-between;}
+        .member-info { flex: 1; min-width: 250px; }
+        .member-info h4 { margin: 0 0 5px 0; color: var(--admin-dark); font-size: 18px; }
+        .member-info p { margin: 0; font-size: 13px; color: #666; }
+        .member-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #eee; }
+        .control-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 120px; }
+        .control-group label { font-size: 12px; color: #888; font-weight: normal; margin: 0; }
+        
+        .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; margin-left: 10px; display: inline-block;}
+        .status-active { background: #e8f5e9; color: #2e7d32; }
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-inactive { background: #ffebee; color: #c62828; }
+        
+        .details-box { background: #f8f9fa; border-radius: 8px; padding: 15px; margin-top: 15px; width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 13px; color: #555; box-sizing: border-box; }
+        .details-box div span { font-weight: bold; color: var(--admin-dark); display: inline-block; width: 75px; }
+
+        .pagination-controls { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; }
+        .page-btn { background: #fff; border: 1px solid #ddd; padding: 8px 15px; border-radius: 6px; cursor: pointer; transition: 0.3s; font-weight: bold; color: var(--admin-dark); }
+        .page-btn:hover:not(:disabled) { background: var(--admin-bg); border-color: var(--admin-accent); color: var(--admin-accent); }
+        .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .page-info { font-size: 14px; color: #666; font-weight: bold; }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; height: auto; overflow: auto; }
+            .sidebar { width: 100%; height: auto; position: static; box-shadow: none; }
+            .nav-menu { display: flex; overflow-x: auto; white-space: nowrap; padding: 10px; background: #151e32; }
+            .nav-item { padding: 10px 15px; border-left: none; border-bottom: 3px solid transparent; font-size: 14px; }
+            .nav-item.active { border-left-color: transparent; border-bottom-color: var(--admin-accent); }
+            .system-status { display: none; }
+            .main-content { overflow-y: visible; }
+            .content-body { padding: 20px 15px; }
+            .panel { padding: 20px; }
+            .member-controls { flex-direction: column; align-items: stretch; width: 100%; }
+            .control-group input, .control-group select { width: 100% !important; }
+            .control-group button { width: 100%; margin-top: 10px; }
         }
+    </style>
+</head>
+<body>
+    <div id="login-overlay">
+        <div class="login-box">
+            <img src="images/CIAEDA_直式標準_標準彩色.png" alt="CIA-EDA" style="height:50px; margin-bottom:20px;">
+            <div class="form-group"><input type="password" id="admin-pwd" class="input-field" placeholder="System Password"></div>
+            <button id="btn-login" class="btn-primary" style="width:100%;">AUTH & ENTER</button>
+        </div>
+    </div>
 
-        const totalPages = Math.ceil(currentDisplayData.length / ITEMS_PER_PAGE);
-        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-        const endIndex = startIndex + ITEMS_PER_PAGE;
-        const pageData = currentDisplayData.slice(startIndex, endIndex);
+    <div id="edit-content-modal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="modal-close-btn" onclick="document.getElementById('edit-content-modal').classList.remove('active')">&times;</button>
+            <h2 style="margin-top:0; color:var(--admin-dark);">編輯內容</h2>
+            <div id="edit-dynamic-form-container"></div>
+            <input type="hidden" id="edit-row-index">
+            <input type="hidden" id="edit-sheet-name">
+            <input type="hidden" id="edit-old-images">
+            <button id="btn-save-edit" class="btn-primary" style="width:100%; margin-top:20px;">儲存變更</button>
+        </div>
+    </div>
 
-        let html = '';
-        pageData.forEach(item => {
-            const m = item.data;
-            const rowIndex = item.originalIndex; 
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <img src="images/CIAEDA_直式標準_標準彩色.png" alt="Logo">
+            <h2>CORE SYSTEM v9.0</h2>
+        </div>
+        <nav class="nav-menu">
+            <div class="nav-item active" data-target="panel-members">👥 會員系統管理</div>
+            <div class="nav-item" data-target="panel-add">＋ 統一發佈中心</div>
+            <div class="nav-item" data-target="panel-manage">≡ 內容編排與管理</div>
+            <div class="nav-item" onclick="window.open('index.html', '_blank')">↗ 前往網站前台</div>
+        </nav>
+        <div class="system-status">
+            <div class="status-row"><span>Server Load</span><span>4%</span></div>
+            <div class="status-bar-bg"><div class="status-bar-fill" style="width: 4%;"></div></div>
+            <div class="status-row"><span>API Latency</span><span>12ms</span></div>
+            <div class="status-bar-bg"><div class="status-bar-fill" style="width: 12%; background: #2196f3;"></div></div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="topbar">
+            <h3 style="margin:0; color:var(--admin-dark);">CIA-EDA Management</h3>
+            <span style="font-size:12px; color:#888; display:none;">Encrypted Connection Active</span>
+        </div>
+
+        <div class="content-body">
             
-            const memberId = m[0] || '待審核';
-            const account = m[2] || m[1] || '無';
-            const level = m[4] || '一般會員';
-            const name = m[5] || '未填寫';
-            const enName = m[6] || '無';
-            const gender = m[7] || '未知';
-            const birth = m[8] || '';
-            const idNum = m[9] || '無';
-            
-            let phone = m[10] || '未填寫';
-            phone = String(phone).replace(/^'/, ''); 
-            if (phone.startsWith('9') && phone.length === 9) phone = '0' + phone; 
-            
-            const lineId = m[11] || '無';
-            const email = m[12] || '無';
-            const address = m[13] || '無';
-            const edu = m[14] || '無';
-            const fields = m[15] || '無';
-            const company = m[16] || '無';
-            const jobTitle = m[17] || '無';
-            const memType = m[18] || '無';
-            const createTime = m[19] || '';
-            const expiryDate = m[20] || '';
-            const status = m[22] || '待審核';
-            
-            let statusClass = 'status-pending';
-            if (status === '啟用') statusClass = 'status-active';
-            if (status === '停用') statusClass = 'status-inactive';
-
-            let displayMemberId = memberId;
-            if (memberId === '待審核' || memberId === '待設定' || !memberId) {
-                let cleanPhone = String(phone).replace(/\D/g, ''); 
-                if (cleanPhone) displayMemberId = 'C' + cleanPhone;
-            }
-
-            let displayExpiry = expiryDate ? new Date(expiryDate).toISOString().split('T')[0] : '';
-            if (!displayExpiry) {
-                let nextYear = new Date();
-                nextYear.setFullYear(nextYear.getFullYear() + 1); 
-                displayExpiry = nextYear.toISOString().split('T')[0];
-            }
-
-            html += `
-                <div class="member-card">
-                    <div class="member-card-header">
-                        <div class="member-info">
-                            <h4>${name} <span class="status-badge ${statusClass}">${status}</span></h4>
-                            <p>編號: ${memberId} | 帳號: ${account}</p>
-                            <p>電話: ${phone} | 註冊: ${createTime}</p>
-                        </div>
-                        <div class="member-controls">
-                            <div class="control-group">
-                                <label>會員編號</label>
-                                <input type="text" id="m-id-${rowIndex}" class="input-field" style="padding:8px; width:120px;" value="${displayMemberId}">
-                            </div>
-                            <div class="control-group">
-                                <label>權限等級</label>
-                                <select id="m-level-${rowIndex}" class="select-field">
-                                    <option value="一般會員" ${level==='一般會員'?'selected':''}>一般會員</option>
-                                    <option value="VIP會員" ${level==='VIP會員'?'selected':''}>VIP會員</option>
-                                    <option value="講師會員" ${level==='講師會員'?'selected':''}>講師會員</option>
-                                    <option value="顧問會員" ${level==='顧問會員'?'selected':''}>顧問會員</option>
-                                    <option value="企業會員" ${level==='企業會員'?'selected':''}>企業會員</option>
-                                </select>
-                            </div>
-                            <div class="control-group">
-                                <label>狀態</label>
-                                <select id="m-status-${rowIndex}" class="select-field">
-                                    <option value="待審核" ${status==='待審核'?'selected':''}>待審核</option>
-                                    <option value="啟用" ${status==='啟用'?'selected':''}>啟用</option>
-                                    <option value="停用" ${status==='停用'?'selected':''}>停用</option>
-                                </select>
-                            </div>
-                            <div class="control-group">
-                                <label>到期日 (預設1年)</label>
-                                <input type="date" id="m-exp-${rowIndex}" class="input-field" value="${displayExpiry}">
-                            </div>
-                            <div class="control-group">
-                                <button class="btn-primary" onclick="updateMember(${rowIndex})">儲存變更</button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="details-box">
-                        <div><span>英文姓名:</span> ${enName}</div>
-                        <div><span>性別/生日:</span> ${gender} | ${birth ? new Date(birth).toISOString().split('T')[0] : ''}</div>
-                        <div><span>身分證號:</span> ${idNum}</div>
-                        <div><span>LINE ID:</span> ${lineId}</div>
-                        <div><span>電子郵件:</span> ${email}</div>
-                        <div><span>最高學歷:</span> ${edu}</div>
-                        <div><span>申請會籍:</span> ${memType}</div>
-                        <div style="grid-column: 1 / -1;"><span>專業領域:</span> ${fields}</div>
-                        <div style="grid-column: 1 / -1;"><span>現職機構:</span> ${company} ${jobTitle ? `(${jobTitle})` : ''}</div>
-                        <div style="grid-column: 1 / -1;"><span>通訊地址:</span> ${address}</div>
-                    </div>
+            <div id="panel-members" class="panel active">
+                <h2>會員系統管理 <span id="total-members-badge" style="font-size:14px; background:#eee; padding:4px 10px; border-radius:20px; color:#666;">總計: -</span></h2>
+                <p style="color:#888; font-size:14px;">強烈建議：請優先使用下方搜尋功能快速定位會員資料。</p>
+                <div style="margin-bottom: 25px;">
+                    <input type="text" id="member-search" class="input-field" placeholder="🔍 輸入姓名、電話、編號或任何關鍵字進行極速搜尋..." style="max-width: 100%;">
                 </div>
-            `;
-        });
-        
-        container.innerHTML = html;
-        document.getElementById('page-info').innerText = `第 ${currentPage} 頁 / 共 ${totalPages} 頁 (符合條件：${currentDisplayData.length} 筆)`;
-        document.getElementById('btn-prev-page').disabled = currentPage === 1;
-        document.getElementById('btn-next-page').disabled = currentPage === totalPages;
-        pagination.style.display = totalPages > 1 ? 'flex' : 'none';
-    }
+                
+                <div id="members-container">
+                    <p style="text-align:center; color:#888;">正在載入會員名單...</p>
+                </div>
 
-    document.getElementById('btn-prev-page').addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderMembersPage(); window.scrollTo(0, 0); } });
-    document.getElementById('btn-next-page').addEventListener('click', () => { const totalPages = Math.ceil(currentDisplayData.length / ITEMS_PER_PAGE); if (currentPage < totalPages) { currentPage++; renderMembersPage(); window.scrollTo(0, 0); } });
+                <div id="pagination-controls" class="pagination-controls" style="display:none;">
+                    <button id="btn-prev-page" class="page-btn">上一頁</button>
+                    <span id="page-info" class="page-info">第 1 頁 / 共 1 頁</span>
+                    <button id="btn-next-page" class="page-btn">下一頁</button>
+                </div>
+            </div>
 
-    document.getElementById('member-search').addEventListener('input', (e) => {
-        const term = e.target.value.toLowerCase();
-        if (!term) { 
-            currentDisplayData = [...allMembersData]; 
-        } else {
-            currentDisplayData = allMembersData.filter(item => item.data.join(' ').toLowerCase().includes(term));
-        }
-        currentPage = 1;
-        renderMembersPage();
-    });
-
-    window.updateMember = async (rowIndex) => {
-        const memberId = document.getElementById(`m-id-${rowIndex}`).value.trim();
-        const level = document.getElementById(`m-level-${rowIndex}`).value;
-        const status = document.getElementById(`m-status-${rowIndex}`).value;
-        const expiryDate = document.getElementById(`m-exp-${rowIndex}`).value;
-        try {
-            await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'updateMemberAdmin', rowIndex: rowIndex, memberId: memberId, level: level, status: status, expiryDate: expiryDate }) });
-            alert('會員資料更新成功！'); fetchMembers(); 
-        } catch(e) { alert('更新失敗'); }
-    };
-
-    const catSelect = document.getElementById('category-select');
-    const formContainer = document.getElementById('dynamic-form-container');
-    const renderForm = () => {
-        const cat = catSelect.value;
-        const fields = FORM_FIELDS[cat];
-        if (!fields) return; // 防錯
-        let html = '';
-        fields.forEach(f => {
-            if(f.type === 'textarea') html += `<div class="form-group"><label>${f.name}</label><textarea class="textarea-field data-input" data-name="${f.name}"></textarea></div>`;
-            else html += `<div class="form-group"><label>${f.name}</label><input type="text" class="input-field data-input" data-name="${f.name}"></div>`;
-        });
-        // 留言板不需要上傳圖片
-        if (cat !== '交流留言') {
-            html += `<div class="form-group"><label>上傳圖片/照片/封面 (可選多張)</label><input type="file" id="upload-files" class="input-field" accept="image/*" multiple><div style="font-size:12px; color:#888; margin-top:5px;">圖片將自動上傳並分類至專屬資料夾</div></div>`;
-        }
-        formContainer.innerHTML = html;
-    };
-    catSelect.addEventListener('change', renderForm); renderForm();
-
-    document.getElementById('btn-submit-data').addEventListener('click', async (e) => {
-        const btn = e.target;
-        const cat = catSelect.value;
-        const inputs = Array.from(formContainer.querySelectorAll('.data-input'));
-        if(!inputs[0].value.trim()) { alert('請填寫主要名稱/標題'); return; }
-        const ogText = btn.innerText; btn.innerText = '處理中...'; btn.disabled = true;
-
-        try {
-            const newRowData = [];
-            let imgUrls = '';
-            const fileInput = document.getElementById('upload-files');
-            if(fileInput && fileInput.files.length > 0) {
-                const urls = [];
-                for(let i=0; i<fileInput.files.length; i++) {
-                    btn.innerText = `上傳 (${i+1}/${fileInput.files.length})...`;
-                    const base64Data = await readFileAsBase64(fileInput.files[i]);
-                    const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'uploadImage', sheetName: cat, base64Data: base64Data, mimeType: fileInput.files[i].type, fileName: fileInput.files[i].name }) });
-                    const resData = await res.json();
-                    if(resData.status === 'success') urls.push(resData.url);
-                }
-                imgUrls = urls.join(',');
-            }
-
-            // 對標 10 大模組的欄位寫入邏輯
-            if(cat === '課程介紹') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, imgUrls, inputs[3].value);
-            if(cat === '專業師資') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, imgUrls, inputs[3].value);
-            if(cat === '專業顧問') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, imgUrls, inputs[3].value);
-            if(cat === '認證店家') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, inputs[4].value, imgUrls, inputs[5].value);
-            if(cat === '活動花絮') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
-            if(cat === '關於我們') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
-            if(cat === '品牌推廣') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
-            if(cat === '徵才專區') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, inputs[5].value, inputs[4].value, imgUrls, new Date().toISOString().split('T')[0]);
-            if(cat === '會員專屬影片') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, imgUrls);
-
-            btn.innerText = '寫入資料庫...';
-            await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'addData', sheetName: cat, newRowData: newRowData }) });
-            alert('發佈成功！'); inputs.forEach(i => i.value = ''); if(document.getElementById('upload-files')) document.getElementById('upload-files').value = '';
-            
-            if(document.getElementById('manage-category-select').value === cat) document.getElementById('manage-category-select').dispatchEvent(new Event('change'));
-        } catch(err) { alert('失敗：'+err); } finally { btn.innerText = ogText; btn.disabled = false; }
-    });
-
-    const mngSelect = document.getElementById('manage-category-select');
-    const mngContainer = document.getElementById('manage-list-container');
-    
-    const fetchManageList = async () => {
-        const cat = mngSelect.value;
-        if(!cat) return;
-        mngContainer.innerHTML = '讀取中...';
-        try {
-            const res = await fetch(`${GAS_URL}?sheetName=${cat}`);
-            const result = await res.json();
-            if(result.data.length <= 1) { mngContainer.innerHTML = '<p>尚無資料</p>'; return; }
-            
-            currentManageData = result.data; 
-            
-            let html = '<ul class="data-list">';
-            for(let i = 1; i < result.data.length; i++) {
-                // 支援多種模組的主要標題顯示
-                const title = result.data[i][0] || result.data[i][2] || '未命名項目'; 
-                html += `
-                    <li class="data-item">
-                        <div class="data-item-title">${title}</div>
-                        <div class="action-btns">
-                            <button class="btn-icon" onclick="openEditModal('${cat}', ${i+1})">編輯</button>
-                            <button class="btn-icon" onclick="moveRow('${cat}', ${i+1}, -1)">▲</button>
-                            <button class="btn-icon" onclick="moveRow('${cat}', ${i+1}, 1)">▼</button>
-                            <button class="btn-icon danger" onclick="deleteRow('${cat}', ${i+1})">刪除</button>
-                        </div>
-                    </li>`;
-            }
-            html += '</ul>';
-            mngContainer.innerHTML = html;
-        } catch(e) { mngContainer.innerHTML = '讀取失敗'; }
-    };
-    mngSelect.addEventListener('change', fetchManageList);
-
-    window.deleteRow = async (sheetName, rowIndex) => {
-        if(!confirm(`確定要刪除嗎？`)) return;
-        await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'deleteRow', sheetName, rowIndex }) }); fetchManageList();
-    };
-    window.moveRow = async (sheetName, rowIndex, direction) => {
-        const toIndex = rowIndex + direction;
-        if(toIndex <= 1) return;
-        await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'moveRow', sheetName, fromIndex: rowIndex, toIndex }) }); fetchManageList();
-    };
-
-    window.openEditModal = (sheetName, rowIndex) => {
-        const dataRow = currentManageData[rowIndex - 1]; 
-        const fields = FORM_FIELDS[sheetName];
-        if (!fields) return;
-        
-        const formContainer = document.getElementById('edit-dynamic-form-container');
-        let html = '';
-
-        fields.forEach((f, idx) => {
-            const val = dataRow[idx] || '';
-            if(f.type === 'textarea') {
-                html += `<div class="form-group"><label>${f.name}</label><textarea class="textarea-field edit-data-input" data-name="${f.name}">${val}</textarea></div>`;
-            } else {
-                html += `<div class="form-group"><label>${f.name}</label><input type="text" class="input-field edit-data-input" data-name="${f.name}" value="${val}"></div>`;
-            }
-        });
-
-        // 判斷該模組圖片存放的位置
-        let oldImg = '';
-        if (sheetName === '課程介紹' || sheetName === '專業師資' || sheetName === '專業顧問') oldImg = dataRow[3];
-        else if (sheetName === '活動花絮' || sheetName === '關於我們' || sheetName === '品牌推廣') oldImg = dataRow[2];
-        else if (sheetName === '徵才專區') oldImg = dataRow[6];
-        else if (sheetName === '認證店家') oldImg = dataRow[5];
-        else if (sheetName === '美業資訊交流') oldImg = dataRow[4];
-        else if (sheetName === '會員專屬影片') oldImg = dataRow[4];
-
-        document.getElementById('edit-old-images').value = oldImg || '';
-
-        if (sheetName !== '交流留言') {
-            html += `
+            <div id="panel-add" class="panel">
+                <h2>統一發佈中心</h2>
                 <div class="form-group">
-                    <label>上傳新圖片 <span style="color:#B8955A; font-weight:normal;">(若不更改，請留空)</span></label>
-                    <input type="file" id="edit-upload-files" class="input-field" accept="image/*" multiple>
-                </div>`;
-            if (oldImg) html += `<div style="font-size:12px; color:#B8955A; margin-bottom: 20px;">✓ 系統內已存有該項目的圖片。</div>`;
-        }
+                    <label>請選擇要發佈的單元類別</label>
+                    <select id="category-select" class="select-field">
+                        <option value="最新消息">⭐ 最新消息</option>
+                        <option disabled>────── 課程模組 ──────</option>
+                        <option value="課程介紹">課程介紹 (總表)</option>
+                        <option value="政府補助課程">政府補助課程</option>
+                        <option value="其他自費課程">其他自費課程</option>
+                        <option value="會員專屬影片">🎬 線上課程平台</option>
+                        <option disabled>────── 關於協會 ──────</option>
+                        <option value="關於我們">協會介紹 (關於我們)</option>
+                        <option value="活動花絮">活動花絮</option>
+                        <option value="專業師資">專業師資</option>
+                        <option value="專業顧問">專業顧問</option>
+                        <option disabled>────── 交流區 ──────</option>
+                        <option value="認證店家">認證店家</option>
+                        <option value="徵才專區">徵才專區</option>
+                        <option disabled>────── 其他 ──────</option>
+                        <option value="品牌推廣">品牌推廣</option>
+                    </select>
+                </div>
+                <hr style="border:0; border-top:1px dashed #ddd; margin:30px 0;">
+                <div id="dynamic-form-container"></div>
+                <button id="btn-submit-data" class="btn-primary" style="margin-top:20px; width: 100%; max-width: 200px;">發佈資料</button>
+            </div>
 
-        formContainer.innerHTML = html;
-        document.getElementById('edit-row-index').value = rowIndex;
-        document.getElementById('edit-sheet-name').value = sheetName;
-        
-        document.getElementById('edit-content-modal').classList.add('active');
-    };
+            <div id="panel-manage" class="panel">
+                <h2>內容編排與管理</h2>
+                <div class="form-group">
+                    <label>請選擇要管理的單元</label>
+                    <select id="manage-category-select" class="select-field">
+                        <option value="">請選擇...</option>
+                        <option value="最新消息">⭐ 最新消息</option>
+                        <option value="課程介紹">課程介紹 (總表)</option>
+                        <option value="政府補助課程">政府補助課程</option>
+                        <option value="其他自費課程">其他自費課程</option>
+                        <option value="會員專屬影片">線上課程平台 (影音)</option>
+                        <option value="關於我們">協會介紹 (關於我們)</option>
+                        <option value="活動花絮">活動花絮</option>
+                        <option value="專業師資">專業師資</option>
+                        <option value="專業顧問">專業顧問</option>
+                        <option value="認證店家">認證店家</option>
+                        <option value="徵才專區">徵才專區</option>
+                        <option value="品牌推廣">品牌推廣</option>
+                        <option value="美業資訊交流">美業資訊交流 (刪除違規文章)</option>
+                        <option value="交流留言">交流留言 (管理互動留言)</option>
+                    </select>
+                </div>
+                <div id="manage-list-container">
+                    <p style="color:#888; text-align:center; padding:30px 0;">請先由上方選擇單元載入資料</p>
+                </div>
+            </div>
+        </div>
+    </main>
 
-    document.getElementById('btn-save-edit').addEventListener('click', async (e) => {
-        const btn = e.target;
-        const sheetName = document.getElementById('edit-sheet-name').value;
-        const rowIndex = document.getElementById('edit-row-index').value;
-        const inputs = Array.from(document.querySelectorAll('.edit-data-input'));
-
-        if(!inputs[0].value.trim()) { alert('請填寫主要名稱/標題'); return; }
-        btn.innerText = '處理中...'; btn.disabled = true;
-
-        try {
-            let imgUrls = document.getElementById('edit-old-images').value;
-            const fileInput = document.getElementById('edit-upload-files');
-
-            if(fileInput && fileInput.files.length > 0) {
-                const urls = [];
-                for(let i=0; i<fileInput.files.length; i++) {
-                    btn.innerText = `上傳新圖 (${i+1}/${fileInput.files.length})...`;
-                    const base64Data = await readFileAsBase64(fileInput.files[i]);
-                    const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'uploadImage', sheetName: sheetName, base64Data: base64Data, mimeType: fileInput.files[i].type, fileName: fileInput.files[i].name }) });
-                    const resData = await res.json();
-                    if(resData.status === 'success') urls.push(resData.url);
-                }
-                imgUrls = urls.join(','); 
-            }
-
-            const newRowData = [];
-            // 對標寫入與覆蓋邏輯
-            if(sheetName === '課程介紹') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, imgUrls, inputs[3].value);
-            if(sheetName === '專業師資') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, imgUrls, inputs[3].value);
-            if(sheetName === '專業顧問') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, imgUrls, inputs[3].value);
-            if(sheetName === '認證店家') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, inputs[4].value, imgUrls, inputs[5].value);
-            if(sheetName === '活動花絮') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
-            if(sheetName === '關於我們') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
-            if(sheetName === '品牌推廣') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
-            if(sheetName === '徵才專區') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, inputs[5].value, inputs[4].value, imgUrls, new Date().toISOString().split('T')[0]);
-            
-            if(sheetName === '美業資訊交流') {
-                const oldData = currentManageData[rowIndex - 1];
-                newRowData.push(inputs[0].value, oldData[1], inputs[1].value, inputs[2].value, imgUrls);
-            }
-            if(sheetName === '交流留言') {
-                newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, inputs[4].value);
-            }
-            if(sheetName === '會員專屬影片') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, imgUrls);
-
-            btn.innerText = '寫入資料庫...';
-            await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'updateContentRow', sheetName: sheetName, rowIndex: rowIndex, newRowData: newRowData }) });
-
-            alert('內容修改成功！');
-            document.getElementById('edit-content-modal').classList.remove('active');
-            fetchManageList(); 
-        } catch(err) { alert('失敗：'+err); }
-        finally { btn.innerText = '儲存變更'; btn.disabled = false; }
-    });
-});
+    <script src="js/admin.js"></script>
+</body>
+</html>
