@@ -1,6 +1,6 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：快取引擎、前台路由、單一 LIFF 驗證通道、全模組智能排版、半公開影音防護
+ * 職責：快取引擎、前台路由、全模組智能排版引擎、半公開線上課程權限驗證
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
@@ -12,11 +12,15 @@ const LIFF_ID = '2012121201-XXXXXXXX'; // ⚠️ 請填寫您唯一的官方 LIN
 const AUTH_EXPIRY_MS = 3 * 60 * 60 * 1000; 
 const CACHE_EXPIRY_MS = 5 * 60 * 1000; 
 
+// === 更新：首頁預設為最新消息，並分割課程模組 ===
 const PAGE_CONFIG = {
-    '': { title: '協會介紹', subtitle: '推動美業創新與專業標竿，我們堅信手的溫度能帶來改變。', sheet: '關於我們', layout: 'article' },
-    '#home': { title: '協會介紹', subtitle: '推動美業創新與專業標竿，我們堅信手的溫度能帶來改變。', sheet: '關於我們', layout: 'article' },
+    '': { title: '最新消息', subtitle: '掌握協會最新動態與公告。', sheet: '最新消息', layout: 'card' },
+    '#news': { title: '最新消息', subtitle: '掌握協會最新動態與公告。', sheet: '最新消息', layout: 'card' },
+    '#home': { title: '最新消息', subtitle: '掌握協會最新動態與公告。', sheet: '最新消息', layout: 'card' },
+    '#courses-gov': { title: '政府補助課程', subtitle: '善用政府資源，提升職場競爭力。', sheet: '政府補助課程', layout: 'card' },
+    '#courses-self': { title: '其他自費課程', subtitle: '專業進階培訓，投資自我成長。', sheet: '其他自費課程', layout: 'card' },
+    '#course-platform': { title: '線上課程平台', subtitle: '高品質線上預錄課程與培訓資源。(觀看影片需登入會員)', sheet: '會員專屬影片', layout: 'card' },
     '#about': { title: '協會介紹', subtitle: '推動美業創新與專業標竿，我們堅信手的溫度能帶來改變。', sheet: '關於我們', layout: 'article' },
-    '#courses': { title: '課程介紹', subtitle: '從技術到品牌經營，為您準備最完善的實體學習資源。', sheet: '課程介紹', layout: 'card' },
     '#gallery': { title: '精彩活動與花絮', subtitle: '見證協會與學員們共同成長的每一個珍貴時刻。', sheet: '活動花絮', layout: 'card' },
     '#team': { title: '專業師資團隊', subtitle: '頂尖業界講師群，為您帶來最扎實的實戰教學。', sheet: '專業師資', layout: 'card' },
     '#consultants': { title: '專業顧問', subtitle: '產業頂尖顧問群，提供全方位美業指導。', sheet: '專業顧問', layout: 'card' },
@@ -24,7 +28,6 @@ const PAGE_CONFIG = {
     '#jobs': { title: '徵才專區', subtitle: '網羅最新美業職缺與招募資訊，助您找到最適合的舞台。', sheet: '徵才專區', layout: 'card' },
     '#exchange': { title: '美業資訊交流', subtitle: '會員專屬交流天地，分享最新資訊與技術探討。', sheet: '美業資訊交流', layout: 'card' },
     '#brands': { title: '品牌推廣與合作', subtitle: '嚴選業界頂尖品牌，共創美業生態圈。', sheet: '品牌推廣', layout: 'card' },
-    '#course-platform': { title: '線上課程平台', subtitle: '高品質線上預錄課程與培訓資源。(觀看影片需登入會員)', sheet: '會員專屬影片', layout: 'card' },
     '#join': { title: '入會申請', subtitle: '歡迎加入中華國際美學教育發展協會。為保障您的權益，請詳實填寫以下資料。', isJoinIntent: true },
     '#member-zone': { title: '會員專屬大廳', subtitle: '掌握最新行業動態與您的專屬權限', isMember: true },
     '#edit-profile': { title: '修改個人設定', subtitle: '保持最新的聯絡資訊，確保會員權益', isEditProfile: true }
@@ -37,7 +40,7 @@ if (urlParams.get('zone') === 'member') {
     window.history.replaceState(null, '', window.location.pathname + '#member-zone');
 }
 
-let currentTrackingHash = window.location.hash || '#home';
+let currentTrackingHash = window.location.hash || '#news';
 let currentPageEntryTime = Date.now();
 let currentViewDataCache = [];
 window.currentCommentsCache = [];
@@ -90,7 +93,6 @@ async function initSystem() {
         }
     } catch(e) {}
 
-    // 核心優化：單一 LIFF 初始化
     try {
         await liff.init({ liffId: LIFF_ID });
         if (liff.isInClient() || document.body.classList.contains('is-exclusive-zone')) {
@@ -99,13 +101,13 @@ async function initSystem() {
                 window.location.hash = '#member-zone';
             }
             if (liff.isLoggedIn() && !localStorage.getItem('cia_member_credentials')) {
-                await handleLineLoginCallback(true); 
+                handleLineLoginCallback(true); 
             } else if (!liff.isLoggedIn()) {
                 liff.login();
             }
         } else {
             if (liff.isLoggedIn() && !localStorage.getItem('cia_member_credentials')) {
-                await handleLineLoginCallback(true); 
+                handleLineLoginCallback(true); 
             }
         }
     } catch (err) { console.error('LIFF 初始化失敗', err); }
@@ -130,16 +132,17 @@ async function handleLineLoginCallback(isSilent = false) {
             
             if (data.member.needsProfileCompletion && window.location.hash !== '#join') {
                 window.location.hash = '#join';
+                loadPage();
             } else {
                 loadPage();
             }
         } else {
             if (!isSilent) alert('登入異常：' + data.message);
+            hidePreloader();
         }
     } catch(e) { 
         if (!isSilent) alert('LINE 登入連線失敗。'); 
-    } finally { 
-        hidePreloader(); 
+        hidePreloader();
     }
 }
 
@@ -166,7 +169,7 @@ function handlePageTransition() {
         localStorage.setItem('tracking_session', JSON.stringify(session));
         fetch(GAS_URL, { method: 'POST', keepalive: true, body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'trackSession', sessionId: session.id, entryTime: session.entryTime, leaveTime: getCleanTime(), ip: ip, path: currentTrackingHash, duration: durationSeconds, userAgent: navigator.userAgent }) }).catch(e=>e);
     }
-    currentTrackingHash = window.location.hash || '#home';
+    currentTrackingHash = window.location.hash || '#news';
     currentPageEntryTime = now;
 }
 
@@ -208,8 +211,8 @@ function buildMemberDashboard(memberInfo) {
 
 async function loadPage() {
     showPreloader(); 
-    const hash = window.location.hash || '#home';
-    const config = PAGE_CONFIG[hash] || PAGE_CONFIG['#home'];
+    const hash = window.location.hash || '#news';
+    const config = PAGE_CONFIG[hash] || PAGE_CONFIG['#news'];
 
     document.getElementById('page-title').innerText = config.title;
     document.getElementById('page-subtitle').innerText = config.subtitle;
@@ -330,14 +333,14 @@ async function loadPage() {
 
         if (result.status === 'success' && result.data.length > 1) {
             let finalData = result.data;
-            if (config.sheet === '美業資訊交流') {
+            if (config.sheet === '美業資訊交流' || config.sheet === '最新消息') {
                 const headers = finalData.shift();
                 finalData = finalData.reverse();
                 finalData.unshift(headers);
             }
             renderData(finalData, config.layout, dataContainer);
         } else {
-            dataContainer.innerHTML = '<p style="text-align:center; width:100%; color:#7A7A7A;">目前資料庫尚無發佈資訊。</p>';
+            dataContainer.innerHTML = '<p style="text-align:center; width:100%; color:#7A7A7A;">目前尚無資料。</p>';
         }
     } catch (error) { dataContainer.innerHTML = '<p style="text-align:center; width:100%; color:red;">資料載入異常。</p>'; } 
     finally { hidePreloader(); }
@@ -647,18 +650,15 @@ function optimizeImageUrl(url) {
 
 function generateImageHTML(imgString) {
     const rawUrls = imgString.split(',').map(u => u.trim()).filter(u => u);
-    
-    if (rawUrls.length === 0) {
-        return `<div class="img-wrapper"><img src="https://via.placeholder.com/800x600/E8D3CB/1F2D4A?text=CIA-EDA" alt="Placeholder"></div>`;
-    }
+    if (rawUrls.length === 0) return '';
     
     const urls = rawUrls.map(url => optimizeImageUrl(url));
     if (urls.length === 1) {
-        return `<div class="img-wrapper"><img src="${urls[0]}" alt="Course Image"></div>`;
+        return `<div class="img-wrapper"><img src="${urls[0]}" alt="Image"></div>`;
     }
     
     let html = `<div class="img-wrapper"><div class="carousel-container">`;
-    urls.forEach(url => { html += `<img src="${url}" alt="Course Image">`; });
+    urls.forEach(url => { html += `<img src="${url}" alt="Image">`; });
     html += `</div></div><div class="carousel-hint">← 左右滑動查看多圖 →</div>`;
     return html;
 }
@@ -708,11 +708,13 @@ function renderData(rawData, layoutType, container) {
         const title = item['課程名稱'] || item['講師姓名'] || item['顧問姓名'] || item['店家名稱'] || item['活動名稱'] || item['產品名稱'] || item['標題'] || item['職缺名稱'] || item['主旨/標題'] || '';
         let desc = item['簡介'] || item['個人簡介'] || item['產品簡介'] || item['內容'] || '';
         const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || item['產品logo及圖檔'] || item['公司Logo或環境照片'] || item['附圖網址'] || '';
-        const linkRaw = item['報名連結'] || item['專屬付款網址'] || item['連結'] || ''; 
+        const linkRaw = item['報名連結'] || item['專屬付款網址'] || item['連結'] || item['專屬報名網址'] || item['相關連結'] || ''; 
         
         let extraHtml = ''; 
 
-        if (item['徵才機構']) {
+        if (item['發佈日期'] && item['相關連結']) {
+            desc = `📅 發佈日期：${item['發佈日期']}\n\n${desc}`;
+        } else if (item['徵才機構']) {
             desc = `🏢 機構：${item['徵才機構']}\n📍 地點：${item['工作地點']}\n💰 薪資：${item['薪資待遇']}\n📞 聯絡：${item['聯絡方式']}\n\n【條件要求】\n${item['條件要求']}`;
         } else if (item['發文者姓名']) {
             desc = `👤 發文者：${item['發文者姓名']}\n🕒 時間：${item['發文時間']}\n\n${item['交流內容']}`;
@@ -766,11 +768,13 @@ window.openDetailModal = function(index) {
     const title = item['課程名稱'] || item['講師姓名'] || item['顧問姓名'] || item['店家名稱'] || item['活動名稱'] || item['產品名稱'] || item['標題'] || item['職缺名稱'] || item['主旨/標題'] || '';
     let desc = item['簡介'] || item['個人簡介'] || item['產品簡介'] || item['內容'] || '';
     const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || item['產品logo及圖檔'] || item['公司Logo或環境照片'] || item['附圖網址'] || '';
-    const linkRaw = item['報名連結'] || item['專屬付款網址'] || item['連結'] || ''; 
+    const linkRaw = item['報名連結'] || item['專屬付款網址'] || item['連結'] || item['專屬報名網址'] || item['相關連結'] || ''; 
 
     let extraHtml = '';
 
-    if (item['徵才機構']) {
+    if (item['發佈日期'] && item['相關連結']) {
+        desc = `📅 發佈日期：${item['發佈日期']}\n\n${desc}`;
+    } else if (item['徵才機構']) {
         desc = `🏢 機構：${item['徵才機構']}\n📍 地點：${item['工作地點']}\n💰 薪資：${item['薪資待遇']}\n📞 聯絡：${item['聯絡方式']}\n\n【條件要求】\n${item['條件要求']}`;
     } else if (item['發文者姓名']) {
         desc = `👤 發文者：${item['發文者姓名']}\n🕒 時間：${item['發文時間']}\n\n${item['交流內容']}`;
@@ -804,40 +808,3 @@ window.openDetailModal = function(index) {
 
     document.getElementById('detail-modal').classList.add('active');
 };
-
-function setupContactModal() {
-    const contactModal = document.getElementById('contact-modal');
-    const openContactBtn = document.getElementById('open-contact-btn');
-    const closeContactBtn = document.getElementById('close-contact-btn');
-    if(openContactBtn) openContactBtn.addEventListener('click', () => contactModal.classList.add('active'));
-    if(closeContactBtn) closeContactBtn.addEventListener('click', () => contactModal.classList.remove('active'));
-    
-    const detailModal = document.getElementById('detail-modal');
-    const closeDetailBtn = document.getElementById('close-detail-btn');
-    if(closeDetailBtn) closeDetailBtn.addEventListener('click', () => detailModal.classList.remove('active'));
-
-    window.addEventListener('click', (e) => { 
-        if (e.target === contactModal) contactModal.classList.remove('active'); 
-        if (e.target === detailModal) detailModal.classList.remove('active');
-    });
-
-    const submitBtn = document.getElementById('submit-contact-btn');
-    if (submitBtn) {
-        submitBtn.addEventListener('click', async () => {
-            const name = document.getElementById('c-name').value.trim();
-            const phone = document.getElementById('c-phone').value.trim();
-            const line = document.getElementById('c-line').value.trim();
-            const subject = document.getElementById('c-subject').value.trim();
-            const msg = document.getElementById('c-message').value.trim();
-            if (!name || !phone || !subject || !msg) { alert('請填寫所有必填欄位！'); return; }
-            submitBtn.innerText = '傳送中...'; submitBtn.disabled = true;
-            try {
-                const timestamp = getCleanTime();
-                await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, sheetName: '聯絡我們', newRowData: [timestamp, name, phone, line, subject, msg], action: 'submitContact' }) });
-                alert('訊息已成功送出！'); contactModal.classList.remove('active');
-                ['c-name', 'c-phone', 'c-line', 'c-subject', 'c-message'].forEach(id => document.getElementById(id).value = '');
-            } catch (err) { alert('失敗請稍後重試'); } 
-            finally { submitBtn.innerText = '確認送出'; submitBtn.disabled = false; }
-        });
-    }
-}
