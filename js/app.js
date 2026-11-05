@@ -1,18 +1,17 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：快取引擎、前台路由、單一 LIFF 安全防呆驗證、全模組智能排版
+ * 職責：快取引擎、前台路由、LIFF 基礎驗證、全模組智能排版
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
 
-// 🔑 核心修復：正確配置官方 LINE 的 LIFF ID
-const LIFF_ID = '2012121201-DRHgrrOJ'; // 已為您帶入正確的 ID
+// 🔑 請填寫您的官方 LINE LIFF ID (供一般網頁登入使用)
+const LIFF_ID = '2012121201-DRHgrrOJ'; 
 
 const AUTH_EXPIRY_MS = 3 * 60 * 60 * 1000; 
 const CACHE_EXPIRY_MS = 5 * 60 * 1000; 
 
-// === 更新：首頁預設為最新消息，並分割課程模組 ===
 const PAGE_CONFIG = {
     '': { title: '最新消息', subtitle: '掌握協會最新動態與公告。', sheet: '最新消息', layout: 'card' },
     '#home': { title: '最新消息', subtitle: '掌握協會最新動態與公告。', sheet: '最新消息', layout: 'card' },
@@ -34,12 +33,6 @@ const PAGE_CONFIG = {
     '#edit-profile': { title: '修改個人設定', subtitle: '保持最新的聯絡資訊，確保會員權益', isEditProfile: true }
 };
 
-const urlParams = new URLSearchParams(window.location.search);
-if (urlParams.get('zone') === 'member') {
-    document.body.classList.add('is-exclusive-zone');
-    window.history.replaceState(null, '', window.location.pathname + '#member-zone');
-}
-
 let currentTrackingHash = window.location.hash || '#news';
 let currentPageEntryTime = Date.now();
 let currentViewDataCache = [];
@@ -50,26 +43,19 @@ function getCleanTime() {
     return now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
 }
 
-// === 核心防呆處理：安全抓取快取資料 ===
 function getSafeMemberInfo() {
     try {
         let info = localStorage.getItem('cia_member_info');
         if (info === 'undefined' || info === 'null') return null;
         return JSON.parse(info);
-    } catch(e) {
-        localStorage.removeItem('cia_member_info');
-        return null;
-    }
+    } catch(e) { localStorage.removeItem('cia_member_info'); return null; }
 }
 function getSafeCredentials() {
     try {
         let creds = localStorage.getItem('cia_member_credentials');
         if (creds === 'undefined' || creds === 'null') return null;
         return JSON.parse(creds);
-    } catch(e) {
-        localStorage.removeItem('cia_member_credentials');
-        return null;
-    }
+    } catch(e) { localStorage.removeItem('cia_member_credentials'); return null; }
 }
 
 function isAuthValid() {
@@ -94,7 +80,21 @@ async function fetchWithCache(sheetName) {
         return JSON.parse(cachedData);
     }
     
-    const res = await fetch(`${GAS_URL}?sheetName=${sheetName}`); const data = await res.json(); if (data.status === 'success') { sessionStorage.setItem(cacheKey, JSON.stringify(data)); sessionStorage.setItem(timeKey, Date.now().toString()); } return data; }  const readFileAsBase64 = (file) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.readAsDataURL(file); });  // === 核心修復：終止無限迴圈的安全啟動機制 === async function initSystem() { showPreloader(); try { const countRes = await fetch(`${GAS_URL}?action=getVisitorCount`);
+    const res = await fetch(`${GAS_URL}?sheetName=${sheetName}`);
+    const data = await res.json();
+    if (data.status === 'success') {
+        sessionStorage.setItem(cacheKey, JSON.stringify(data));
+        sessionStorage.setItem(timeKey, Date.now().toString());
+    }
+    return data;
+}
+
+const readFileAsBase64 = (file) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.readAsDataURL(file); });
+
+// === 核心：還原標準網站的啟動流程，拔除強制跳轉 ===
+async function initSystem() {
+    try {
+        const countRes = await fetch(`${GAS_URL}?action=getVisitorCount`);
         const countData = await countRes.json();
         if(countData.status === 'success') {
             const counterEl = document.getElementById('visitor-counter');
@@ -104,26 +104,15 @@ async function fetchWithCache(sheetName) {
 
     try {
         await liff.init({ liffId: LIFF_ID });
-        
-        if (liff.isInClient() || urlParams.get('zone') === 'member') {
-            document.body.classList.add('is-exclusive-zone'); 
-        }
-
-        if (liff.isLoggedIn()) {
-            if (!getSafeCredentials()) {
-                await handleLineLoginCallback(true); 
-            }
+        // 在形象網站中，我們只用 LIFF 來執行「按鈕登入」與「登入回呼」，不再自動跳轉
+        if (liff.isLoggedIn() && !getSafeCredentials()) {
+            handleLineLoginCallback(true); 
         }
     } catch (err) { 
-        console.error('LIFF 初始化失敗', err); 
-    } finally {
-        if (document.body.classList.contains('is-exclusive-zone')) {
-            if (!window.location.hash || window.location.hash === '#news' || window.location.hash === '#home') {
-                window.location.hash = '#member-zone';
-            }
-        }
-        loadPage();
+        console.error('LIFF 初始化跳過', err); 
     }
+    
+    loadPage();
 }
 
 async function handleLineLoginCallback(isSilent = false) {
@@ -145,8 +134,10 @@ async function handleLineLoginCallback(isSilent = false) {
             
             if (data.member.needsProfileCompletion && window.location.hash !== '#join') {
                 window.location.hash = '#join';
+            } else if (!isSilent && window.location.hash !== '#member-zone') {
+                window.location.hash = '#member-zone'; // 手動登入成功後，帶去會員大廳
             }
-            if (!isSilent) loadPage();
+            loadPage();
         } else {
             if (!isSilent) alert('登入異常：' + data.message);
         }
@@ -203,11 +194,7 @@ function showPreloader() {
 }
 function hidePreloader() { 
     const p = document.getElementById('preloader'); 
-    if(p) {
-        p.style.opacity = '0'; 
-        p.style.visibility = 'hidden'; 
-        setTimeout(() => { p.style.display = 'none'; }, 300); 
-    }
+    if(p) { p.style.opacity = '0'; p.style.visibility = 'hidden'; setTimeout(() => { p.style.display = 'none'; }, 300); }
 }
 
 function buildMemberDashboard(memberInfo) {
@@ -245,6 +232,7 @@ function buildHomeNavigation() {
 }
 
 async function loadPage() {
+    showPreloader(); 
     const hash = window.location.hash || '#news';
     const config = PAGE_CONFIG[hash] || PAGE_CONFIG['#news'];
 
@@ -319,10 +307,6 @@ async function loadPage() {
         
         if (config.isEditProfile) {
             editProfileContainer.style.display = 'block';
-            document.getElementById('v-memberId').innerText = memberInfo.memberId || '審核中';
-            document.getElementById('v-level').innerText = memberInfo.level || '一般會員';
-            document.getElementById('v-status').innerText = memberInfo.memberStatus || '待審核';
-
             document.getElementById('e-name-zh').value = memberInfo.name || '';
             document.getElementById('e-name-en').value = memberInfo.nameEn || '';
             if(memberInfo.gender) document.getElementById('e-gender').value = memberInfo.gender;
@@ -385,7 +369,6 @@ async function loadPage() {
             }
             renderData(finalData, config.layout, dataContainer);
             
-            // 首頁附加綜合導航區
             if ((hash === '' || hash === '#news' || hash === '#home') && homeNavContainer) {
                 homeNavContainer.style.display = 'block';
                 homeNavContainer.innerHTML = buildHomeNavigation();
@@ -589,7 +572,10 @@ window.playCourseVideo = async function(event, courseTitle, reqLevel) {
             const courses = data.data.slice(1);
             const course = courses.find(c => c[0] === courseTitle);
             if (course && course[1]) {
-                document.getElementById('video-player-container').innerHTML = `<iframe src="${course[1]}" allowfullscreen></iframe>`; document.getElementById('video-modal').classList.add('active'); } else { alert(`權限不足或找不到該課程影片。此課程需為【${reqLevel}】。`);
+                document.getElementById('video-player-container').innerHTML = `<iframe src="${course[1]}" allowfullscreen></iframe>`;
+                document.getElementById('video-modal').classList.add('active');
+            } else {
+                alert(`權限不足或找不到該課程影片。此課程需為【${reqLevel}】。`);
             }
         } else {
             alert(data.message || '驗證失敗');
@@ -618,7 +604,98 @@ window.submitComment = async function(event, index, postTitle, postTime, isModal
         return;
     }
     if (memberInfo.memberStatus === '停用' || memberInfo.memberStatus === '待審核') {
-        alert(`您的狀態為【${memberInfo.memberStatus}】，無法留言。`); return; }  const btn = event.target; const ogText = btn.innerText; btn.innerText = '傳送中...'; btn.disabled = true;  try { await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'submitComment', lineUid: credentials.lineUid, postTitle: postTitle, postTime: postTime, content: content }) }); alert('留言成功！'); input.value = ''; sessionStorage.removeItem('cia_cache_交流留言'); document.getElementById('detail-modal').classList.remove('active'); loadPage(); } catch(e) { alert('留言失敗，請稍後再試。'); } finally { btn.innerText = ogText; btn.disabled = false; } };  function logoutMember() { localStorage.removeItem('cia_member_credentials'); localStorage.removeItem('cia_member_info'); localStorage.removeItem('cia_auth_time'); sessionStorage.clear();  if (liff.isLoggedIn()) { liff.logout(); } alert('已登出。'); window.location.hash = '#news'; loadPage(); }  function setupMemberLogin() { const lineBtns = document.querySelectorAll('.line-login-trigger'); lineBtns.forEach(btn => { btn.addEventListener('click', () => { // 提供跳轉綁定 if (!liff.isLoggedIn()) liff.login({ redirectUri: window.location.href }); else handleLineLoginCallback(); }); }); }  function setupMobileMenu() { const mobileBtn = document.getElementById('mobile-menu-btn'); const mainNav = document.getElementById('main-nav-menu'); if (mobileBtn && mainNav) { mobileBtn.addEventListener('click', () => { mainNav.classList.toggle('show'); document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('mobile-active')); });  mainNav.querySelectorAll('a:not(.dropdown-toggle)').forEach(link => { link.addEventListener('click', () => mainNav.classList.remove('show')); });  const dropdowns = document.querySelectorAll('.dropdown-toggle'); dropdowns.forEach(dropdown => { dropdown.addEventListener('click', (e) => { if (window.innerWidth <= 768) { dropdowns.forEach(d => { if (d !== dropdown) d.classList.remove('mobile-active'); }); dropdown.classList.toggle('mobile-active'); } }); }); } }  function optimizeImageUrl(url) { if (url.includes('drive.google.com') && !url.includes('thumbnail')) { const idMatch = url.match(/id=([^&]+)/); if (idMatch && idMatch[1]) return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w800`;
+        alert(`您的狀態為【${memberInfo.memberStatus}】，無法留言。`);
+        return;
+    }
+
+    const btn = event.target;
+    const ogText = btn.innerText;
+    btn.innerText = '傳送中...';
+    btn.disabled = true;
+
+    try {
+        await fetch(GAS_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                token: API_SECRET_TOKEN,
+                action: 'submitComment',
+                lineUid: credentials.lineUid,
+                postTitle: postTitle,
+                postTime: postTime,
+                content: content
+            })
+        });
+        alert('留言成功！');
+        input.value = '';
+        sessionStorage.removeItem('cia_cache_交流留言'); 
+        document.getElementById('detail-modal').classList.remove('active');
+        loadPage(); 
+    } catch(e) {
+        alert('留言失敗，請稍後再試。');
+    } finally {
+        btn.innerText = ogText;
+        btn.disabled = false;
+    }
+};
+
+function logoutMember() {
+    localStorage.removeItem('cia_member_credentials');
+    localStorage.removeItem('cia_member_info');
+    localStorage.removeItem('cia_auth_time');
+    sessionStorage.clear();
+    
+    if (liff.isLoggedIn()) { liff.logout(); }
+    alert('已登出。');
+    window.location.hash = '#news';
+    loadPage();
+}
+
+function setupMemberLogin() {
+    const lineBtns = document.querySelectorAll('.line-login-trigger');
+    lineBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (!liff.isLoggedIn()) {
+                // 明確指定回調網址為形象網站
+                liff.login({ redirectUri: window.location.href });
+            } else {
+                handleLineLoginCallback();
+            }
+        });
+    });
+}
+
+function setupMobileMenu() {
+    const mobileBtn = document.getElementById('mobile-menu-btn');
+    const mainNav = document.getElementById('main-nav-menu');
+    if (mobileBtn && mainNav) {
+        // 切換主選單
+        mobileBtn.addEventListener('click', () => {
+            mainNav.classList.toggle('show');
+            document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('mobile-active'));
+        });
+        
+        // 點擊一般連結收合
+        mainNav.querySelectorAll('a:not(.dropdown-toggle)').forEach(link => { 
+            link.addEventListener('click', () => mainNav.classList.remove('show')); 
+        });
+        
+        // 手機版下拉選單 (垂直手風琴防擠壓)
+        const dropdowns = document.querySelectorAll('.dropdown-toggle');
+        dropdowns.forEach(dropdown => {
+            dropdown.addEventListener('click', (e) => {
+                if (window.innerWidth <= 768) {
+                    dropdowns.forEach(d => { if (d !== dropdown) d.classList.remove('mobile-active'); });
+                    dropdown.classList.toggle('mobile-active');
+                }
+            });
+        });
+    }
+}
+
+function optimizeImageUrl(url) {
+    if (url.includes('drive.google.com') && !url.includes('thumbnail')) {
+        const idMatch = url.match(/id=([^&]+)/);
+        if (idMatch && idMatch[1]) return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w800`;
     }
     return url;
 }
@@ -661,7 +738,7 @@ function buildCommentsHtml(postTitle, postTime, dataIndex, isModal = false) {
     html += `
         <div style="display:flex; gap:10px; margin-top:10px;" onclick="event.stopPropagation();">
             <input type="text" id="${inputId}" class="input-field" placeholder="輸入留言..." style="padding:10px; flex:1; font-size:14px;">
-            <button class="candy-btn" onclick="submitComment(event, ${dataIndex}, '${postTitle}', '${postTime}',${isModal})" style="padding:10px 20px; font-size:14px; border:none; cursor:pointer;">留言</button>
+            <button class="candy-btn" onclick="submitComment(event, ${dataIndex}, '${postTitle}', '${postTime}', ${isModal})" style="padding:10px 20px; font-size:14px; border:none; cursor:pointer;">留言</button>
         </div>
     </div>`;
     return html;
@@ -690,9 +767,133 @@ function renderData(rawData, layoutType, container) {
         if (item['發佈日期'] && item['相關連結']) {
             desc = `📅 發佈日期：${item['發佈日期']}\n\n${desc}`;
         } else if (item['徵才機構']) {
-            desc = `🏢 機構：${item['徵才機構']}\n📍 地點：${item['工作地點']}\n💰 薪資：${item['薪資待遇']}\n📞 聯絡：${item['聯絡方式']}\n\n【條件要求】\n${item['條件要求']}`; } else if (item['發文者姓名']) { desc = `👤 發文者：${item['發文者姓名']}\n🕒 時間：${item['發文時間']}\n\n${item['交流內容']}`;
+            desc = `🏢 機構：${item['徵才機構']}\n📍 地點：${item['工作地點']}\n💰 薪資：${item['薪資待遇']}\n📞 聯絡：${item['聯絡方式']}\n\n【條件要求】\n${item['條件要求']}`;
+        } else if (item['發文者姓名']) {
+            desc = `👤 發文者：${item['發文者姓名']}\n🕒 時間：${item['發文時間']}\n\n${item['交流內容']}`;
             extraHtml = buildCommentsHtml(item['主旨/標題']||'', item['發文時間']||'', dataIndex, false);
         } else if (item['專長項目']) {
             desc = `【專長項目】\n${item['專長項目']}\n\n${desc}`;
         } else if (item['店家名稱']) {
-            desc = `👤 負責人
+            desc = `👤 負責人：${item['負責人']}\n📍 地址：${item['地址']}\n📞 電話：${item['聯絡電話']}\n\n${item['簡介']}`;
+        }
+        
+        const imgHtml = generateImageHTML(imgRaw);
+        
+        let paymentBtnHtml = linkRaw ? `<a href="${linkRaw}" target="_blank" class="candy-btn payment-btn" style="display:block; text-align:center; margin-top:20px;" onclick="event.stopPropagation();">💳 了解更多 / 報名</a>` : '';
+        
+        if (item['最低權限要求(例如:一般會員)'] !== undefined) {
+            const reqLevel = item['最低權限要求(例如:一般會員)'] || '會員';
+            paymentBtnHtml = `<button class="candy-btn member-btn" style="display:block; width:100%; text-align:center; margin-top:20px;" onclick="playCourseVideo(event, '${title}', '${reqLevel}')">▶️ 播放線上課程 (${reqLevel}專屬)</button>`;
+        }
+        
+        let shortDesc = desc.length > 60 ? desc.substring(0, 60) + '...' : desc;
+
+        if (layoutType === 'article') {
+            html += `<div style="margin-bottom: 50px;">`;
+            if (title) html += `<h3 style="color:var(--ink-navy); border-bottom: 2px solid var(--champagne); padding-bottom:10px; margin-bottom:20px; font-size:24px;">${title}</h3>`;
+            html += imgHtml;
+            html += `<p style="color:var(--text-dark); font-size:16px; line-height:1.8; letter-spacing:0.05em;">${desc.replace(/\n/g, '<br>')}</p>`;
+            html += paymentBtnHtml; 
+            html += `</div>`;
+        } else {
+            html += `
+                <div class="course-card" onclick="openDetailModal(${dataIndex})" style="cursor: pointer;" title="點擊查看詳細資料">
+                    ${imgHtml}
+                    <div class="course-info">
+                        ${title ? `<h3 class="course-title">${title}</h3>` : ''}
+                        ${shortDesc ? `<p class="course-desc">${shortDesc.replace(/\n/g, '<br>')}</p>` : ''}
+                        ${paymentBtnHtml}
+                        ${extraHtml}
+                    </div>
+                </div>
+            `;
+        }
+    }
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+window.openDetailModal = function(index) {
+    const item = currentViewDataCache[index];
+    if (!item) return;
+
+    const title = item['課程名稱'] || item['講師姓名'] || item['顧問姓名'] || item['店家名稱'] || item['活動名稱'] || item['產品名稱'] || item['標題'] || item['職缺名稱'] || item['主旨/標題'] || '';
+    let desc = item['簡介'] || item['個人簡介'] || item['產品簡介'] || item['內容'] || '';
+    const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || item['產品logo及圖檔'] || item['公司Logo或環境照片'] || item['附圖網址'] || '';
+    const linkRaw = item['報名連結'] || item['專屬付款網址'] || item['連結'] || item['專屬報名網址'] || item['相關連結'] || ''; 
+
+    let extraHtml = '';
+
+    if (item['發佈日期'] && item['相關連結']) {
+        desc = `📅 發佈日期：${item['發佈日期']}\n\n${desc}`;
+    } else if (item['徵才機構']) {
+        desc = `🏢 機構：${item['徵才機構']}\n📍 地點：${item['工作地點']}\n💰 薪資：${item['薪資待遇']}\n📞 聯絡：${item['聯絡方式']}\n\n【條件要求】\n${item['條件要求']}`;
+    } else if (item['發文者姓名']) {
+        desc = `👤 發文者：${item['發文者姓名']}\n🕒 時間：${item['發文時間']}\n\n${item['交流內容']}`;
+        extraHtml = buildCommentsHtml(item['主旨/標題']||'', item['發文時間']||'', index, true);
+    } else if (item['專長項目']) {
+        desc = `【專長項目】\n${item['專長項目']}\n\n${desc}`;
+    } else if (item['店家名稱']) {
+        desc = `👤 負責人：${item['負責人']}\n📍 地址：${item['地址']}\n📞 電話：${item['聯絡電話']}\n\n${item['簡介']}`;
+    }
+
+    let imagesHtml = '';
+    const rawUrls = imgRaw.split(',').map(u => u.trim()).filter(u => u);
+    if (rawUrls.length > 0) {
+        rawUrls.forEach(url => {
+            const optimized = optimizeImageUrl(url);
+            imagesHtml += `<img src="${optimized}" style="width: 100%; display: block; border-bottom: 1px solid #eee;">`;
+        });
+    }
+
+    let actionHtml = linkRaw ? `<a href="${linkRaw}" target="_blank" class="candy-btn payment-btn" style="font-size: 18px; padding: 12px 30px;">💳 了解更多 / 報名</a>` : '';
+    
+    if (item['最低權限要求(例如:一般會員)'] !== undefined) {
+        const reqLevel = item['最低權限要求(例如:一般會員)'] || '會員';
+        actionHtml = `<button class="candy-btn member-btn" style="width:100%; font-size:18px; padding: 12px 30px;" onclick="playCourseVideo(event, '${title}', '${reqLevel}')">▶️ 播放線上課程 (${reqLevel}專屬)</button>`;
+    }
+
+    document.getElementById('detail-modal-images').innerHTML = imagesHtml;
+    document.getElementById('detail-modal-title').innerText = title;
+    document.getElementById('detail-modal-desc').innerHTML = desc.replace(/\n/g, '<br>') + extraHtml;
+    document.getElementById('detail-modal-action').innerHTML = actionHtml;
+
+    document.getElementById('detail-modal').classList.add('active');
+};
+
+function setupContactModal() {
+    const contactModal = document.getElementById('contact-modal');
+    const openContactBtn = document.getElementById('open-contact-btn');
+    const closeContactBtn = document.getElementById('close-contact-btn');
+    if(openContactBtn) openContactBtn.addEventListener('click', () => contactModal.classList.add('active'));
+    if(closeContactBtn) closeContactBtn.addEventListener('click', () => contactModal.classList.remove('active'));
+    
+    const detailModal = document.getElementById('detail-modal');
+    const closeDetailBtn = document.getElementById('close-detail-btn');
+    if(closeDetailBtn) closeDetailBtn.addEventListener('click', () => detailModal.classList.remove('active'));
+
+    window.addEventListener('click', (e) => { 
+        if (e.target === contactModal) contactModal.classList.remove('active'); 
+        if (e.target === detailModal) detailModal.classList.remove('active');
+    });
+
+    const submitBtn = document.getElementById('submit-contact-btn');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', async () => {
+            const name = document.getElementById('c-name').value.trim();
+            const phone = document.getElementById('c-phone').value.trim();
+            const line = document.getElementById('c-line').value.trim();
+            const subject = document.getElementById('c-subject').value.trim();
+            const msg = document.getElementById('c-message').value.trim();
+            if (!name || !phone || !subject || !msg) { alert('請填寫所有必填欄位！'); return; }
+            submitBtn.innerText = '傳送中...'; submitBtn.disabled = true;
+            try {
+                const timestamp = getCleanTime();
+                await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, sheetName: '聯絡我們', newRowData: [timestamp, name, phone, line, subject, msg], action: 'submitContact' }) });
+                alert('訊息已成功送出！'); contactModal.classList.remove('active');
+                ['c-name', 'c-phone', 'c-line', 'c-subject', 'c-message'].forEach(id => document.getElementById(id).value = '');
+            } catch (err) { alert('失敗請稍後重試'); } 
+            finally { submitBtn.innerText = '確認送出'; submitBtn.disabled = false; }
+        });
+    }
+}
