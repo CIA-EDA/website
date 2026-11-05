@@ -7,61 +7,50 @@
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        /* === 專屬 App 風格 CSS === */
         :root { --app-bg: #F2F2F6; --app-blue: #1F2D4A; --app-gold: #B8955A; --text-main: #333333; --text-sub: #8E8E93; }
         body { margin: 0; padding: 0; font-family: 'Noto Sans TC', sans-serif; background-color: var(--app-bg); color: var(--text-main); -webkit-tap-highlight-color: transparent; user-select: none; }
         
-        /* 頂部標題列 */
         .app-header { position: fixed; top: 0; left: 0; width: 100%; height: 50px; background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); display: flex; justify-content: center; align-items: center; box-shadow: 0 1px 0 rgba(0,0,0,0.05); z-index: 1000; font-weight: bold; font-size: 16px; color: var(--app-blue); }
         
-        /* 內容區塊 */
         .app-main { padding: 65px 15px 90px 15px; height: 100vh; box-sizing: border-box; overflow-y: auto; -webkit-overflow-scrolling: touch; }
         .view-panel { display: none; animation: fadeIn 0.3s ease; }
         .view-panel.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* 卡片設計 */
         .card { background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 15px; }
         .card-title { font-size: 18px; font-weight: bold; color: var(--app-blue); margin: 0 0 10px 0; display: flex; align-items: center; justify-content: space-between;}
         .card-desc { font-size: 14px; color: var(--text-sub); line-height: 1.5; margin: 0; }
         
-        /* 網格大廳 */
         .grid-menu { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
         .grid-item { background: #fff; border-radius: 16px; padding: 25px 10px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.03); cursor: pointer; transition: 0.2s; border: 1px solid transparent; }
         .grid-item:active { transform: scale(0.96); border-color: var(--app-gold); }
         .grid-icon { font-size: 36px; margin-bottom: 10px; }
         .grid-text { font-size: 14px; font-weight: bold; color: var(--app-blue); }
 
-        /* 表單元件 */
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; font-size: 13px; color: var(--app-blue); margin-bottom: 6px; font-weight: bold; }
         .input-field, .select-field, .textarea-field { width: 100%; padding: 14px; border: 1px solid #E5E5EA; border-radius: 12px; font-size: 15px; background: #FAFAFA; box-sizing: border-box; outline: none; transition: 0.3s; }
         .input-field:focus { border-color: var(--app-gold); background: #fff; }
         .textarea-field { height: 120px; resize: none; }
         
-        /* 按鈕設計 */
-        .btn-primary { background: linear-gradient(135deg, var(--app-gold) 0%, #967a4a 100%); color: #fff; border: none; border-radius: 25px; padding: 15px; width: 100%; font-size: 16px; font-weight: bold; box-shadow: 0 4px 15px rgba(184, 149, 90, 0.3); cursor: pointer; }
+        .btn-primary { background: linear-gradient(135deg, var(--app-gold) 0%, #967a4a 100%); color: #fff; border: none; border-radius: 25px; padding: 15px; width: 100%; font-size: 16px; font-weight: bold; box-shadow: 0 4px 15px rgba(184, 149, 90, 0.3); cursor: pointer; text-align: center; display: block; text-decoration: none; box-sizing: border-box;}
         .btn-primary:active { transform: scale(0.98); }
         .btn-danger { background: #fff; color: #FF3B30; border: 1px solid #FF3B30; border-radius: 25px; padding: 12px; width: 100%; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 15px; }
         .line-login-btn { background: #06C755; color: #fff; border: none; border-radius: 25px; padding: 15px; width: 100%; font-size: 16px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; }
         
-        /* 底部導覽列 (Bottom Nav) */
         .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; height: 65px; background: rgba(255,255,255,0.9); backdrop-filter: blur(15px); border-top: 1px solid rgba(0,0,0,0.05); display: flex; justify-content: space-around; align-items: center; z-index: 1000; padding-bottom: env(safe-area-inset-bottom); }
         .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-sub); width: 25%; font-size: 10px; font-weight: 500; text-decoration: none; cursor: pointer; }
         .nav-item.active { color: var(--app-gold); }
         .nav-icon { font-size: 22px; margin-bottom: 2px; }
 
-        /* 載入動畫 */
         #preloader { position: fixed; top:0; left:0; width:100%; height:100%; background:var(--app-bg); z-index:99999; display:flex; flex-direction:column; justify-content:center; align-items:center; }
         .spinner { border: 4px solid rgba(0,0,0,0.05); border-top: 4px solid var(--app-gold); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* 圖片處理 */
         .post-img { width: 100%; border-radius: 12px; margin-top: 10px; object-fit: cover; aspect-ratio: 1/1; }
         .video-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 12px; background: #000; margin-top:15px; display: none;}
         .video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
         
-        /* 浮動發文按鈕 */
         .fab-btn { position: fixed; bottom: 85px; right: 20px; background: var(--app-gold); color: #fff; width: 55px; height: 55px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; box-shadow: 0 4px 15px rgba(184, 149, 90, 0.4); z-index: 900; }
     </style>
 </head>
@@ -71,7 +60,6 @@
     <div class="app-header" id="app-title">會員中心</div>
 
     <main class="app-main">
-        <!-- 登入 / 審核畫面 -->
         <div id="view-login" class="view-panel">
             <div class="card" style="text-align: center; margin-top: 20px; padding: 40px 20px;">
                 <img src="images/CIAEDA_直式標準_標準彩色.png" alt="Logo" style="height: 60px; margin-bottom: 20px;">
@@ -80,6 +68,8 @@
                 <button class="line-login-btn" onclick="triggerLineLogin()">
                     <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg" style="width:20px;"> LINE 一鍵登入
                 </button>
+                <!-- 加入官網連結 -->
+                <a href="index.html" style="display:block; margin-top:25px; color:var(--text-sub); text-decoration:underline; font-size:14px;">返回官方形象網站</a>
             </div>
         </div>
 
@@ -88,11 +78,11 @@
                 <div style="font-size: 50px; margin-bottom: 10px;">⏳</div>
                 <h2 style="margin:0 0 10px 0; color:var(--app-gold);">資格審核中</h2>
                 <p class="card-desc" style="margin-bottom: 20px;">您的資料已送出。<br>請返回官方 LINE 傳送訊息聯繫客服人員，以進行人工確認與繳費。</p>
+                <a href="index.html" class="btn-primary" style="margin-bottom: 15px;">🌍 瀏覽官方形象網站</a>
                 <button class="btn-danger" onclick="logout()">登出帳號</button>
             </div>
         </div>
 
-        <!-- 註冊 / 完善資料 -->
         <div id="view-register" class="view-panel">
             <div class="card">
                 <h2 style="margin:0 0 5px 0; color:var(--app-blue); text-align:center;">會員資料建檔</h2>
@@ -123,7 +113,6 @@
             </div>
         </div>
 
-        <!-- 大廳 -->
         <div id="view-dashboard" class="view-panel">
             <div class="card" style="display:flex; align-items:center; gap:15px; padding:15px;">
                 <img id="dash-avatar" src="" style="width:60px; height:60px; border-radius:50%; background:#eee;">
@@ -140,14 +129,15 @@
                 <div class="grid-item" onclick="switchNav('jobs')"><div class="grid-icon">🏢</div><div class="grid-text">徵才專區</div></div>
                 <div class="grid-item" onclick="switchNav('profile')"><div class="grid-icon">⚙️</div><div class="grid-text">設定資料</div></div>
             </div>
+            
+            <!-- 大廳加入官網導流按鈕 -->
+            <a href="index.html" class="btn-primary" style="margin-top: 25px;">🌍 瀏覽官方形象網站</a>
         </div>
 
-        <!-- 課程與專區列表共用容器 -->
         <div id="view-list" class="view-panel">
             <div id="list-container"></div>
         </div>
 
-        <!-- 修改資料 -->
         <div id="view-profile" class="view-panel">
             <div class="card">
                 <h2 style="margin:0 0 15px 0; color:var(--app-blue);">修改個人設定</h2>
@@ -164,7 +154,6 @@
             </div>
         </div>
         
-        <!-- 發文表單 (隱藏於頁面底部，動態顯示) -->
         <div id="view-post" class="view-panel">
              <div class="card">
                 <h2 style="margin:0 0 15px 0; color:var(--app-blue);">發佈交流資訊</h2>
@@ -174,10 +163,8 @@
                 <button class="btn-primary" id="btn-submit-post">確認發佈</button>
             </div>
         </div>
-
     </main>
 
-    <!-- 底部導覽列 (登入後顯示) -->
     <nav class="bottom-nav" id="bottom-nav" style="display: none;">
         <div class="nav-item active" data-target="dashboard" onclick="switchNav('dashboard')"><div class="nav-icon">🏠</div>大廳</div>
         <div class="nav-item" data-target="courses" onclick="switchNav('courses')"><div class="nav-icon">🎬</div>課程</div>
@@ -188,14 +175,14 @@
     <div class="fab-btn" id="fab-post" style="display:none;" onclick="switchNav('post')">✏️</div>
 
     <script>
-        // === 系統參數設定 ===
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
         const API_SECRET_TOKEN = 'cla-eda-secure-2026';
-        const LIFF_ID_MEMBER = '2012121201-DRHgrrOJ'; // ⚠️ 請填入您的 LIFF ID
+        
+        // 🔑 填入你的專屬 LINE LIFF ID
+        const LIFF_ID_MEMBER = '2012121201-DRHgrrOJ'; 
         
         let currentTab = 'dashboard';
 
-        // === 基礎控制 ===
         function showPreloader() { document.getElementById('preloader').style.display = 'flex'; }
         function hidePreloader() { document.getElementById('preloader').style.display = 'none'; }
         
@@ -205,16 +192,13 @@
             document.querySelectorAll('.view-panel').forEach(v => v.classList.remove('active'));
             document.getElementById('view-' + viewId).classList.add('active');
             
-            // 處理底部導覽狀態
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             const activeNav = document.querySelector(`.nav-item[data-target="${viewId}"]`);
             if (activeNav) activeNav.classList.add('active');
             
-            // 處理浮動發文按鈕
             document.getElementById('fab-post').style.display = (viewId === 'exchange') ? 'flex' : 'none';
         }
 
-        // === 導覽路由切換 ===
         async function switchNav(target) {
             currentTab = target;
             if (target === 'dashboard') { setHeader('會員中心'); showView('dashboard'); }
@@ -225,7 +209,6 @@
                  setHeader('我要發文'); showView('post');
             }
             else {
-                // 讀取資料表 (課程、交流、徵才)
                 let sheetName = '';
                 if(target === 'courses') { sheetName = '會員專屬影片'; setHeader('線上課程平台'); }
                 if(target === 'exchange') { sheetName = '美業資訊交流'; setHeader('美業資訊交流'); }
@@ -236,12 +219,14 @@
             }
         }
 
-        // === 初始化 LIFF 與登入邏輯 ===
+        // 獨立的無縫自動登入邏輯，不跳轉，原生驗證
         async function initApp() {
             try {
                 await liff.init({ liffId: LIFF_ID_MEMBER });
                 if (liff.isLoggedIn()) {
-                    await processLogin();
+                    await processLogin(true); // 背景驗證
+                } else if (liff.isInClient()) {
+                    liff.login(); // 在 LINE 裡面則強制登入
                 } else {
                     hidePreloader();
                     showView('login');
@@ -254,8 +239,8 @@
             else await processLogin();
         }
 
-        async function processLogin() {
-            showPreloader();
+        async function processLogin(isSilent = false) {
+            if(!isSilent) showPreloader();
             try {
                 const profile = await liff.getProfile();
                 const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'lineLogin', lineUid: profile.userId, displayName: profile.displayName, pictureUrl: profile.pictureUrl }) });
@@ -282,7 +267,6 @@
                 setHeader('審核中');
                 showView('pending');
             } else {
-                // 正常會員，設定大廳資訊並顯示底部導覽
                 document.getElementById('bottom-nav').style.display = 'flex';
                 document.getElementById('dash-avatar').src = member.avatar || 'https://via.placeholder.com/60';
                 document.getElementById('dash-name').innerText = member.name;
@@ -301,12 +285,10 @@
             showView('login');
         }
 
-        // === 動態資料載入引擎 ===
         async function loadListData(sheetName) {
             const container = document.getElementById('list-container');
             container.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">載入中...</div>';
             try {
-                // 發送請求並包含 credentials 以便後端驗證權限拿影片
                 const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
                 let res;
                 if (sheetName === '會員專屬影片') {
@@ -367,11 +349,9 @@
             } catch(e) { container.innerHTML = '<div style="text-align:center; padding:30px; color:red;">連線失敗</div>'; }
         }
 
-        // === 表單送出事件綁定 ===
         document.addEventListener('DOMContentLoaded', () => {
             initApp();
 
-            // 1. 入會註冊
             document.getElementById('btn-submit-register').addEventListener('click', async (e) => {
                 const btn = e.target;
                 const profileData = {
@@ -398,7 +378,6 @@
                 } catch(err) { alert('儲存失敗'); } finally { btn.innerText = '送出申請'; btn.disabled = false; hidePreloader(); }
             });
 
-            // 2. 修改資料
             document.getElementById('btn-save-profile').addEventListener('click', async (e) => {
                 const btn = e.target;
                 const profileData = {
@@ -419,7 +398,6 @@
                 } catch(err) { alert('更新失敗'); } finally { btn.innerText = '儲存變更'; btn.disabled = false; hidePreloader(); }
             });
 
-            // 3. 會員發文
             document.getElementById('btn-submit-post').addEventListener('click', async (e) => {
                 const btn = e.target;
                 const title = document.getElementById('post-title').value.trim();
@@ -446,7 +424,7 @@
                     await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'userPostExchange', lineUid: credentials.lineUid, postTitle: title, postContent: content, imgUrl: imgUrl }) });
                     alert('發佈成功！');
                     document.getElementById('post-title').value = ''; document.getElementById('post-content').value = ''; fileInput.value = '';
-                    switchNav('exchange'); // 回到列表並重整
+                    switchNav('exchange'); 
                 } catch(err) { alert('發佈失敗'); } finally { btn.innerText = '確認發佈'; btn.disabled = false; hidePreloader(); }
             });
         });
