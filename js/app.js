@@ -1,18 +1,17 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：快取引擎、前台路由、單一 LIFF 安全防呆驗證、全模組智能排版
+ * 職責：快取引擎、前台路由、單一 LIFF 驗證、全模組智能排版
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
 
-// 🔑 核心修復：正確配置官方 LINE 的 LIFF ID
-const LIFF_ID = '2012121201-DRHgrrOJ'; // 已為您帶入正確的 ID
+// 🔑 確保 LIFF ID 正確無誤，解決 400 Bad Request
+const LIFF_ID = '2012121201-DRHgrrOJ'; 
 
 const AUTH_EXPIRY_MS = 3 * 60 * 60 * 1000; 
 const CACHE_EXPIRY_MS = 5 * 60 * 1000; 
 
-// === 更新：首頁預設為最新消息，並分割課程模組 ===
 const PAGE_CONFIG = {
     '': { title: '最新消息', subtitle: '掌握協會最新動態與公告。', sheet: '最新消息', layout: 'card' },
     '#home': { title: '最新消息', subtitle: '掌握協會最新動態與公告。', sheet: '最新消息', layout: 'card' },
@@ -51,26 +50,19 @@ function getCleanTime() {
     return now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
 }
 
-// === 核心防呆處理：安全抓取快取資料 ===
 function getSafeMemberInfo() {
     try {
         let info = localStorage.getItem('cia_member_info');
         if (info === 'undefined' || info === 'null') return null;
         return JSON.parse(info);
-    } catch(e) {
-        localStorage.removeItem('cia_member_info');
-        return null;
-    }
+    } catch(e) { localStorage.removeItem('cia_member_info'); return null; }
 }
 function getSafeCredentials() {
     try {
         let creds = localStorage.getItem('cia_member_credentials');
         if (creds === 'undefined' || creds === 'null') return null;
         return JSON.parse(creds);
-    } catch(e) {
-        localStorage.removeItem('cia_member_credentials');
-        return null;
-    }
+    } catch(e) { localStorage.removeItem('cia_member_credentials'); return null; }
 }
 
 function isAuthValid() {
@@ -133,10 +125,7 @@ async function initSystem() {
                 handleLineLoginCallback(true); 
             }
         }
-    } catch (err) { 
-        console.error('LIFF 初始化跳過', err); 
-        hidePreloader(); 
-    }
+    } catch (err) { console.error('LIFF 初始化跳過', err); hidePreloader(); }
 }
 
 async function handleLineLoginCallback(isSilent = false) {
@@ -394,7 +383,6 @@ async function loadPage() {
             }
             renderData(finalData, config.layout, dataContainer);
             
-            // 首頁附加綜合導航區
             if ((hash === '' || hash === '#news' || hash === '#home') && homeNavContainer) {
                 homeNavContainer.style.display = 'block';
                 homeNavContainer.innerHTML = buildHomeNavigation();
@@ -686,24 +674,33 @@ function setupMemberLogin() {
     });
 }
 
+// === 核心修復：手機版垂直手風琴選單操作邏輯 ===
 function setupMobileMenu() {
     const mobileBtn = document.getElementById('mobile-menu-btn');
     const mainNav = document.getElementById('main-nav-menu');
     if (mobileBtn && mainNav) {
+        // 點擊漢堡選單切換開關
         mobileBtn.addEventListener('click', () => {
             mainNav.classList.toggle('show');
+            // 每次打開時，自動收合所有子選單
             document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('mobile-active'));
         });
         
+        // 點擊一般連結時，收合整個選單
         mainNav.querySelectorAll('a:not(.dropdown-toggle)').forEach(link => { 
             link.addEventListener('click', () => mainNav.classList.remove('show')); 
         });
         
+        // 樹枝圖點擊時「向下推開」 (手風琴效果)
         const dropdowns = document.querySelectorAll('.dropdown-toggle');
         dropdowns.forEach(dropdown => {
             dropdown.addEventListener('click', (e) => {
                 if (window.innerWidth <= 768) {
-                    dropdowns.forEach(d => { if (d !== dropdown) d.classList.remove('mobile-active'); });
+                    // 自動關閉其他已展開的選單，保持畫面簡潔
+                    dropdowns.forEach(d => { 
+                        if (d !== dropdown) d.classList.remove('mobile-active'); 
+                    });
+                    // 切換被點擊的選單
                     dropdown.classList.toggle('mobile-active');
                 }
             });
