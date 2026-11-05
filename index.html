@@ -8,25 +8,30 @@
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@500;700&display=swap" rel="stylesheet">
     <style>
+        /* 核心修復 1：全局強制盒模型，防止任何元素因為 padding 撐破寬度 */
+        *, *::before, *::after { box-sizing: border-box; }
+        
         :root { --ink-navy: #1F2D4A; --mist-rose: #E8D3CB; --champagne: #B8955A; --pearl: #FAF7F2; --taupe: #8C8279; --primary-color: var(--champagne); --secondary-color: var(--pearl); }
-        body { margin: 0; font-family: 'Noto Sans TC', sans-serif; background-color: var(--secondary-color); color: var(--ink-navy); display: flex; flex-direction: column; min-height: 100vh; }
+        
+        /* 核心修復 2：鎖死 X 軸，防禦手機版側滑歪斜 */
+        body { margin: 0; padding: 0; font-family: 'Noto Sans TC', sans-serif; background-color: var(--secondary-color); color: var(--ink-navy); display: flex; flex-direction: column; min-height: 100vh; overflow-x: hidden; width: 100%; max-width: 100vw; }
         h1, h2, h3 { font-family: 'Noto Serif TC', serif; color: var(--ink-navy); }
-        main { flex: 1; }
+        main { flex: 1; width: 100%; overflow-x: hidden; }
 
-        .content-section { padding: 30px 5%; min-height: 100vh; background-color: var(--secondary-color); }
+        .content-section { padding: 30px 5%; min-height: 100vh; background-color: var(--secondary-color); width: 100%; }
         
         #preloader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--secondary-color); display: flex; justify-content: center; align-items: center; z-index: 99999; transition: opacity 0.5s ease, visibility 0.5s ease; }
         .preloader-logo { width: 150px; height: auto; animation: pulseFade 1.5s ease-in-out infinite; }
         @keyframes pulseFade { 0%, 100% { opacity: 0.3; transform: scale(0.95); } 50% { opacity: 1; transform: scale(1.05); } }
         
-        header { padding: 15px 40px; display: flex; justify-content: space-between; align-items: center; background-color: var(--mist-rose); box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 9000; flex-wrap: wrap; gap: 15px; }
+        header { padding: 15px 40px; display: flex; justify-content: space-between; align-items: center; background-color: var(--mist-rose); box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 9000; flex-wrap: wrap; gap: 15px; width: 100%; }
         .brand-logo-img { height: 50px; width: auto; display: block; transition: transform 0.3s; }
         .menu-toggle { display: none; font-size: 28px; cursor: pointer; color: var(--ink-navy); }
         .main-nav { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center;}
-        footer { background-color: var(--mist-rose); padding: 40px 50px; text-align: center; margin-top: auto; }
+        footer { background-color: var(--mist-rose); padding: 40px 50px; text-align: center; margin-top: auto; width: 100%; }
         .footer-links { display: flex; justify-content: center; gap: 20px; margin-bottom: 25px; flex-wrap: wrap; }
 
-        .candy-btn { display: inline-block; background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, var(--mist-rose) 100%); color: var(--ink-navy) !important; padding: 10px 18px; border-radius: 20px; font-weight: 700; text-decoration: none; box-shadow: 0 4px 10px rgba(0,0,0,0.08), inset 0 2px 4px rgba(255,255,255,1), inset 0 -2px 4px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.8); transition: all 0.3s ease; backdrop-filter: blur(5px); font-size: 14px; cursor: pointer; text-align: center; box-sizing: border-box; }
+        .candy-btn { display: inline-block; background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, var(--mist-rose) 100%); color: var(--ink-navy) !important; padding: 10px 18px; border-radius: 20px; font-weight: 700; text-decoration: none; box-shadow: 0 4px 10px rgba(0,0,0,0.08), inset 0 2px 4px rgba(255,255,255,1), inset 0 -2px 4px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.8); transition: all 0.3s ease; backdrop-filter: blur(5px); font-size: 14px; cursor: pointer; text-align: center; }
         .candy-btn.active, .candy-btn:hover { transform: translateY(-3px); background: linear-gradient(135deg, var(--mist-rose) 0%, #d8b8ac 100%); box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
         .payment-btn { background: linear-gradient(135deg, var(--champagne) 0%, #967a4a 100%); color: #fff !important; }
         .member-btn { background: linear-gradient(135deg, var(--ink-navy) 0%, #3a4a6b 100%); color: #fff !important; }
@@ -41,7 +46,7 @@
 
         .floating-contact-btn { position: fixed; bottom: 30px; right: 30px; z-index: 9998; cursor: pointer; background: linear-gradient(135deg, var(--champagne) 0%, #967a4a 100%); color: #fff; box-shadow: 0 6px 15px rgba(184, 149, 90, 0.4); border: 1px solid rgba(255,255,255,0.3); border-radius: 50px; padding: 15px 25px; transition: 0.3s; font-weight: bold; }
         
-        .hero-section { padding: 80px 40px; text-align: center; background-color: var(--secondary-color); }
+        .hero-section { padding: 80px 40px; text-align: center; background-color: var(--secondary-color); width: 100%; }
         
         .course-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; margin-top: 30px; }
         .course-card { border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.03); display: flex; flex-direction: column; height: 100%; }
@@ -70,7 +75,7 @@
         .home-nav-icon { font-size: 28px; margin-bottom: 10px; }
         .home-nav-title { font-weight: bold; font-size: 16px; }
         
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(31, 45, 74, 0.9); display: none; justify-content: center; align-items: center; z-index: 9999; opacity: 0; transition: opacity 0.3s ease; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(31, 45, 74, 0.9); display: none; justify-content: center; align-items: center; z-index: 9999; opacity: 0; transition: opacity 0.3s ease; }
         .modal-overlay.active { display: flex; opacity: 1; }
         .modal-content { background: #ffffff; padding: 40px; border-radius: 12px; width: 90%; max-width: 550px; max-height: 85vh; overflow-y: auto; position: relative; box-shadow: 0 15px 30px rgba(0,0,0,0.2); }
         .modal-close-btn { position: absolute; top: 15px; right: 20px; background: rgba(255,255,255,0.8); border: none; font-size: 24px; color: var(--ink-navy); cursor: pointer; transition: 0.3s; z-index:100; border-radius: 50%; width: 35px; height: 35px; display: flex; justify-content: center; align-items: center;}
@@ -85,27 +90,60 @@
         .submit-btn-full { width: 100%; padding: 15px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; transition: 0.3s; font-size: 16px; font-weight: bold; margin-top: 10px; }
         .submit-btn-full:hover { background: #967a4a; box-shadow: 0 4px 15px rgba(184, 149, 90, 0.4); }
 
+        /* === 核心修復 3：手機版選單徹底重建，消除擠壓與破版 === */
         @media (max-width: 768px) {
-            header { padding: 10px 20px; position: sticky; top: 0; background-color: var(--mist-rose); z-index: 9999; }
+            header { padding: 10px 15px; position: sticky; top: 0; background-color: var(--mist-rose); z-index: 9999; border-bottom: 1px solid rgba(0,0,0,0.05); }
             .brand-logo-img { height: 40px; }
             .menu-toggle { display: block; }
             
-            .main-nav { display: none; flex-direction: column; position: fixed; top: 60px; left: 0; width: 100%; height: calc(100vh - 60px); overflow-y: auto; background-color: var(--mist-rose); padding: 20px 0 100px 0; gap: 15px; box-shadow: 0 10px 15px rgba(0,0,0,0.1); z-index: 9998; box-sizing: border-box; justify-content: flex-start; }
+            /* 將主選單設為絕對定位覆蓋層，絕對不會去擠壓底下的內容 (Hero Section) */
+            .main-nav { 
+                display: none; 
+                flex-direction: column; 
+                position: absolute; 
+                top: 100%; /* 從 Header 下方開始展開 */
+                left: 0; 
+                width: 100%; 
+                max-height: calc(100vh - 60px); /* 最高不超過螢幕高度 */
+                overflow-y: auto; 
+                background-color: var(--mist-rose); 
+                padding: 15px 0 30px 0; 
+                gap: 12px; 
+                box-shadow: 0 10px 20px rgba(0,0,0,0.15); 
+                z-index: 9998; 
+            }
             .main-nav.show { display: flex; align-items: center; } 
             
-            .candy-btn { width: 85%; max-width: 350px; font-size: 15px; border-radius: 8px; margin: 0 auto; padding: 12px; text-align: center; }
+            .candy-btn { width: 85%; max-width: 400px; font-size: 15px; border-radius: 8px; margin: 0 auto; padding: 14px; text-align: center; }
             
-            .dropdown { width: 85%; max-width: 350px; margin: 0 auto; }
+            .dropdown { width: 85%; max-width: 400px; margin: 0 auto; }
             .dropdown > .candy-btn { width: 100%; margin: 0; } 
+            /* 取消懸浮觸發，避免手機點擊衝突 */
             .dropdown:hover .dropdown-content { visibility: hidden; opacity: 0; display: none; }
             
-            .dropdown-content { position: static; visibility: visible; opacity: 1; transform: none; box-shadow: none; border: none; background: rgba(255,255,255,0.6); padding: 5px; display: none; margin-top: 5px; border-radius: 8px; width: 100%; box-sizing: border-box; }
+            /* 樹枝子選單，直接向下推開 (手風琴效果) */
+            .dropdown-content { 
+                position: static; 
+                visibility: visible; 
+                opacity: 1; 
+                transform: none; 
+                box-shadow: none; 
+                border: none; 
+                background: rgba(255,255,255,0.6); 
+                padding: 5px; 
+                display: none; 
+                margin-top: 5px; 
+                border-radius: 8px; 
+                width: 100%; 
+            }
+            /* 透過 JS 添加 mobile-active 來控制顯示 */
             .dropdown.mobile-active .dropdown-content { display: block !important; }
+            
             .dropdown-content a { padding: 12px; font-size: 14px; border-bottom: 1px solid rgba(0,0,0,0.05); }
             .dropdown-content a:last-child { border-bottom: none; }
             
             .hero-title { font-size: 24px !important; }
-            .hero-section { padding: 40px 20px; }
+            .hero-section { padding: 40px 15px; }
             .content-section { padding: 20px 15px; }
             .course-grid { grid-template-columns: 1fr; gap: 20px; } 
             
@@ -236,7 +274,7 @@
                 </div>
             </div>
 
-            <!-- === 官網會員資料同步擴充 === -->
+            <!-- 官網會員資料同步擴充 -->
             <div id="edit-profile-container" style="display: none; max-width: 800px; margin: 0 auto;">
                 <div class="form-section">
                     <button onclick="window.location.hash='#member-zone'" style="background:none; border:none; color:var(--taupe); cursor:pointer; font-size:14px; margin-bottom:15px; padding:0;">← 返回大廳</button>
@@ -271,7 +309,7 @@
                     
                     <h4 style="color:var(--ink-navy); border-bottom:1px solid #eee; padding-bottom:5px;">專業背景資訊</h4>
                     <div class="form-row">
-                        <div class="form-group"><label>最高學歷</label><select id="e-edu" class="select-field"><option value="高中/職">高中/職</option><option value="專科">專科</option><option value="學士">學士</option><option value="碩士">碩士</option><option value="其他">其他</option></select></div>
+                        <div class="form-group"><label>最高學歷</label><select id="e-edu" class="select-field"><option value="高中/職">高中/職</option><option value="專科">專科</option><option value="學士">學士</option><option value="碩士">碩士</option><option value="博士">博士</option><option value="其他">其他</option></select></div>
                         <div class="form-group"><label>主要美學領域</label><input type="text" id="e-fields" class="input-field"></div>
                     </div>
                     <div class="form-row">
