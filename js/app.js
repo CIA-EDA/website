@@ -1,6 +1,6 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：快取引擎、前台路由、非阻塞背景初始化、全模組智能排版 (專服於形象官網)
+ * 職責：快取引擎、前台路由、動態懶加載 LINE 驗證 (解決卡頓)、全模組智能排版
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
@@ -48,7 +48,10 @@ function getSafeMemberInfo() {
         let info = localStorage.getItem('cia_member_info');
         if (info === 'undefined' || info === 'null') return null;
         return JSON.parse(info);
-    } catch(e) { localStorage.removeItem('cia_member_info'); return null; }
+    } catch(e) {
+        localStorage.removeItem('cia_member_info');
+        return null;
+    }
 }
 
 function getSafeCredentials() {
@@ -56,7 +59,10 @@ function getSafeCredentials() {
         let creds = localStorage.getItem('cia_member_credentials');
         if (creds === 'undefined' || creds === 'null') return null;
         return JSON.parse(creds);
-    } catch(e) { localStorage.removeItem('cia_member_credentials'); return null; }
+    } catch(e) {
+        localStorage.removeItem('cia_member_credentials');
+        return null;
+    }
 }
 
 function isAuthValid() {
@@ -96,9 +102,12 @@ const readFileAsBase64 = (file) => new Promise((res, rej) => {
     r.readAsDataURL(file); 
 });
 
-// === 核心優化：非阻塞式背景載入 (解除無限 Loading 卡死) ===
+// === 核心修復：非阻塞式初始化，確保網站瞬間解開遮罩 ===
 function initSystem() {
-    // 1. 背景載入計數器 (不阻擋主畫面)
+    // 1. 第一時間載入畫面並解除遮罩，保證形象網站瞬間開啟！
+    loadPage();
+
+    // 2. 背景載入計數器
     fetch(`${GAS_URL}?action=getVisitorCount`)
         .then(res => res.json())
         .then(countData => {
@@ -106,20 +115,20 @@ function initSystem() {
                 const counterEl = document.getElementById('visitor-counter');
                 if (counterEl) counterEl.innerText = countData.count.toLocaleString();
             }
-        }).catch(e => console.log('計數器載入跳過', e));
+        }).catch(e => console.log('計數器載入跳過'));
 
-    // 2. 背景初始化 LIFF (不阻擋主畫面)
-    liff.init({ liffId: LIFF_ID })
-        .then(() => {
+    // 3. 只有在「登入跳轉回傳」時，才在背景啟動 LIFF 接收資料，平時不打擾網站
+    const urlSearch = window.location.search;
+    if (urlSearch.includes('liff.state') || urlSearch.includes('code=')) {
+        showPreloader();
+        liff.init({ liffId: LIFF_ID }).then(() => {
             if (liff.isLoggedIn() && !getSafeCredentials()) {
                 handleLineLoginCallback(true);
+            } else {
+                hidePreloader();
             }
-        }).catch(err => {
-            console.error('LIFF 初始化跳過', err);
-        });
-        
-    // 3. 立即載入主頁面，瞬間解除 Logo 遮罩！
-    loadPage();
+        }).catch(() => hidePreloader());
+    }
 }
 
 async function handleLineLoginCallback(isSilent = false) {
@@ -139,6 +148,11 @@ async function handleLineLoginCallback(isSilent = false) {
             
             updateMemberUI();
             
+            // 清除網址列上的 LINE 追蹤碼，保持乾淨並防止重新整理時卡頓
+            if (window.location.search.includes('liff.state') || window.location.search.includes('code=')) {
+                window.history.replaceState(null, '', window.location.pathname + (window.location.hash || '#member-zone'));
+            }
+            
             if (data.member.needsProfileCompletion && window.location.hash !== '#join') {
                 window.location.hash = '#join';
             } else if (!isSilent && window.location.hash !== '#member-zone') {
@@ -151,7 +165,7 @@ async function handleLineLoginCallback(isSilent = false) {
     } catch(e) { 
         if (!isSilent) alert('LINE 登入連線失敗。'); 
     } finally { 
-        if (!isSilent) hidePreloader(); 
+        hidePreloader(); // 確保一定解除遮罩
     }
 }
 
@@ -675,7 +689,7 @@ window.submitComment = async function(event, index, postTitle, postTime) {
         });
         alert('留言成功！');
         input.value = '';
-        await loadListData('美業資訊交流'); 
+        await loadPage(); // 重新載入列表
     } catch(e) {
         alert('留言失敗，請稍後再試。');
     } finally {
@@ -690,20 +704,34 @@ function logoutMember() {
     localStorage.removeItem('cia_auth_time');
     sessionStorage.clear();
     
-    if (liff.isLoggedIn()) { liff.logout(); }
+    try {
+        if (liff.id && liff.isLoggedIn()) { liff.logout(); }
+    } catch(e) {}
+    
     alert('已登出。');
     window.location.hash = '#news';
     loadPage();
 }
 
+// 核心：點擊按鈕時才動態啟動 LIFF 並導航
 function setupMemberLogin() {
     const lineBtns = document.querySelectorAll('.line-login-trigger');
     lineBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            if (!liff.isLoggedIn()) {
-                liff.login({ redirectUri: window.location.href });
-            } else {
-                handleLineLoginCallback();
+        btn.addEventListener('click', async () => {
+            showPreloader();
+            try {
+                if (!liff.id) {
+                    await liff.init({ liffId: LIFF_ID });
+                }
+                
+                if (!liff.isLoggedIn()) {
+                    liff.login({ redirectUri: window.location.href.split('?')[0] });
+                } else {
+                    handleLineLoginCallback();
+                }
+            } catch(e) {
+                alert('無法啟動 LINE 登入，請確認網路連線。');
+                hidePreloader();
             }
         });
     });
