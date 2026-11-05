@@ -196,6 +196,7 @@
                 <div class="form-section">
                     <h2 style="color:var(--primary-color); text-align:center; margin-top:0;">第二步：填寫入會申請資料</h2>
                     <p style="text-align:center; color:var(--text-light); font-size:14px; margin-bottom:20px;">LINE 帳號綁定成功！請詳細填寫以下資料。</p>
+                    <!-- 初次註冊時，因為管理員還沒設定等級，這裡的會員只能選「申請」會籍，但不會直接改變後端真實等級 -->
                     <div class="form-row">
                         <div class="form-group"><label>真實姓名 (中文) *</label><input type="text" id="p-name-zh" class="input-field"></div>
                         <div class="form-group"><label>英文姓名</label><input type="text" id="p-name-en" class="input-field"></div>
@@ -223,8 +224,9 @@
                         <div class="form-group"><label>現職機構名稱</label><input type="text" id="p-company" class="input-field"></div>
                         <div class="form-group"><label>現任職稱</label><input type="text" id="p-jobtitle" class="input-field"></div>
                     </div>
+                    <!-- 註冊時的期望類別，非真實權限 -->
                     <div class="form-row">
-                        <div class="form-group full-width"><label>申請會籍類別 *</label>
+                        <div class="form-group full-width"><label>申請會籍類別 (期望申請)*</label>
                             <select id="p-membership" class="select-field">
                                 <option value="一般會員">一般會員</option><option value="VIP會員">VIP會員</option>
                                 <option value="講師會員">講師會員</option><option value="顧問會員">顧問會員</option>
@@ -236,18 +238,20 @@
                 </div>
             </div>
 
-            <!-- 同步更新官網版的會籍資料顯示 -->
+            <!-- === 官網會員資料同步擴充 (移除會籍修改) === -->
             <div id="edit-profile-container" style="display: none; max-width: 800px; margin: 0 auto;">
                 <div class="form-section">
                     <button onclick="window.location.hash='#member-zone'" style="background:none; border:none; color:var(--taupe); cursor:pointer; font-size:14px; margin-bottom:15px; padding:0;">← 返回大廳</button>
                     <h2 style="color:var(--ink-navy); text-align:center; margin-top:0;">我的會員資訊</h2>
                     
+                    <!-- 唯讀資訊區塊，包含等級與到期日，不提供修改介面 -->
                     <div style="background: var(--pearl); padding: 15px; border-radius: 8px; margin-bottom: 25px; font-size: 14px; line-height: 1.8; border-left: 4px solid var(--champagne);">
                         <strong style="color:var(--ink-navy); font-size: 16px;">💎 會籍狀態</strong><br>
                         <span>會員編號：</span><strong id="v-memberId" style="color:var(--champagne);"></strong><br>
                         <span>會員等級：</span><strong id="v-level"></strong><br>
                         <span>到期日期：</span><strong id="v-expiry"></strong><br>
                         <span>帳號狀態：</span><strong id="v-status"></strong>
+                        <div style="font-size:12px; color:#888; margin-top:5px;">※ 會籍與權限升級請聯繫協會。</div>
                     </div>
 
                     <p style="text-align:center; color:var(--text-light); font-size:14px; margin-bottom:20px;">更新您的聯絡資訊，保持會員通訊順暢。</p>
@@ -278,15 +282,7 @@
                         <div class="form-group"><label>現職機構名稱</label><input type="text" id="e-company" class="input-field"></div>
                         <div class="form-group"><label>現任職稱</label><input type="text" id="e-jobtitle" class="input-field"></div>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group full-width"><label>申請會籍類別</label>
-                            <select id="e-membership" class="select-field">
-                                <option value="一般會員">一般會員</option><option value="VIP會員">VIP會員</option>
-                                <option value="講師會員">講師會員</option><option value="顧問會員">顧問會員</option>
-                                <option value="企業會員">企業會員</option>
-                            </select>
-                        </div>
-                    </div>
+                    <!-- 會員修改資料時沒有權限調整等級，直接拿掉 e-membership 欄位 -->
 
                     <button id="submit-edit-profile-btn" class="submit-btn-full">儲存變更</button>
                 </div>
