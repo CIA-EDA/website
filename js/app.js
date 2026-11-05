@@ -1,12 +1,12 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：快取引擎、前台路由、全模組智能排版引擎、半公開線上課程權限驗證
+ * 職責：快取引擎、前台路由、單一 LIFF 安全防呆驗證、全模組智能排版
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
 
-// 🔑 核心優化：只需要單一 LIFF ID
+// 🔑 核心優化：單一 LIFF ID 驗證
 const LIFF_ID = '2012121201-XXXXXXXX'; // ⚠️ 請填寫您唯一的官方 LINE LIFF ID
 
 const AUTH_EXPIRY_MS = 3 * 60 * 60 * 1000; 
@@ -15,8 +15,9 @@ const CACHE_EXPIRY_MS = 5 * 60 * 1000;
 // === 更新：首頁預設為最新消息，並分割課程模組 ===
 const PAGE_CONFIG = {
     '': { title: '最新消息', subtitle: '掌握協會最新動態與公告。', sheet: '最新消息', layout: 'card' },
-    '#news': { title: '最新消息', subtitle: '掌握協會最新動態與公告。', sheet: '最新消息', layout: 'card' },
     '#home': { title: '最新消息', subtitle: '掌握協會最新動態與公告。', sheet: '最新消息', layout: 'card' },
+    '#news': { title: '最新消息', subtitle: '掌握協會最新動態與公告。', sheet: '最新消息', layout: 'card' },
+    '#courses': { title: '課程總覽', subtitle: '我們為您準備了豐富的實體與線上學習資源。', sheet: '課程介紹', layout: 'card' },
     '#courses-gov': { title: '政府補助課程', subtitle: '善用政府資源，提升職場競爭力。', sheet: '政府補助課程', layout: 'card' },
     '#courses-self': { title: '其他自費課程', subtitle: '專業進階培訓，投資自我成長。', sheet: '其他自費課程', layout: 'card' },
     '#course-platform': { title: '線上課程平台', subtitle: '高品質線上預錄課程與培訓資源。(觀看影片需登入會員)', sheet: '會員專屬影片', layout: 'card' },
@@ -48,6 +49,28 @@ window.currentCommentsCache = [];
 function getCleanTime() {
     const now = new Date();
     return now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+}
+
+// === 核心防呆處理：安全抓取快取資料 ===
+function getSafeMemberInfo() {
+    try {
+        let info = localStorage.getItem('cia_member_info');
+        if (info === 'undefined' || info === 'null') return null;
+        return JSON.parse(info);
+    } catch(e) {
+        localStorage.removeItem('cia_member_info');
+        return null;
+    }
+}
+function getSafeCredentials() {
+    try {
+        let creds = localStorage.getItem('cia_member_credentials');
+        if (creds === 'undefined' || creds === 'null') return null;
+        return JSON.parse(creds);
+    } catch(e) {
+        localStorage.removeItem('cia_member_credentials');
+        return null;
+    }
 }
 
 function isAuthValid() {
@@ -100,19 +123,23 @@ async function initSystem() {
             if (window.location.hash !== '#member-zone' && window.location.hash !== '#join' && window.location.hash !== '#edit-profile') {
                 window.location.hash = '#member-zone';
             }
-            if (liff.isLoggedIn() && !localStorage.getItem('cia_member_credentials')) {
+            if (liff.isLoggedIn() && !getSafeCredentials()) {
                 handleLineLoginCallback(true); 
             } else if (!liff.isLoggedIn()) {
                 liff.login();
             }
         } else {
-            if (liff.isLoggedIn() && !localStorage.getItem('cia_member_credentials')) {
+            if (liff.isLoggedIn() && !getSafeCredentials()) {
                 handleLineLoginCallback(true); 
             }
         }
-    } catch (err) { console.error('LIFF 初始化失敗', err); }
+    } catch (err) { 
+        console.error('LIFF 初始化跳過', err); 
+        hidePreloader(); // 確保不會卡死
+    }
 }
 
+// 核心修復：強制轉跳與防呆
 async function handleLineLoginCallback(isSilent = false) {
     if (!isSilent) showPreloader();
     try {
@@ -132,10 +159,8 @@ async function handleLineLoginCallback(isSilent = false) {
             
             if (data.member.needsProfileCompletion && window.location.hash !== '#join') {
                 window.location.hash = '#join';
-                loadPage();
-            } else {
-                loadPage();
             }
+            loadPage();
         } else {
             if (!isSilent) alert('登入異常：' + data.message);
             hidePreloader();
@@ -148,7 +173,7 @@ async function handleLineLoginCallback(isSilent = false) {
 
 function updateMemberUI() {
     if (!isAuthValid()) return; 
-    const memberInfo = JSON.parse(localStorage.getItem('cia_member_info'));
+    const memberInfo = getSafeMemberInfo();
     const memberBtn = document.getElementById('nav-member-btn');
     if (memberInfo && memberBtn) {
         if (memberInfo.memberStatus === '停用' || memberInfo.memberStatus === '待審核') memberBtn.innerHTML = '⏳ 會員審核中';
@@ -161,7 +186,9 @@ function handlePageTransition() {
     const durationSeconds = Math.floor((now - currentPageEntryTime) / 1000);
     const ip = localStorage.getItem('visitor_ip') || '未知IP';
     if (durationSeconds > 1) {
-        let session = JSON.parse(localStorage.getItem('tracking_session') || 'null');
+        let sessionStr = localStorage.getItem('tracking_session');
+        let session = null;
+        try { session = sessionStr ? JSON.parse(sessionStr) : null; } catch(e){}
         if (!session || (now - session.lastActiveTime > 600000) || session.views >= 10) {
             session = { id: 'SESS_' + now + '_' + Math.floor(Math.random() * 1000), entryTime: getCleanTime(), views: 0 };
         }
@@ -182,8 +209,18 @@ document.addEventListener('DOMContentLoaded', () => {
     loadPage();
 });
 
-function showPreloader() { const p = document.getElementById('preloader'); p.style.display = 'flex'; p.style.visibility = 'visible'; p.style.opacity = '1'; }
-function hidePreloader() { const p = document.getElementById('preloader'); p.style.opacity = '0'; p.style.visibility = 'hidden'; setTimeout(() => { p.style.display = 'none'; }, 300); }
+function showPreloader() { 
+    const p = document.getElementById('preloader'); 
+    if(p) { p.style.display = 'flex'; p.style.visibility = 'visible'; p.style.opacity = '1'; }
+}
+function hidePreloader() { 
+    const p = document.getElementById('preloader'); 
+    if(p) {
+        p.style.opacity = '0'; 
+        p.style.visibility = 'hidden'; 
+        setTimeout(() => { p.style.display = 'none'; }, 300); 
+    }
+}
 
 function buildMemberDashboard(memberInfo) {
     let avatarHtml = memberInfo.avatar ? `<img src="${memberInfo.avatar}" style="width:60px; height:60px; border-radius:50%; vertical-align:middle; margin-right:15px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">` : '';
@@ -214,8 +251,10 @@ async function loadPage() {
     const hash = window.location.hash || '#news';
     const config = PAGE_CONFIG[hash] || PAGE_CONFIG['#news'];
 
-    document.getElementById('page-title').innerText = config.title;
-    document.getElementById('page-subtitle').innerText = config.subtitle;
+    const pageTitleEl = document.getElementById('page-title');
+    const pageSubtitleEl = document.getElementById('page-subtitle');
+    if(pageTitleEl) pageTitleEl.innerText = config.title;
+    if(pageSubtitleEl) pageSubtitleEl.innerText = config.subtitle;
     
     document.querySelectorAll('.nav-link').forEach(link => {
         if (link.getAttribute('href') === hash) link.classList.add('active');
@@ -228,6 +267,8 @@ async function loadPage() {
     const editProfileContainer = document.getElementById('edit-profile-container');
     const joinPromptContainer = document.getElementById('join-prompt-container'); 
     const actionContainer = document.getElementById('action-container'); 
+
+    if(!dataContainer) { hidePreloader(); return; }
 
     dataContainer.style.display = 'none';
     loginContainer.style.display = 'none';
@@ -242,7 +283,7 @@ async function loadPage() {
         actionContainer.style.display = 'block';
         actionContainer.innerHTML = `<button id="btn-open-post" class="candy-btn" style="background: var(--ink-navy); color: white !important;">📝 我要發文</button>`;
         document.getElementById('btn-open-post').addEventListener('click', () => {
-            const memberInfo = JSON.parse(localStorage.getItem('cia_member_info'));
+            const memberInfo = getSafeMemberInfo();
             if (!memberInfo || !isAuthValid()) {
                 alert('發文功能僅限會員使用，請先登入！');
                 window.location.hash = '#member-zone';
@@ -258,8 +299,8 @@ async function loadPage() {
 
     if (config.isJoinIntent || config.isMember || config.isEditProfile) {
         if (!isAuthValid()) { hidePreloader(); return; } 
-        const credentials = localStorage.getItem('cia_member_credentials');
-        const memberInfo = JSON.parse(localStorage.getItem('cia_member_info') || 'null');
+        const credentials = getSafeCredentials();
+        const memberInfo = getSafeMemberInfo();
         
         if (!credentials) {
             if (config.isJoinIntent && joinPromptContainer) joinPromptContainer.style.display = 'block';
@@ -271,7 +312,7 @@ async function loadPage() {
         if (memberInfo && memberInfo.needsProfileCompletion) {
             profileContainer.style.display = 'block';
             document.getElementById('p-name-zh').value = memberInfo.name || '';
-            document.getElementById('page-subtitle').innerHTML = `<span style="color:var(--champagne); font-weight:bold;">LINE 授權成功！請繼續完成第二步。</span>`;
+            if(pageSubtitleEl) pageSubtitleEl.innerHTML = `<span style="color:var(--champagne); font-weight:bold;">LINE 授權成功！請繼續完成第二步。</span>`;
             hidePreloader(); 
             return;
         }
@@ -291,11 +332,11 @@ async function loadPage() {
         }
 
         if (config.isJoinIntent) {
-            document.getElementById('page-subtitle').innerHTML = `<span style="color:#e53e3e;">您已完成入會申請，目前狀態：${memberInfo.level}。</span><br>若權限遭停用或審核中，請靜候管理員通知或聯絡協會。`;
+            if(pageSubtitleEl) pageSubtitleEl.innerHTML = `<span style="color:#e53e3e;">您已完成入會申請，目前狀態：${memberInfo.level}。</span><br>若權限遭停用或審核中，請靜候管理員通知或聯絡協會。`;
         }
 
         if (memberInfo && (memberInfo.memberStatus === '停用' || memberInfo.memberStatus === '待審核')) {
-            document.getElementById('page-subtitle').innerHTML = `<span style="color:#e53e3e;">您已完成資料綁定，目前狀態：${memberInfo.memberStatus}。</span>`;
+            if(pageSubtitleEl) pageSubtitleEl.innerHTML = `<span style="color:#e53e3e;">您已完成資料綁定，目前狀態：${memberInfo.memberStatus}。</span>`;
             dataContainer.style.display = 'block';
             let avatarHtml = memberInfo.avatar ? `<img src="${memberInfo.avatar}" style="width:50px; height:50px; border-radius:50%; vertical-align:middle; margin-right:15px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">` : '';
             dataContainer.innerHTML = `
@@ -342,8 +383,11 @@ async function loadPage() {
         } else {
             dataContainer.innerHTML = '<p style="text-align:center; width:100%; color:#7A7A7A;">目前尚無資料。</p>';
         }
-    } catch (error) { dataContainer.innerHTML = '<p style="text-align:center; width:100%; color:red;">資料載入異常。</p>'; } 
-    finally { hidePreloader(); }
+    } catch (error) { 
+        dataContainer.innerHTML = '<p style="text-align:center; width:100%; color:red;">資料載入異常。</p>'; 
+    } finally { 
+        hidePreloader(); 
+    }
 }
 
 function setupPostModal() {
@@ -380,7 +424,7 @@ function setupPostModal() {
             submitPostBtn.innerText = '發佈中...'; submitPostBtn.disabled = true;
             
             try {
-                const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
+                const credentials = getSafeCredentials();
                 let imgUrl = '';
                 if (base64Data) {
                     submitPostBtn.innerText = '上傳圖片中...';
@@ -440,7 +484,7 @@ function setupProfileCompletionForm() {
 
         submitBtn.innerText = '送出審核中...'; submitBtn.disabled = true;
         try {
-            const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
+            const credentials = getSafeCredentials();
             await fetch(GAS_URL, { 
                 method: 'POST', 
                 body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'updateMemberProfile', lineUid: credentials.lineUid, profileData: profileData }) 
@@ -448,7 +492,7 @@ function setupProfileCompletionForm() {
             
             alert('入會申請送出成功！\n\n請前往「官方 LINE」聯繫客服人員，我們提供【現金 / 轉帳 / 刷卡】服務。\n繳費並經管理員審核通過後，即可為您開通會員權限！');
             
-            let memberInfo = JSON.parse(localStorage.getItem('cia_member_info'));
+            let memberInfo = getSafeMemberInfo();
             memberInfo.needsProfileCompletion = false;
             memberInfo.name = profileData.nameZh;
             memberInfo.memberStatus = '待審核';
@@ -477,13 +521,13 @@ function setupEditProfileForm() {
 
         submitBtn.innerText = '更新資料中...'; submitBtn.disabled = true;
         try {
-            const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
+            const credentials = getSafeCredentials();
             await fetch(GAS_URL, { 
                 method: 'POST', 
                 body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'editMemberProfile', lineUid: credentials.lineUid, profileData: profileData }) 
             });
             
-            let memberInfo = JSON.parse(localStorage.getItem('cia_member_info'));
+            let memberInfo = getSafeMemberInfo();
             memberInfo.nameEn = profileData.nameEn;
             memberInfo.gender = profileData.gender;
             memberInfo.birth = profileData.birth;
@@ -507,8 +551,8 @@ window.playCourseVideo = async function(event, courseTitle, reqLevel) {
          window.location.hash = '#member-zone';
          return;
     }
-    const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
-    const memberInfo = JSON.parse(localStorage.getItem('cia_member_info'));
+    const credentials = getSafeCredentials();
+    const memberInfo = getSafeMemberInfo();
     if (!credentials || !memberInfo) {
          alert('請先登入會員！');
          window.location.hash = '#member-zone';
@@ -558,8 +602,8 @@ window.submitComment = async function(event, index, postTitle, postTime, isModal
     const content = input.value.trim();
     if (!content) { alert('請輸入留言內容！'); return; }
 
-    const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
-    const memberInfo = JSON.parse(localStorage.getItem('cia_member_info'));
+    const credentials = getSafeCredentials();
+    const memberInfo = getSafeMemberInfo();
     
     if (!credentials || !memberInfo) {
         alert('請先登入會員才能留言！');
@@ -608,7 +652,7 @@ function logoutMember() {
     
     if (liff.isLoggedIn()) { liff.logout(); }
     alert('已登出。');
-    window.location.hash = '#home';
+    window.location.hash = '#news';
     loadPage();
 }
 
@@ -775,7 +819,7 @@ window.openDetailModal = function(index) {
     if (item['發佈日期'] && item['相關連結']) {
         desc = `📅 發佈日期：${item['發佈日期']}\n\n${desc}`;
     } else if (item['徵才機構']) {
-        desc = `🏢 機構：${item['徵才機構']}\n📍 地點：${item['工作地點']}\n💰 薪資：${item['薪資待遇']}\n📞 聯絡：${item['聯絡方式']}\n\n【條件要求】\n${item['條件要求']}`;
+        desc = `🏢 機構：${item['徵才機構']}\n📍 地點：${item['工作地點']}\n💰 薪滿：${item['薪資待遇']}\n📞 聯絡：${item['聯絡方式']}\n\n【條件要求】\n${item['條件要求']}`;
     } else if (item['發文者姓名']) {
         desc = `👤 發文者：${item['發文者姓名']}\n🕒 時間：${item['發文時間']}\n\n${item['交流內容']}`;
         extraHtml = buildCommentsHtml(item['主旨/標題']||'', item['發文時間']||'', index, true);
@@ -808,3 +852,40 @@ window.openDetailModal = function(index) {
 
     document.getElementById('detail-modal').classList.add('active');
 };
+
+function setupContactModal() {
+    const contactModal = document.getElementById('contact-modal');
+    const openContactBtn = document.getElementById('open-contact-btn');
+    const closeContactBtn = document.getElementById('close-contact-btn');
+    if(openContactBtn) openContactBtn.addEventListener('click', () => contactModal.classList.add('active'));
+    if(closeContactBtn) closeContactBtn.addEventListener('click', () => contactModal.classList.remove('active'));
+    
+    const detailModal = document.getElementById('detail-modal');
+    const closeDetailBtn = document.getElementById('close-detail-btn');
+    if(closeDetailBtn) closeDetailBtn.addEventListener('click', () => detailModal.classList.remove('active'));
+
+    window.addEventListener('click', (e) => { 
+        if (e.target === contactModal) contactModal.classList.remove('active'); 
+        if (e.target === detailModal) detailModal.classList.remove('active');
+    });
+
+    const submitBtn = document.getElementById('submit-contact-btn');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', async () => {
+            const name = document.getElementById('c-name').value.trim();
+            const phone = document.getElementById('c-phone').value.trim();
+            const line = document.getElementById('c-line').value.trim();
+            const subject = document.getElementById('c-subject').value.trim();
+            const msg = document.getElementById('c-message').value.trim();
+            if (!name || !phone || !subject || !msg) { alert('請填寫所有必填欄位！'); return; }
+            submitBtn.innerText = '傳送中...'; submitBtn.disabled = true;
+            try {
+                const timestamp = getCleanTime();
+                await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, sheetName: '聯絡我們', newRowData: [timestamp, name, phone, line, subject, msg], action: 'submitContact' }) });
+                alert('訊息已成功送出！'); contactModal.classList.remove('active');
+                ['c-name', 'c-phone', 'c-line', 'c-subject', 'c-message'].forEach(id => document.getElementById(id).value = '');
+            } catch (err) { alert('失敗請稍後重試'); } 
+            finally { submitBtn.innerText = '確認送出'; submitBtn.disabled = false; }
+        });
+    }
+}
