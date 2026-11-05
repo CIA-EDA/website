@@ -27,6 +27,13 @@
         .grid-icon { font-size: 36px; margin-bottom: 10px; }
         .grid-text { font-size: 14px; font-weight: bold; color: var(--app-blue); }
 
+        /* === 新增：大廳最新消息雙格樣式 === */
+        .dash-news-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .dash-news-item { background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, #fff 100%); border-radius: 12px; padding: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); border: 1px solid rgba(184, 149, 90, 0.2); display: flex; flex-direction: column; cursor: pointer; transition: 0.2s; }
+        .dash-news-item:active { transform: scale(0.98); border-color: var(--app-gold); }
+        .dash-news-date { font-size: 11px; color: var(--app-gold); margin-bottom: 5px; font-weight: bold; }
+        .dash-news-title { font-size: 13px; color: var(--app-blue); font-weight: bold; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; font-size: 13px; color: var(--app-blue); margin-bottom: 6px; font-weight: bold; }
         .input-field, .select-field, .textarea-field { width: 100%; padding: 14px; border: 1px solid #E5E5EA; border-radius: 12px; font-size: 15px; background: #fff; box-sizing: border-box; outline: none; transition: 0.3s; }
@@ -60,6 +67,7 @@
     <div class="app-header" id="app-title">會員中心</div>
 
     <main class="app-main">
+        <!-- 登入與註冊視圖維持原樣... -->
         <div id="view-login" class="view-panel">
             <div class="card" style="text-align: center; margin-top: 20px; padding: 50px 20px;">
                 <img src="images/CIAEDA_直式標準_標準彩色.png" alt="Logo" style="height: 60px; margin-bottom: 20px;">
@@ -113,6 +121,7 @@
             </div>
         </div>
 
+        <!-- === 核心修改：大廳視圖 (加入最新消息，替換設定為課程總覽) === -->
         <div id="view-dashboard" class="view-panel">
             <div class="card" style="display:flex; align-items:center; gap:15px; padding:20px; background:linear-gradient(135deg, #fff 0%, var(--mist-rose) 100%);">
                 <img id="dash-avatar" src="" style="width:60px; height:60px; border-radius:50%; background:#fff; padding:2px; border:2px solid var(--app-gold);">
@@ -122,12 +131,24 @@
                 </div>
             </div>
             
+            <div style="display: flex; justify-content: space-between; align-items: center; margin: 20px 0 10px 5px;">
+                <h3 style="font-size: 16px; color: var(--app-blue); margin: 0;">最新消息</h3>
+                <span style="font-size: 12px; color: var(--app-gold); font-weight: bold; cursor: pointer;" onclick="switchNav('news')">查看更多 ></span>
+            </div>
+            
+            <!-- 最新消息雙格容器 -->
+            <div id="dash-news-container" class="dash-news-grid">
+                <!-- 將由 JS 動態載入 -->
+                <div style="grid-column: span 2; text-align: center; color: var(--text-sub); font-size: 12px; padding: 10px;">讀取中...</div>
+            </div>
+
             <h3 style="font-size: 16px; color: var(--app-blue); margin: 25px 0 10px 5px;">常用服務</h3>
             <div class="grid-menu">
                 <div class="grid-item" onclick="switchNav('courses')"><div class="grid-icon">🎬</div><div class="grid-text">線上課程</div></div>
                 <div class="grid-item" onclick="switchNav('exchange')"><div class="grid-icon">💬</div><div class="grid-text">美業交流</div></div>
                 <div class="grid-item" onclick="switchNav('jobs')"><div class="grid-icon">🏢</div><div class="grid-text">徵才專區</div></div>
-                <div class="grid-item" onclick="switchNav('profile')"><div class="grid-icon">⚙️</div><div class="grid-text">設定資料</div></div>
+                <!-- 替換設定為課程總覽 -->
+                <div class="grid-item" onclick="switchNav('courses-all')"><div class="grid-icon">📖</div><div class="grid-text">課程總覽</div></div>
             </div>
             
             <a href="index.html" class="btn-primary" style="margin-top: 25px; background: var(--app-blue);">🌍 瀏覽官方形象網站</a>
@@ -137,7 +158,6 @@
             <div id="list-container"></div>
         </div>
 
-        <!-- === 核心擴充：完整的會員詳細資料與設定 === -->
         <div id="view-profile" class="view-panel">
             <div class="card">
                 <h2 style="margin:0 0 15px 0; color:var(--app-gold);">我的會員資訊</h2>
@@ -161,7 +181,7 @@
                 <div class="form-group"><label>通訊地址</label><input type="text" id="e-address" class="input-field"></div>
                 
                 <h3 style="color:var(--app-blue); font-size:16px; margin: 25px 0 15px 0; border-bottom:1px solid #eee; padding-bottom:5px;">專業背景資訊</h3>
-                <div class="form-group"><label>最高學歷</label><select id="e-edu" class="select-field"><option value="高中/職">高中/職</option><option value="專科">專科</option><option value="學士">學士</option><option value="碩士">碩士</option><option value="其他">其他</option></select></div>
+                <div class="form-group"><label>最高學歷</label><select id="e-edu" class="select-field"><option value="高中/職">高中/職</option><option value="專科">專科</option><option value="學士">學士</option><option value="碩士">碩士</option><option value="博士">博士</option><option value="其他">其他</option></select></div>
                 <div class="form-group"><label>主要美學領域</label><input type="text" id="e-fields" class="input-field"></div>
                 <div class="form-group"><label>現職機構名稱</label><input type="text" id="e-company" class="input-field"></div>
                 <div class="form-group"><label>現任職稱</label><input type="text" id="e-jobtitle" class="input-field"></div>
@@ -180,7 +200,7 @@
         
         <div id="view-post" class="view-panel">
              <div class="card">
-                <h2 style="margin:0 0 15px 0; color:var(--app-gold);">發佈交流資訊</h2>
+                <h2 style="margin:0 0 15px 0; color:var(--app-blue);">發佈交流資訊</h2>
                 <div class="form-group"><label>標題 / 主旨 *</label><input type="text" id="post-title" class="input-field"></div>
                 <div class="form-group"><label>內容 *</label><textarea id="post-content" class="textarea-field"></textarea></div>
                 <div class="form-group"><label>附加圖片 (限5MB內)</label><input type="file" id="post-image" class="input-field" accept="image/*"></div>
@@ -236,7 +256,12 @@
             else {
                 let sheetName = '';
                 if(target === 'courses') { sheetName = '會員專屬影片'; setHeader('線上課程平台'); }
+                if(target === 'courses-all') { sheetName = '課程介紹'; setHeader('課程總覽'); } // 新增課程總覽路由
+                if(target === 'news') { sheetName = '最新消息'; setHeader('最新消息'); } // 新增最新消息路由
+                
+                // 修復美業交流的對標 (與後端、Google Sheets 完美對齊)
                 if(target === 'exchange') { sheetName = '美業資訊交流'; setHeader('美業資訊交流'); }
+                
                 if(target === 'jobs') { sheetName = '徵才專區'; setHeader('徵才專區'); }
                 
                 showView('list');
@@ -295,7 +320,43 @@
                 document.getElementById('dash-avatar').src = member.avatar || 'https://via.placeholder.com/60';
                 document.getElementById('dash-name').innerText = member.name;
                 document.getElementById('dash-level').innerText = member.level;
+                
+                // 讀取並渲染最新消息雙格
+                loadDashboardNews();
+                
                 switchNav('dashboard');
+            }
+        }
+        
+        // === 新增：大廳自動讀取最新兩則消息 ===
+        async function loadDashboardNews() {
+            const container = document.getElementById('dash-news-container');
+            try {
+                const res = await fetch(`${GAS_URL}?sheetName=最新消息`);
+                const dataObj = await res.json();
+                if (dataObj.status === 'success' && dataObj.data.length > 1) {
+                    // 反轉資料以取得最新
+                    let newsData = dataObj.data.slice(1).reverse().slice(0, 2); 
+                    
+                    if (newsData.length > 0) {
+                        let html = '';
+                        newsData.forEach(item => {
+                            const date = item[0] || '';
+                            const title = item[1] || '無標題';
+                            html += `
+                                <div class="dash-news-item" onclick="switchNav('news')">
+                                    <div class="dash-news-date">${date}</div>
+                                    <div class="dash-news-title">${title}</div>
+                                </div>
+                            `;
+                        });
+                        container.innerHTML = html;
+                        return;
+                    }
+                }
+                container.innerHTML = '<div style="grid-column: span 2; text-align: center; color: #aaa; font-size: 12px; padding: 10px;">目前尚無最新消息</div>';
+            } catch(e) {
+                container.innerHTML = '<div style="grid-column: span 2; text-align: center; color: red; font-size: 12px; padding: 10px;">無法取得最新消息</div>';
             }
         }
 
@@ -327,28 +388,35 @@
                     let dataArray = dataObj.data;
                     const headers = dataArray.shift();
                     
-                    if (sheetName === '美業資訊交流' || sheetName === '徵才專區') dataArray = dataArray.reverse();
+                    if (sheetName === '美業資訊交流' || sheetName === '徵才專區' || sheetName === '最新消息') dataArray = dataArray.reverse();
                     
                     let html = '';
                     dataArray.forEach((row, idx) => {
                         let item = {};
                         headers.forEach((h, i) => item[h] = row[i]);
                         
-                        const title = item['職缺名稱'] || item['主旨/標題'] || item['課程名稱'] || '無標題';
-                        let desc = item['交流內容'] || item['課程簡介'] || '';
+                        const title = item['職缺名稱'] || item['主旨/標題'] || item['課程名稱'] || item['標題'] || '無標題';
+                        let desc = item['交流內容'] || item['課程簡介'] || item['內容'] || '';
                         let extra = '';
-                        let imgUrl = item['公司Logo或環境照片'] || item['附圖網址'] || item['封面圖片網址'] || '';
+                        let imgUrl = item['公司Logo或環境照片'] || item['附圖網址'] || item['封面圖片網址'] || item['圖片網址'] || '';
+                        let linkUrl = item['專屬付款網址'] || item['連結'] || item['專屬報名網址'] || item['相關連結'] || '';
                         
                         if (sheetName === '徵才專區') {
                             desc = `機構：${item['徵才機構']}<br>地點：${item['工作地點']}<br>薪資：${item['薪資待遇']}<br>聯絡：${item['聯絡方式']}`;
                         } else if (sheetName === '美業資訊交流') {
                             extra = `<div style="font-size:12px; color:var(--app-gold); margin-top:10px;">${item['發文者姓名']} • ${item['發文時間']}</div>`;
+                        } else if (sheetName === '最新消息') {
+                            extra = `<div style="font-size:12px; color:var(--app-gold); margin-bottom:5px; font-weight:bold;">發佈日期：${item['發佈日期']}</div>`;
+                            // 若有連結，加入按鈕
+                            if(linkUrl) extra += `<a href="${linkUrl}" target="_blank" class="btn-primary" style="margin-top:15px; padding:10px;">查看相關連結</a>`;
                         } else if (sheetName === '會員專屬影片') {
                             const vLink = item['影片嵌入網址'];
                             if (vLink) {
                                 extra = `<div class="video-container" id="vid-${idx}"><iframe src="${vLink}" allowfullscreen></iframe></div>
                                          <button class="btn-primary" style="margin-top:15px; padding:10px;" onclick="document.getElementById('vid-${idx}').style.display='block'; this.style.display='none';">▶️ 播放影片</button>`;
                             }
+                        } else if (sheetName === '課程介紹') {
+                             if(linkUrl) extra += `<a href="${linkUrl}" target="_blank" class="btn-primary" style="margin-top:15px; padding:10px;">報名 / 了解更多</a>`;
                         }
                         
                         let imgHtml = '';
@@ -357,20 +425,32 @@
                             imgHtml = `<img src="${firstImg}" class="post-img">`;
                         }
 
-                        html += `
-                            <div class="card">
-                                <div class="card-title">${title}</div>
-                                <div class="card-desc">${desc.replace(/\n/g, '<br>')}</div>
-                                ${imgHtml}
-                                ${extra}
-                            </div>
-                        `;
+                        // 最新消息把日期 (extra) 放標題前面比較好看
+                        if (sheetName === '最新消息') {
+                             html += `
+                                <div class="card">
+                                    ${extra}
+                                    <div class="card-title">${title}</div>
+                                    <div class="card-desc">${desc.replace(/\n/g, '<br>')}</div>
+                                    ${imgHtml}
+                                </div>
+                            `;
+                        } else {
+                            html += `
+                                <div class="card">
+                                    <div class="card-title">${title}</div>
+                                    <div class="card-desc">${desc.replace(/\n/g, '<br>')}</div>
+                                    ${imgHtml}
+                                    ${extra}
+                                </div>
+                            `;
+                        }
                     });
                     container.innerHTML = html;
                 } else {
                     container.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">目前尚無資料</div>';
                 }
-            } catch(e) { container.innerHTML = '<div style="text-align:center; padding:30px; color:red;">連線失敗</div>'; }
+            } catch(e) { container.innerHTML = '<div style="text-align:center; padding:30px; color:red;">連線失敗，請稍後重試</div>'; }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
