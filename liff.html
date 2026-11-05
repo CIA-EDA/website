@@ -119,12 +119,12 @@
             </div>
         </div>
 
+        <!-- === 大廳加入會員到期日 === -->
         <div id="view-dashboard" class="view-panel">
             <div class="card" style="display:flex; align-items:center; gap:15px; padding:20px; background:linear-gradient(135deg, #fff 0%, var(--mist-rose) 100%);">
                 <img id="dash-avatar" src="" style="width:60px; height:60px; border-radius:50%; background:#fff; padding:2px; border:2px solid var(--app-gold);">
                 <div>
                     <div style="font-size:20px; font-weight:bold; color:var(--app-blue);" id="dash-name">使用者</div>
-                    <!-- 加入會員到期日顯示 -->
                     <div style="font-size:12px; color:#fff; background:var(--app-gold); padding:4px 12px; border-radius:12px; display:inline-block; margin-top:5px; font-weight:bold;" id="dash-level">會員等級</div>
                     <div style="font-size:11px; color:var(--app-blue); display:inline-block; margin-left:8px; font-weight:bold;" id="dash-expiry"></div>
                 </div>
@@ -154,6 +154,7 @@
             <div id="list-container"></div>
         </div>
 
+        <!-- === 會員資料修改面板 (移除會籍修改) === -->
         <div id="view-profile" class="view-panel">
             <div class="card">
                 <h2 style="margin:0 0 15px 0; color:var(--app-gold);">我的會員資訊</h2>
@@ -164,6 +165,7 @@
                     會員等級：<strong id="v-level"></strong><br>
                     到期日期：<strong id="v-expiry"></strong><br>
                     帳號狀態：<strong id="v-status"></strong>
+                    <div style="font-size:12px; color:#888; margin-top:5px;">※ 會籍與權限升級請聯繫協會。</div>
                 </div>
 
                 <div class="form-group"><label>真實姓名 (不可更改)</label><input type="text" id="e-name" class="input-field" disabled style="background:#f0f0f0;"></div>
@@ -181,13 +183,6 @@
                 <div class="form-group"><label>主要美學領域</label><input type="text" id="e-fields" class="input-field"></div>
                 <div class="form-group"><label>現職機構名稱</label><input type="text" id="e-company" class="input-field"></div>
                 <div class="form-group"><label>現任職稱</label><input type="text" id="e-jobtitle" class="input-field"></div>
-                <div class="form-group"><label>申請會籍類別</label>
-                    <select id="e-membership" class="select-field">
-                        <option value="一般會員">一般會員</option><option value="VIP會員">VIP會員</option>
-                        <option value="講師會員">講師會員</option><option value="顧問會員">顧問會員</option>
-                        <option value="企業會員">企業會員</option>
-                    </select>
-                </div>
                 
                 <button class="btn-primary" id="btn-save-profile" style="margin-top:20px;">儲存變更</button>
                 <button class="btn-danger" onclick="logout()">安全登出帳號</button>
@@ -255,7 +250,10 @@
                 if(target === 'courses') { sheetName = '會員專屬影片'; setHeader('線上課程平台'); }
                 if(target === 'courses-all') { sheetName = '課程介紹'; setHeader('課程總覽'); } 
                 if(target === 'news') { sheetName = '最新消息'; setHeader('最新消息'); } 
+                
+                // 修復美業交流的對標 (與後端、Google Sheets 完美對齊)
                 if(target === 'exchange') { sheetName = '美業資訊交流'; setHeader('美業資訊交流'); }
+                
                 if(target === 'jobs') { sheetName = '徵才專區'; setHeader('徵才專區'); }
                 
                 showView('list');
@@ -550,7 +548,7 @@
                     line: document.getElementById('e-line').value.trim(), email: document.getElementById('e-email').value.trim(),
                     address: document.getElementById('e-address').value.trim(), edu: document.getElementById('e-edu').value,
                     fields: document.getElementById('e-fields').value.trim(), company: document.getElementById('e-company').value.trim(),
-                    jobTitle: document.getElementById('e-jobtitle').value.trim(), membership: document.getElementById('e-membership').value
+                    jobTitle: document.getElementById('e-jobtitle').value.trim() // 拔除了會籍更新
                 };
                 btn.innerText = '更新中...'; btn.disabled = true; showPreloader();
                 try {
@@ -560,7 +558,7 @@
                     Object.assign(memberInfo, {
                         nameEn: profileData.nameEn, gender: profileData.gender, birth: profileData.birth, idNum: profileData.idNum, 
                         phone: profileData.phone, lineId: profileData.line, email: profileData.email, address: profileData.address,
-                        edu: profileData.edu, fields: profileData.fields, company: profileData.company, jobTitle: profileData.jobTitle, membership: profileData.membership
+                        edu: profileData.edu, fields: profileData.fields, company: profileData.company, jobTitle: profileData.jobTitle
                     });
                     localStorage.setItem('cia_member_info', JSON.stringify(memberInfo));
                     alert('資料更新成功！');
@@ -627,7 +625,6 @@
             document.getElementById('e-fields').value = m.fields || '';
             document.getElementById('e-company').value = m.company || '';
             document.getElementById('e-jobtitle').value = m.jobTitle || '';
-            if(m.membership) document.getElementById('e-membership').value = m.membership;
         }
     </script>
 </body>
