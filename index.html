@@ -92,23 +92,23 @@
         .submit-btn-full { width: 100%; padding: 15px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; transition: 0.3s; font-size: 16px; font-weight: bold; margin-top: 10px; }
         .submit-btn-full:hover { background: #967a4a; box-shadow: 0 4px 15px rgba(184, 149, 90, 0.4); }
 
-        /* === 修復：嚴格手機版選單格式與防跑位 === */
+        /* === 核心修復：嚴格手機版選單格式，改為全版面滾動防跑位 === */
         @media (max-width: 768px) {
-            header { padding: 15px 20px; }
+            header { padding: 10px 20px; position: sticky; top: 0; background-color: var(--mist-rose); z-index: 9999; }
             .brand-logo-img { height: 40px; }
             .menu-toggle { display: block; }
             
-            /* 手機主選單容器 */
-            .main-nav { display: none; flex-direction: column; position: absolute; top: 60px; left: 0; width: 100%; background-color: var(--mist-rose); padding: 15px 0; gap: 10px; box-shadow: 0 10px 15px rgba(0,0,0,0.1); z-index: 9999; box-sizing: border-box; }
-            .main-nav.show { display: flex; align-items: center; } /* 置中對齊 */
+            /* 手機主選單改為 fixed 固定滿版並允許滑動，防止擠壓下方內容 */
+            .main-nav { display: none; flex-direction: column; position: fixed; top: 60px; left: 0; width: 100%; height: calc(100vh - 60px); overflow-y: auto; background-color: var(--mist-rose); padding: 20px 0 100px 0; gap: 12px; box-shadow: 0 10px 15px rgba(0,0,0,0.1); z-index: 9998; box-sizing: border-box; justify-content: flex-start; }
+            .main-nav.show { display: flex; align-items: center; } 
             
             /* 統一手機版按鈕大小 */
-            .candy-btn { width: 90%; max-width: 350px; font-size: 15px; border-radius: 8px; margin: 0 auto; padding: 12px; text-align: center; }
+            .candy-btn { width: 85%; max-width: 350px; font-size: 15px; border-radius: 8px; margin: 0 auto; padding: 12px; text-align: center; }
             
             /* 手機版下拉選單 (樹枝圖) */
-            .dropdown { width: 90%; max-width: 350px; margin: 0 auto; }
-            .dropdown > .candy-btn { width: 100%; } /* 父層滿版 */
-            .dropdown-content { position: static; visibility: visible; opacity: 1; transform: none; box-shadow: none; border: none; background: rgba(255,255,255,0.5); padding: 5px; display: none; margin-top: 5px; border-radius: 8px; width: 100%; box-sizing: border-box; }
+            .dropdown { width: 85%; max-width: 350px; margin: 0 auto; }
+            .dropdown > .candy-btn { width: 100%; margin: 0; } 
+            .dropdown-content { position: static; visibility: visible; opacity: 1; transform: none; box-shadow: none; border: none; background: rgba(255,255,255,0.6); padding: 5px; display: none; margin-top: 5px; border-radius: 8px; width: 100%; box-sizing: border-box; }
             .dropdown.mobile-active .dropdown-content { display: block; }
             .dropdown-content a { padding: 12px; font-size: 14px; border-bottom: 1px solid rgba(0,0,0,0.05); }
             .dropdown-content a:last-child { border-bottom: none; }
@@ -116,7 +116,7 @@
             .hero-title { font-size: 24px !important; }
             .hero-section { padding: 40px 20px; }
             .content-section { padding: 20px 15px; }
-            .course-grid { grid-template-columns: 1fr; gap: 20px; }
+            .course-grid { grid-template-columns: 1fr; gap: 20px; } 
             
             .modal-content { padding: 25px 15px; width: 92%; }
             .form-row { flex-direction: column; gap: 10px; }
