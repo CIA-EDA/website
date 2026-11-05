@@ -1,6 +1,6 @@
 /**
  * 檔案名稱：js/admin.js
- * 職責：管理後台分頁、五大會員等級、全模組動態表單與資料寫入
+ * 職責：管理後台分頁、五大會員等級設定、全模組動態表單與資料寫入
  */
 
 const ADMIN_PASSWORD = '6668888';
@@ -387,7 +387,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if(fileInput && fileInput.files.length > 0) {
                 const urls = [];
                 for(let i=0; i<fileInput.files.length; i++) {
-                    btn.innerText = `上傳 (${i+1}/${fileInput.files.length})...`;
+                    btn.innerText = `上傳新圖 (${i+1}/${fileInput.files.length})...`;
                     const base64Data = await readFileAsBase64(fileInput.files[i]);
                     const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'uploadImage', sheetName: sheetName, base64Data: base64Data, mimeType: fileInput.files[i].type, fileName: fileInput.files[i].name }) });
                     const resData = await res.json();
