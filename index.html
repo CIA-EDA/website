@@ -13,11 +13,9 @@
         h1, h2, h3 { font-family: 'Noto Serif TC', serif; color: var(--ink-navy); }
         main { flex: 1; }
 
-        body.is-exclusive-zone header { display: none !important; }
-        body.is-exclusive-zone footer { display: none !important; }
-        body.is-exclusive-zone .hero-section { display: none !important; }
-        body.is-exclusive-zone .floating-contact-btn { display: none !important; }
-        body.is-exclusive-zone .content-section { padding: 30px 5%; min-height: 100vh; background-color: var(--secondary-color); }
+        /* 移除了 body.is-exclusive-zone 隱藏框架的程式碼，回歸標準網站 */
+
+        .content-section { padding: 30px 5%; min-height: 100vh; background-color: var(--secondary-color); }
         
         #preloader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--secondary-color); display: flex; justify-content: center; align-items: center; z-index: 99999; transition: opacity 0.5s ease, visibility 0.5s ease; }
         .preloader-logo { width: 150px; height: auto; animation: pulseFade 1.5s ease-in-out infinite; }
@@ -36,7 +34,6 @@
         .member-btn { background: linear-gradient(135deg, var(--ink-navy) 0%, #3a4a6b 100%); color: #fff !important; }
         .line-btn { background: #06C755; color: white !important; border: none; box-shadow: 0 4px 10px rgba(6, 199, 85, 0.3); margin-top: 15px; }
 
-        /* 電腦版下拉選單 (懸浮) */
         .dropdown { position: relative; display: inline-block; }
         .dropdown-content { visibility: hidden; opacity: 0; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); background-color: rgba(255,255,255,0.95); min-width: 160px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); border-radius: 12px; padding: 10px 0; z-index: 10000; transition: 0.3s; border: 1px solid #eee; backdrop-filter: blur(10px); }
         .dropdown:hover .dropdown-content { visibility: visible; opacity: 1; transform: translateX(-50%) translateY(5px); }
@@ -53,6 +50,7 @@
         .course-card { border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.03); display: flex; flex-direction: column; height: 100%; }
         .course-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
         
+        /* 圖片等比縮小不放大 */
         .img-wrapper { width: 100%; aspect-ratio: 4 / 3; overflow: hidden; background-color: #fff; position: relative; display: flex; justify-content: center; align-items: center; border-bottom: 1px solid #eee; }
         .img-wrapper img, .carousel-container img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: scale-down; transition: transform 0.3s ease; }
         
@@ -70,6 +68,7 @@
         .dashboard-icon { font-size: 32px; }
         .dashboard-title { font-weight: bold; font-size: 15px; }
 
+        /* 首頁綜合導航網格 */
         .home-nav-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 40px; padding-top: 30px; border-top: 2px dashed #eee; }
         .home-nav-card { background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, var(--mist-rose) 100%); border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-decoration: none; color: var(--ink-navy); border: 1px solid rgba(255,255,255,0.5); }
         .home-nav-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(184,149,90,0.2); }
@@ -91,7 +90,7 @@
         .submit-btn-full { width: 100%; padding: 15px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; transition: 0.3s; font-size: 16px; font-weight: bold; margin-top: 10px; }
         .submit-btn-full:hover { background: #967a4a; box-shadow: 0 4px 15px rgba(184, 149, 90, 0.4); }
 
-        /* 手機版垂直手風琴選單 (修復跑版問題) */
+        /* 手機版垂直手風琴選單，完美不跑位 */
         @media (max-width: 768px) {
             header { padding: 10px 20px; position: sticky; top: 0; background-color: var(--mist-rose); z-index: 9999; }
             .brand-logo-img { height: 40px; }
@@ -177,6 +176,7 @@
             <div id="data-container"></div>
             <div id="home-nav-container" style="display: none;"></div>
             
+            <!-- 網站本身的會員登入引導 -->
             <div id="join-prompt-container" style="display: none; max-width: 500px; margin: 0 auto;">
                 <div class="form-section" style="text-align: center;">
                     <h2 style="color:var(--primary-color); margin-top:0;">第一步：綁定官方 LINE</h2>
@@ -246,15 +246,7 @@
             <div id="edit-profile-container" style="display: none; max-width: 800px; margin: 0 auto;">
                 <div class="form-section">
                     <button onclick="window.location.hash='#member-zone'" style="background:none; border:none; color:var(--taupe); cursor:pointer; font-size:14px; margin-bottom:15px; padding:0;">← 返回大廳</button>
-                    <h2 style="color:var(--ink-navy); text-align:center; margin-top:0;">會員詳細資料與設定</h2>
-                    
-                    <div style="background: var(--pearl); padding: 20px; border-radius: 8px; margin-bottom: 25px; font-size: 14px; line-height: 1.8; border-left: 4px solid var(--champagne);">
-                        <strong style="color:var(--ink-navy); font-size: 16px;">💎 我的會籍資訊</strong><br>
-                        <span>會員編號：</span><strong id="v-memberId" style="color:var(--champagne);"></strong><br>
-                        <span>會員等級：</span><strong id="v-level"></strong><br>
-                        <span>帳號狀態：</span><strong id="v-status"></strong>
-                    </div>
-
+                    <h2 style="color:var(--ink-navy); text-align:center; margin-top:0;">修改個人設定</h2>
                     <p style="text-align:center; color:var(--text-light); font-size:14px; margin-bottom:20px;">更新您的聯絡資訊，保持會員通訊順暢。</p>
                     <div class="form-row">
                         <div class="form-group"><label>真實姓名 (不可更改)</label><input type="text" id="e-name-zh" class="input-field" disabled style="background:#eee;"></div>
