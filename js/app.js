@@ -1,17 +1,18 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：快取引擎、前台路由(首頁最新消息)、單一 LIFF 驗證、全模組智能排版
+ * 職責：快取引擎、前台路由、單一 LIFF 安全防呆驗證、全模組智能排版
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
 
-// 🔑 核心優化：單一 LIFF ID 驗證
-const LIFF_ID = '2012121201-XXXXXXXX'; // ⚠️ 請填寫您唯一的官方 LINE LIFF ID
+// 🔑 核心修復：正確配置官方 LINE 的 LIFF ID
+const LIFF_ID = '2012121201-DRHgrrOJ'; // 已為您帶入正確的 ID
 
 const AUTH_EXPIRY_MS = 3 * 60 * 60 * 1000; 
 const CACHE_EXPIRY_MS = 5 * 60 * 1000; 
 
+// === 更新：首頁預設為最新消息，並分割課程模組 ===
 const PAGE_CONFIG = {
     '': { title: '最新消息', subtitle: '掌握協會最新動態與公告。', sheet: '最新消息', layout: 'card' },
     '#home': { title: '最新消息', subtitle: '掌握協會最新動態與公告。', sheet: '最新消息', layout: 'card' },
@@ -50,19 +51,26 @@ function getCleanTime() {
     return now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
 }
 
+// === 核心防呆處理：安全抓取快取資料 ===
 function getSafeMemberInfo() {
     try {
         let info = localStorage.getItem('cia_member_info');
         if (info === 'undefined' || info === 'null') return null;
         return JSON.parse(info);
-    } catch(e) { localStorage.removeItem('cia_member_info'); return null; }
+    } catch(e) {
+        localStorage.removeItem('cia_member_info');
+        return null;
+    }
 }
 function getSafeCredentials() {
     try {
         let creds = localStorage.getItem('cia_member_credentials');
         if (creds === 'undefined' || creds === 'null') return null;
         return JSON.parse(creds);
-    } catch(e) { localStorage.removeItem('cia_member_credentials'); return null; }
+    } catch(e) {
+        localStorage.removeItem('cia_member_credentials');
+        return null;
+    }
 }
 
 function isAuthValid() {
@@ -125,7 +133,10 @@ async function initSystem() {
                 handleLineLoginCallback(true); 
             }
         }
-    } catch (err) { console.error('LIFF 初始化跳過', err); hidePreloader(); }
+    } catch (err) { 
+        console.error('LIFF 初始化跳過', err); 
+        hidePreloader(); 
+    }
 }
 
 async function handleLineLoginCallback(isSilent = false) {
@@ -197,8 +208,18 @@ document.addEventListener('DOMContentLoaded', () => {
     loadPage();
 });
 
-function showPreloader() { const p = document.getElementById('preloader'); if(p) { p.style.display = 'flex'; p.style.visibility = 'visible'; p.style.opacity = '1'; } }
-function hidePreloader() { const p = document.getElementById('preloader'); if(p) { p.style.opacity = '0'; p.style.visibility = 'hidden'; setTimeout(() => { p.style.display = 'none'; }, 300); } }
+function showPreloader() { 
+    const p = document.getElementById('preloader'); 
+    if(p) { p.style.display = 'flex'; p.style.visibility = 'visible'; p.style.opacity = '1'; }
+}
+function hidePreloader() { 
+    const p = document.getElementById('preloader'); 
+    if(p) {
+        p.style.opacity = '0'; 
+        p.style.visibility = 'hidden'; 
+        setTimeout(() => { p.style.display = 'none'; }, 300); 
+    }
+}
 
 function buildMemberDashboard(memberInfo) {
     let avatarHtml = memberInfo.avatar ? `<img src="${memberInfo.avatar}" style="width:60px; height:60px; border-radius:50%; vertical-align:middle; margin-right:15px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">` : '';
@@ -224,7 +245,7 @@ function buildMemberDashboard(memberInfo) {
     `;
 }
 
-// 核心：首頁下方加入綜合導航
+// === 首頁綜合導航網格 ===
 function buildHomeNavigation() {
     return `
         <div class="home-nav-grid">
@@ -671,23 +692,18 @@ function setupMobileMenu() {
     if (mobileBtn && mainNav) {
         mobileBtn.addEventListener('click', () => {
             mainNav.classList.toggle('show');
-            // 如果點開主選單，確保所有子選單預設是收合的
             document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('mobile-active'));
         });
         
-        // 點擊一般連結時收合整個選單
         mainNav.querySelectorAll('a:not(.dropdown-toggle)').forEach(link => { 
             link.addEventListener('click', () => mainNav.classList.remove('show')); 
         });
         
-        // 手機版樹枝圖展開/收合防跑位邏輯
         const dropdowns = document.querySelectorAll('.dropdown-toggle');
         dropdowns.forEach(dropdown => {
             dropdown.addEventListener('click', (e) => {
                 if (window.innerWidth <= 768) {
-                    // 關閉其他的下拉選單
                     dropdowns.forEach(d => { if (d !== dropdown) d.classList.remove('mobile-active'); });
-                    // 切換目前的下拉選單
                     dropdown.classList.toggle('mobile-active');
                 }
             });
