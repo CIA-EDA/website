@@ -85,29 +85,23 @@
         .submit-btn-full { width: 100%; padding: 15px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; transition: 0.3s; font-size: 16px; font-weight: bold; margin-top: 10px; }
         .submit-btn-full:hover { background: #967a4a; box-shadow: 0 4px 15px rgba(184, 149, 90, 0.4); }
 
+        /* === 徹底退回原版 CSS，保證完美不跑版 === */
         @media (max-width: 768px) {
-            header { padding: 10px 20px; position: sticky; top: 0; background-color: var(--mist-rose); z-index: 9999; }
+            header { padding: 10px 15px; }
             .brand-logo-img { height: 40px; }
             .menu-toggle { display: block; }
-            
-            .main-nav { display: none; flex-direction: column; position: absolute; top: 100%; left: 0; width: 100%; max-height: 85vh; overflow-y: auto; background-color: var(--mist-rose); padding: 20px 0; gap: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); z-index: 9998; box-sizing: border-box; align-items: center;}
-            .main-nav.show { display: flex; } 
-            
-            .candy-btn { width: 90%; max-width: 350px; font-size: 15px; border-radius: 8px; margin: 0 auto; padding: 12px; text-align: center; }
-            
-            .dropdown { width: 90%; max-width: 350px; margin: 0 auto; }
-            .dropdown > .candy-btn { width: 100%; margin: 0; } 
-            .dropdown:hover .dropdown-content { visibility: hidden; opacity: 0; display: none; }
-            
-            .dropdown-content { position: static; visibility: visible; opacity: 1; transform: none; box-shadow: none; border: none; background: rgba(255,255,255,0.6); padding: 5px; display: none; margin-top: 5px; border-radius: 8px; width: 100%; box-sizing: border-box; }
-            .dropdown.mobile-active .dropdown-content { display: block !important; }
-            .dropdown-content a { padding: 12px; font-size: 14px; border-bottom: 1px solid rgba(0,0,0,0.05); }
-            .dropdown-content a:last-child { border-bottom: none; }
+            .main-nav { display: none; flex-direction: column; position: absolute; top: 60px; left: 0; width: 100%; background-color: var(--mist-rose); padding: 15px 0; gap: 5px; box-shadow: 0 10px 15px rgba(0,0,0,0.1); z-index: 9999; }
+            .main-nav.show { display: flex; align-items: stretch; }
+            .candy-btn { font-size: 14px; border-radius: 8px; margin: 0 15px; padding: 12px; }
+            .dropdown { width: auto; margin: 0; }
+            .dropdown-content { position: static; visibility: visible; opacity: 1; transform: none; box-shadow: none; border: none; background: rgba(255,255,255,0.5); padding: 0; display: none; margin-top: 5px; }
+            .dropdown.mobile-active .dropdown-content { display: block; }
+            .dropdown-content a { padding: 10px; font-size: 13px; }
             
             .hero-title { font-size: 24px !important; }
             .hero-section { padding: 40px 20px; }
             .content-section { padding: 20px 15px; }
-            .course-grid { grid-template-columns: 1fr; gap: 20px; } 
+            .course-grid { grid-template-columns: 1fr; gap: 20px; }
             
             .modal-content { padding: 25px 15px; width: 92%; }
             .form-row { flex-direction: column; gap: 10px; }
@@ -223,7 +217,6 @@
                         <div class="form-group"><label>現職機構名稱</label><input type="text" id="p-company" class="input-field"></div>
                         <div class="form-group"><label>現任職稱</label><input type="text" id="p-jobtitle" class="input-field"></div>
                     </div>
-                    <!-- 註冊時的期望類別，非真實權限，可保留讓協會參考 -->
                     <div class="form-row">
                         <div class="form-group full-width"><label>申請會籍類別 (期望申請)*</label>
                             <select id="p-membership" class="select-field">
@@ -237,13 +230,12 @@
                 </div>
             </div>
 
-            <!-- === 官網會員資料同步擴充 (徹底移除會籍修改下拉選單) === -->
+            <!-- === 官網會員資料同步擴充 (確保移除會籍修改選單) === -->
             <div id="edit-profile-container" style="display: none; max-width: 800px; margin: 0 auto;">
                 <div class="form-section">
                     <button onclick="window.location.hash='#member-zone'" style="background:none; border:none; color:var(--taupe); cursor:pointer; font-size:14px; margin-bottom:15px; padding:0;">← 返回大廳</button>
                     <h2 style="color:var(--ink-navy); text-align:center; margin-top:0;">我的會員資訊</h2>
                     
-                    <!-- 唯讀資訊區塊，包含等級與到期日，不提供修改介面 -->
                     <div style="background: var(--pearl); padding: 15px; border-radius: 8px; margin-bottom: 25px; font-size: 14px; line-height: 1.8; border-left: 4px solid var(--champagne);">
                         <strong style="color:var(--ink-navy); font-size: 16px;">💎 會籍狀態</strong><br>
                         <span>會員編號：</span><strong id="v-memberId" style="color:var(--champagne);"></strong><br>
@@ -281,7 +273,6 @@
                         <div class="form-group"><label>現職機構名稱</label><input type="text" id="e-company" class="input-field"></div>
                         <div class="form-group"><label>現任職稱</label><input type="text" id="e-jobtitle" class="input-field"></div>
                     </div>
-                    <!-- 會員修改資料時沒有權限調整等級，直接拔除下拉選單 -->
 
                     <button id="submit-edit-profile-btn" class="submit-btn-full">儲存變更</button>
                 </div>
