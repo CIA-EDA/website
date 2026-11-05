@@ -1,6 +1,6 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：快取引擎、前台路由、LIFF 基礎驗證、全模組智能排版
+ * 職責：快取引擎、前台路由、LIFF 基礎驗證、全模組智能排版 (專服於形象官網)
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
@@ -48,14 +48,21 @@ function getSafeMemberInfo() {
         let info = localStorage.getItem('cia_member_info');
         if (info === 'undefined' || info === 'null') return null;
         return JSON.parse(info);
-    } catch(e) { localStorage.removeItem('cia_member_info'); return null; }
+    } catch(e) {
+        localStorage.removeItem('cia_member_info');
+        return null;
+    }
 }
+
 function getSafeCredentials() {
     try {
         let creds = localStorage.getItem('cia_member_credentials');
         if (creds === 'undefined' || creds === 'null') return null;
         return JSON.parse(creds);
-    } catch(e) { localStorage.removeItem('cia_member_credentials'); return null; }
+    } catch(e) {
+        localStorage.removeItem('cia_member_credentials');
+        return null;
+    }
 }
 
 function isAuthValid() {
@@ -89,7 +96,11 @@ async function fetchWithCache(sheetName) {
     return data;
 }
 
-const readFileAsBase64 = (file) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.readAsDataURL(file); });
+const readFileAsBase64 = (file) => new Promise((res, rej) => { 
+    const r = new FileReader(); 
+    r.onload = () => res(r.result.split(',')[1]); 
+    r.readAsDataURL(file); 
+});
 
 async function initSystem() {
     try {
@@ -151,8 +162,11 @@ function updateMemberUI() {
     const memberInfo = getSafeMemberInfo();
     const memberBtn = document.getElementById('nav-member-btn');
     if (memberInfo && memberBtn) {
-        if (memberInfo.memberStatus === '停用' || memberInfo.memberStatus === '待審核') memberBtn.innerHTML = '⏳ 會員審核中';
-        else memberBtn.innerHTML = '👤 會員專區';
+        if (memberInfo.memberStatus === '停用' || memberInfo.memberStatus === '待審核') {
+            memberBtn.innerHTML = '⏳ 會員審核中';
+        } else {
+            memberBtn.innerHTML = '👤 會員專區';
+        }
     }
 }
 
@@ -164,24 +178,42 @@ function handlePageTransition() {
         let sessionStr = localStorage.getItem('tracking_session');
         let session = null;
         try { session = sessionStr ? JSON.parse(sessionStr) : null; } catch(e){}
+        
         if (!session || (now - session.lastActiveTime > 600000) || session.views >= 10) {
             session = { id: 'SESS_' + now + '_' + Math.floor(Math.random() * 1000), entryTime: getCleanTime(), views: 0 };
         }
-        session.views += 1; session.lastActiveTime = now;
+        
+        session.views += 1; 
+        session.lastActiveTime = now;
         localStorage.setItem('tracking_session', JSON.stringify(session));
-        fetch(GAS_URL, { method: 'POST', keepalive: true, body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'trackSession', sessionId: session.id, entryTime: session.entryTime, leaveTime: getCleanTime(), ip: ip, path: currentTrackingHash, duration: durationSeconds, userAgent: navigator.userAgent }) }).catch(e=>e);
+        
+        fetch(GAS_URL, { 
+            method: 'POST', 
+            keepalive: true, 
+            body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'trackSession', sessionId: session.id, entryTime: session.entryTime, leaveTime: getCleanTime(), ip: ip, path: currentTrackingHash, duration: durationSeconds, userAgent: navigator.userAgent }) 
+        }).catch(e=>e);
     }
     currentTrackingHash = window.location.hash || '#news';
     currentPageEntryTime = now;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    setupMobileMenu(); setupMemberLogin(); updateMemberUI();
-    setupProfileCompletionForm(); setupEditProfileForm();
-    setupContactModal(); setupPostModal(); 
+    setupMobileMenu(); 
+    setupMemberLogin(); 
+    updateMemberUI();
+    setupProfileCompletionForm(); 
+    setupEditProfileForm();
+    setupContactModal(); 
+    setupPostModal(); 
     
-    window.addEventListener('hashchange', () => { handlePageTransition(); loadPage(); });
-    window.addEventListener('beforeunload', () => { handlePageTransition(); });
+    window.addEventListener('hashchange', () => { 
+        handlePageTransition(); 
+        loadPage(); 
+    });
+    
+    window.addEventListener('beforeunload', () => { 
+        handlePageTransition(); 
+    });
     
     initSystem(); 
 });
@@ -190,6 +222,7 @@ function showPreloader() {
     const p = document.getElementById('preloader'); 
     if(p) { p.style.display = 'flex'; p.style.visibility = 'visible'; p.style.opacity = '1'; }
 }
+
 function hidePreloader() { 
     const p = document.getElementById('preloader'); 
     if(p) { p.style.opacity = '0'; p.style.visibility = 'hidden'; setTimeout(() => { p.style.display = 'none'; }, 300); }
@@ -367,29 +400,41 @@ async function loadPage() {
 
     dataContainer.style.display = 'grid'; 
     try {
-        const result = await fetchWithCache(config.sheet);
+        const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
+        let res;
+        
+        if (config.sheet === '會員專屬影片') {
+             res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'verifyAndGetCourses', credentials: credentials }) });
+        } else {
+             res = await fetch(`${GAS_URL}?sheetName=${config.sheet}`);
+        }
+        const dataObj = await res.json();
         
         if (config.sheet === '美業資訊交流') {
-            const commentsRes = await fetchWithCache('交流留言');
-            if (commentsRes.status === 'success' && commentsRes.data.length > 1) {
-                window.currentCommentsCache = commentsRes.data.slice(1);
+            const commentsRes = await fetch(`${GAS_URL}?sheetName=交流留言`);
+            const commentsData = await commentsRes.json();
+            if (commentsData.status === 'success' && commentsData.data.length > 1) {
+                window.currentCommentsCache = commentsData.data.slice(1);
+            } else {
+                window.currentCommentsCache = [];
             }
         }
 
-        if (result.status === 'success' && result.data.length > 1) {
-            let finalData = result.data;
+        if (dataObj.status === 'success' && dataObj.data.length > 1) {
+            let dataArray = dataObj.data;
+            const headers = dataArray.shift();
+            
             if (config.sheet === '美業資訊交流' || config.sheet === '最新消息') {
-                const headers = finalData.shift();
-                finalData = finalData.reverse();
-                finalData.unshift(headers);
+                dataArray = dataArray.reverse();
             }
-            renderData(finalData, config.layout, dataContainer);
+            
+            dataArray.unshift(headers);
+            renderData(dataArray, config.layout, dataContainer);
             
             if ((hash === '' || hash === '#news' || hash === '#home') && homeNavContainer) {
                 homeNavContainer.style.display = 'block';
                 homeNavContainer.innerHTML = buildHomeNavigation();
             }
-
         } else {
             dataContainer.innerHTML = '<p style="text-align:center; width:100%; color:#7A7A7A;">目前尚無資料。</p>';
         }
@@ -400,362 +445,29 @@ async function loadPage() {
     }
 }
 
-function setupPostModal() {
-    const postModal = document.getElementById('post-modal');
-    const closePostBtn = document.getElementById('close-post-btn');
-    const submitPostBtn = document.getElementById('submit-post-btn');
-    
-    if(closePostBtn) closePostBtn.addEventListener('click', () => postModal.classList.remove('active'));
-    window.addEventListener('click', (e) => { if (e.target === postModal) postModal.classList.remove('active'); });
-
-    if (submitPostBtn) {
-        submitPostBtn.addEventListener('click', async () => {
-            const title = document.getElementById('post-title').value.trim();
-            const content = document.getElementById('post-content').value.trim();
-            const fileInput = document.getElementById('post-image');
-
-            if (!title || !content) { alert('請填寫標題與內容！'); return; }
-
-            let base64Data = null;
-            let mimeType = null;
-            let fileName = null;
-
-            if (fileInput.files.length > 0) {
-                const file = fileInput.files[0];
-                if (file.size > 5 * 1024 * 1024) {
-                    alert('照片大小超過 5MB 上限，請壓縮後再上傳！');
-                    return;
-                }
-                base64Data = await readFileAsBase64(file);
-                mimeType = file.type;
-                fileName = file.name;
-            }
-
-            submitPostBtn.innerText = '發佈中...'; submitPostBtn.disabled = true;
-            
-            try {
-                const credentials = getSafeCredentials();
-                let imgUrl = '';
-                if (base64Data) {
-                    submitPostBtn.innerText = '上傳圖片中...';
-                    const resImg = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'uploadImage', sheetName: '美業資訊交流', base64Data: base64Data, mimeType: mimeType, fileName: fileName }) });
-                    const imgData = await resImg.json();
-                    if (imgData.status === 'success') imgUrl = imgData.url;
-                }
-
-                submitPostBtn.innerText = '寫入資料庫...';
-                await fetch(GAS_URL, { 
-                    method: 'POST', 
-                    body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'userPostExchange', lineUid: credentials.lineUid, postTitle: title, postContent: content, imgUrl: imgUrl }) 
-                });
-                
-                alert('發佈成功！');
-                postModal.classList.remove('active');
-                document.getElementById('post-title').value = '';
-                document.getElementById('post-content').value = '';
-                fileInput.value = '';
-                
-                sessionStorage.removeItem('cia_cache_美業資訊交流');
-                loadPage();
-
-            } catch(e) { 
-                alert('發佈失敗：' + e.message); 
-            } finally { 
-                submitPostBtn.innerText = '確認發佈'; submitPostBtn.disabled = false; 
-            }
-        });
-    }
-}
-
-function setupProfileCompletionForm() {
-    const submitBtn = document.getElementById('submit-profile-btn');
-    if (!submitBtn) return;
-    submitBtn.addEventListener('click', async () => {
-        const profileData = {
-            nameZh: document.getElementById('p-name-zh').value.trim(),
-            nameEn: document.getElementById('p-name-en').value.trim(),
-            gender: document.getElementById('p-gender').value,
-            birth: document.getElementById('p-birth').value,
-            idNum: document.getElementById('p-id').value.trim(),
-            phone: document.getElementById('p-phone').value.trim(),
-            line: document.getElementById('p-line').value.trim(),
-            email: document.getElementById('p-email').value.trim(),
-            address: document.getElementById('p-address').value.trim(),
-            edu: document.getElementById('p-edu').value,
-            fields: document.getElementById('p-fields').value.trim(),
-            company: document.getElementById('p-company').value.trim(),
-            jobTitle: document.getElementById('p-jobtitle').value.trim(),
-            membership: document.getElementById('p-membership').value
-        };
-
-        if (!profileData.nameZh || !profileData.birth || !profileData.idNum || !profileData.phone || !profileData.email) {
-            alert('請填寫所有標示星號 (*) 的必填欄位！'); return;
-        }
-
-        submitBtn.innerText = '送出審核中...'; submitBtn.disabled = true;
-        try {
-            const credentials = getSafeCredentials();
-            await fetch(GAS_URL, { 
-                method: 'POST', 
-                body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'updateMemberProfile', lineUid: credentials.lineUid, profileData: profileData }) 
-            });
-            
-            alert('入會申請送出成功！\n\n請前往「官方 LINE」聯繫客服人員，我們提供【現金 / 轉帳 / 刷卡】服務。\n繳費並經管理員審核通過後，即可為您開通會員權限！');
-            
-            let memberInfo = getSafeMemberInfo();
-            memberInfo.needsProfileCompletion = false;
-            memberInfo.name = profileData.nameZh;
-            memberInfo.memberStatus = '待審核';
-            localStorage.setItem('cia_member_info', JSON.stringify(memberInfo));
-            
-            window.location.hash = '#member-zone';
-        } catch(e) { alert('儲存失敗，請稍後再試。'); } 
-        finally { submitBtn.innerText = '確認送出申請'; submitBtn.disabled = false; }
-    });
-}
-
-function setupEditProfileForm() {
-    const submitBtn = document.getElementById('submit-edit-profile-btn');
-    if (!submitBtn) return;
-    submitBtn.addEventListener('click', async () => {
-        const profileData = {
-            nameZh: document.getElementById('e-name-zh').value.trim(),
-            nameEn: document.getElementById('e-name-en').value.trim(),
-            gender: document.getElementById('e-gender').value,
-            birth: document.getElementById('e-birth').value,
-            idNum: document.getElementById('e-id').value.trim(),
-            phone: document.getElementById('e-phone').value.trim(),
-            line: document.getElementById('e-line').value.trim(),
-            email: document.getElementById('e-email').value.trim(),
-            address: document.getElementById('e-address').value.trim(),
-            edu: document.getElementById('e-edu').value,
-            fields: document.getElementById('e-fields').value.trim(),
-            company: document.getElementById('e-company').value.trim(),
-            jobTitle: document.getElementById('e-jobtitle').value.trim(),
-            membership: document.getElementById('e-membership').value
-        };
-
-        submitBtn.innerText = '更新資料中...'; submitBtn.disabled = true;
-        try {
-            const credentials = getSafeCredentials();
-            await fetch(GAS_URL, { 
-                method: 'POST', 
-                body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'editMemberProfile', lineUid: credentials.lineUid, profileData: profileData }) 
-            });
-            
-            let memberInfo = getSafeMemberInfo();
-            Object.assign(memberInfo, {
-                nameEn: profileData.nameEn, gender: profileData.gender, birth: profileData.birth, idNum: profileData.idNum, 
-                phone: profileData.phone, lineId: profileData.line, email: profileData.email, address: profileData.address,
-                edu: profileData.edu, fields: profileData.fields, company: profileData.company, jobTitle: profileData.jobTitle, membership: profileData.membership
-            });
-            localStorage.setItem('cia_member_info', JSON.stringify(memberInfo));
-            
-            alert('個人資料更新成功！');
-            window.location.hash = '#member-zone';
-        } catch(e) { alert('儲存失敗，請稍後再試。'); } 
-        finally { submitBtn.innerText = '儲存變更'; submitBtn.disabled = false; }
-    });
-}
-
-window.playCourseVideo = async function(event, courseTitle, reqLevel) {
-    event.stopPropagation();
-    if (!isAuthValid()) {
-         alert('請先登入會員！');
-         window.location.hash = '#member-zone';
-         return;
-    }
-    const credentials = getSafeCredentials();
-    const memberInfo = getSafeMemberInfo();
-    if (!credentials || !memberInfo) {
-         alert('請先登入會員！');
-         window.location.hash = '#member-zone';
-         return;
-    }
-    if (memberInfo.memberStatus === '停用' || memberInfo.memberStatus === '待審核') {
-        alert(`您的狀態為【${memberInfo.memberStatus}】，無法觀看課程。`);
-        return;
-    }
-    
-    const btn = event.target;
-    const ogText = btn.innerText;
-    btn.innerText = '驗證專屬權限中...';
-    btn.disabled = true;
-
-    try {
-        const res = await fetch(GAS_URL, {
-            method: 'POST',
-            body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'verifyAndGetCourses', credentials: credentials })
-        });
-        const data = await res.json();
-        if (data.status === 'success') {
-            const courses = data.data.slice(1);
-            const course = courses.find(c => c[0] === courseTitle);
-            if (course && course[1]) {
-                document.getElementById('video-player-container').innerHTML = `<iframe src="${course[1]}" allowfullscreen></iframe>`;
-                document.getElementById('video-modal').classList.add('active');
-            } else {
-                alert(`權限不足或找不到該課程影片。此課程需為【${reqLevel}】。`);
-            }
-        } else {
-            alert(data.message || '驗證失敗');
-        }
-    } catch(e) {
-        alert('連線失敗，請稍後再試。');
-    } finally {
-        btn.innerText = ogText;
-        btn.disabled = false;
-    }
-}
-
-window.submitComment = async function(event, index, postTitle, postTime, isModal = false) {
-    if(event) event.stopPropagation(); 
-    
-    const inputId = isModal ? `modal-comment-input-${index}` : `comment-input-${index}`;
-    const input = document.getElementById(inputId);
-    const content = input.value.trim();
-    if (!content) { alert('請輸入留言內容！'); return; }
-
-    const credentials = getSafeCredentials();
-    const memberInfo = getSafeMemberInfo();
-    
-    if (!credentials || !memberInfo) {
-        alert('請先登入會員才能留言！');
-        return;
-    }
-    if (memberInfo.memberStatus === '停用' || memberInfo.memberStatus === '待審核') {
-        alert(`您的狀態為【${memberInfo.memberStatus}】，無法留言。`);
-        return;
-    }
-
-    const btn = event.target;
-    const ogText = btn.innerText;
-    btn.innerText = '傳送中...';
-    btn.disabled = true;
-
-    try {
-        await fetch(GAS_URL, {
-            method: 'POST',
-            body: JSON.stringify({
-                token: API_SECRET_TOKEN,
-                action: 'submitComment',
-                lineUid: credentials.lineUid,
-                postTitle: postTitle,
-                postTime: postTime,
-                content: content
-            })
-        });
-        alert('留言成功！');
-        input.value = '';
-        sessionStorage.removeItem('cia_cache_交流留言'); 
-        document.getElementById('detail-modal').classList.remove('active');
-        loadPage(); 
-    } catch(e) {
-        alert('留言失敗，請稍後再試。');
-    } finally {
-        btn.innerText = ogText;
-        btn.disabled = false;
-    }
-};
-
-function logoutMember() {
-    localStorage.removeItem('cia_member_credentials');
-    localStorage.removeItem('cia_member_info');
-    localStorage.removeItem('cia_auth_time');
-    sessionStorage.clear();
-    
-    if (liff.isLoggedIn()) { liff.logout(); }
-    alert('已登出。');
-    window.location.hash = '#news';
-    loadPage();
-}
-
-function setupMemberLogin() {
-    const lineBtns = document.querySelectorAll('.line-login-trigger');
-    lineBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            if (!liff.isLoggedIn()) {
-                liff.login({ redirectUri: window.location.href });
-            } else {
-                handleLineLoginCallback();
-            }
-        });
-    });
-}
-
-// === 修改為防跑位手風琴選單 ===
-function setupMobileMenu() {
-    const mobileBtn = document.getElementById('mobile-menu-btn');
-    const mainNav = document.getElementById('main-nav-menu');
-    if (mobileBtn && mainNav) {
-        mobileBtn.addEventListener('click', () => {
-            mainNav.classList.toggle('show');
-            document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('mobile-active'));
-        });
-        
-        mainNav.querySelectorAll('a:not(.dropdown-toggle)').forEach(link => { 
-            link.addEventListener('click', () => mainNav.classList.remove('show')); 
-        });
-        
-        const dropdowns = document.querySelectorAll('.dropdown-toggle');
-        dropdowns.forEach(dropdown => {
-            dropdown.addEventListener('click', (e) => {
-                if (window.innerWidth <= 768) {
-                    dropdowns.forEach(d => { if (d !== dropdown) d.classList.remove('mobile-active'); });
-                    dropdown.classList.toggle('mobile-active');
-                }
-            });
-        });
-    }
-}
-
-function optimizeImageUrl(url) {
-    if (url.includes('drive.google.com') && !url.includes('thumbnail')) {
-        const idMatch = url.match(/id=([^&]+)/);
-        if (idMatch && idMatch[1]) return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w800`;
-    }
-    return url;
-}
-
-function generateImageHTML(imgString) {
-    const rawUrls = imgString.split(',').map(u => u.trim()).filter(u => u);
-    if (rawUrls.length === 0) return '';
-    
-    const urls = rawUrls.map(url => optimizeImageUrl(url));
-    if (urls.length === 1) {
-        return `<div class="img-wrapper"><img src="${urls[0]}" alt="Image"></div>`;
-    }
-    
-    let html = `<div class="img-wrapper"><div class="carousel-container">`;
-    urls.forEach(url => { html += `<img src="${url}" alt="Image">`; });
-    html += `</div></div><div class="carousel-hint">← 左右滑動查看多圖 →</div>`;
-    return html;
-}
-
-function buildCommentsHtml(postTitle, postTime, dataIndex, isModal = false) {
+function buildCommentsHtml(postTitle, postTime, dataIndex) {
     const comments = (window.currentCommentsCache || []).filter(c => c[0] === postTitle && c[1] === postTime);
-    let html = '<div class="comments-section" style="margin-top:20px; border-top:1px dashed #eee; padding-top:15px; text-align:left;">';
+    let html = '<div style="margin-top:15px; border-top:1px dashed #eee; padding-top:15px; text-align:left;">';
     
     if (comments.length > 0) {
         comments.forEach(c => {
             html += `
-            <div style="font-size:14px; margin-bottom:10px; padding:10px; background:#f8f9fa; border-radius:8px; border-left:3px solid var(--champagne);">
+            <div style="font-size:13px; margin-bottom:10px; padding:10px; background:#f8f9fa; border-radius:8px; border-left:3px solid var(--champagne);">
                 <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
                     <strong style="color:var(--ink-navy);">${c[2]}</strong>
-                    <span style="color:#aaa; font-size:12px;">${c[3]}</span>
+                    <span style="color:#aaa; font-size:11px;">${c[3]}</span>
                 </div>
-                <div style="color:var(--text-dark); line-height:1.5;">${c[4].replace(/\n/g, '<br>')}</div>
+                <div style="color:var(--text-main); line-height:1.5;">${c[4].replace(/\n/g, '<br>')}</div>
             </div>`;
         });
     } else {
-        html += `<div style="font-size:13px; color:#aaa; margin-bottom:10px; text-align:center;">目前尚無留言，來搶頭香吧！</div>`;
+        html += `<div style="font-size:12px; color:#aaa; margin-bottom:10px; text-align:center;">目前尚無留言，來搶頭香吧！</div>`;
     }
     
-    const inputId = isModal ? `modal-comment-input-${dataIndex}` : `comment-input-${dataIndex}`;
     html += `
         <div style="display:flex; gap:10px; margin-top:10px;" onclick="event.stopPropagation();">
-            <input type="text" id="${inputId}" class="input-field" placeholder="輸入留言..." style="padding:10px; flex:1; font-size:14px;">
-            <button class="candy-btn" onclick="submitComment(event, ${dataIndex}, '${postTitle}', '${postTime}', ${isModal})" style="padding:10px 20px; font-size:14px; border:none; cursor:pointer;">留言</button>
+            <input type="text" id="comment-input-${dataIndex}" class="input-field" placeholder="輸入留言..." style="padding:10px; flex:1; font-size:13px;">
+            <button class="candy-btn" onclick="submitComment(event, ${dataIndex}, '${postTitle}', '${postTime}')" style="padding:10px 15px; width:auto; border-radius:8px;">留言</button>
         </div>
     </div>`;
     return html;
@@ -775,29 +487,35 @@ function renderData(rawData, layoutType, container) {
         const dataIndex = currentViewDataCache.length - 1;
 
         const title = item['課程名稱'] || item['講師姓名'] || item['顧問姓名'] || item['店家名稱'] || item['活動名稱'] || item['產品名稱'] || item['標題'] || item['職缺名稱'] || item['主旨/標題'] || '';
-        let desc = item['簡介'] || item['個人簡介'] || item['產品簡介'] || item['內容'] || '';
-        const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || item['產品logo及圖檔'] || item['公司Logo或環境照片'] || item['附圖網址'] || '';
+        let desc = item['簡介'] || item['個人簡介'] || item['產品簡介'] || item['內容'] || item['交流內容'] || '';
+        const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || item['產品logo及圖檔'] || item['公司Logo或環境照片'] || item['附圖網址'] || item['封面圖片網址'] || '';
         const linkRaw = item['報名連結'] || item['專屬付款網址'] || item['連結'] || item['專屬報名網址'] || item['相關連結'] || ''; 
         
         let extraHtml = ''; 
 
-        if (item['發佈日期'] && item['相關連結']) {
-            desc = `📅 發佈日期：${item['發佈日期']}\n\n${desc}`;
+        if (item['發佈日期']) {
+            extraHtml = `<div style="font-size:12px; color:var(--champagne); margin-bottom:5px; font-weight:bold;">發佈日期：${item['發佈日期']}</div>`;
+            if(linkRaw) extraHtml += `<a href="${linkRaw}" target="_blank" class="candy-btn payment-btn" style="margin-top:15px; padding:10px;">查看相關連結</a>`;
         } else if (item['徵才機構']) {
             desc = `🏢 機構：${item['徵才機構']}\n📍 地點：${item['工作地點']}\n💰 薪資：${item['薪資待遇']}\n📞 聯絡：${item['聯絡方式']}\n\n【條件要求】\n${item['條件要求']}`;
         } else if (item['發文者姓名']) {
-            desc = `👤 發文者：${item['發文者姓名']}\n🕒 時間：${item['發文時間']}\n\n${item['交流內容']}`;
-            extraHtml = buildCommentsHtml(item['主旨/標題']||'', item['發文時間']||'', dataIndex, false);
+            extraHtml = `<div style="font-size:12px; color:var(--champagne); margin-top:10px;">${item['發文者姓名']} • ${item['發文時間']}</div>`;
+            extraHtml += buildCommentsHtml(title, item['發文時間'], dataIndex); 
         } else if (item['專長項目']) {
             desc = `【專長項目】\n${item['專長項目']}\n\n${desc}`;
         } else if (item['店家名稱']) {
             desc = `👤 負責人：${item['負責人']}\n📍 地址：${item['地址']}\n📞 電話：${item['聯絡電話']}\n\n${item['簡介']}`;
+        } else if (item['影片嵌入網址']) {
+            extraHtml = `<div class="video-container" id="vid-${dataIndex}"><iframe src="${item['影片嵌入網址']}" allowfullscreen></iframe></div>
+                         <button class="candy-btn payment-btn" style="margin-top:15px; padding:10px; display:block; width:100%;" onclick="document.getElementById('vid-${dataIndex}').style.display='block'; this.style.display='none';">▶️ 播放影片</button>`;
         }
         
         const imgHtml = generateImageHTML(imgRaw);
         
-        let paymentBtnHtml = linkRaw ? `<a href="${linkRaw}" target="_blank" class="candy-btn payment-btn" style="display:block; text-align:center; margin-top:20px;" onclick="event.stopPropagation();">💳 了解更多 / 報名</a>` : '';
-        
+        let paymentBtnHtml = '';
+        if (linkRaw && !item['發佈日期']) {
+            paymentBtnHtml = `<a href="${linkRaw}" target="_blank" class="candy-btn payment-btn" style="display:block; text-align:center; margin-top:20px;" onclick="event.stopPropagation();">💳 了解更多 / 報名</a>`;
+        }
         if (item['最低權限要求(例如:一般會員)'] !== undefined) {
             const reqLevel = item['最低權限要求(例如:一般會員)'] || '會員';
             paymentBtnHtml = `<button class="candy-btn member-btn" style="display:block; width:100%; text-align:center; margin-top:20px;" onclick="playCourseVideo(event, '${title}', '${reqLevel}')">▶️ 播放線上課程 (${reqLevel}專屬)</button>`;
@@ -813,17 +531,30 @@ function renderData(rawData, layoutType, container) {
             html += paymentBtnHtml; 
             html += `</div>`;
         } else {
-            html += `
-                <div class="course-card" onclick="openDetailModal(${dataIndex})" style="cursor: pointer;" title="點擊查看詳細資料">
-                    ${imgHtml}
-                    <div class="course-info">
-                        ${title ? `<h3 class="course-title">${title}</h3>` : ''}
-                        ${shortDesc ? `<p class="course-desc">${shortDesc.replace(/\n/g, '<br>')}</p>` : ''}
-                        ${paymentBtnHtml}
-                        ${extraHtml}
+            if (item['發佈日期']) {
+                html += `
+                    <div class="course-card">
+                        <div class="course-info" style="padding:20px;">
+                            ${extraHtml}
+                            <h3 class="course-title" style="margin-top:10px;">${title}</h3>
+                            <p class="course-desc">${shortDesc.replace(/\n/g, '<br>')}</p>
+                            ${imgHtml}
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
+            } else {
+                html += `
+                    <div class="course-card" onclick="openDetailModal(${dataIndex})" style="cursor: pointer;" title="點擊查看詳細資料">
+                        ${imgHtml}
+                        <div class="course-info">
+                            ${title ? `<h3 class="course-title">${title}</h3>` : ''}
+                            ${shortDesc ? `<p class="course-desc">${shortDesc.replace(/\n/g, '<br>')}</p>` : ''}
+                            ${paymentBtnHtml}
+                            ${extraHtml}
+                        </div>
+                    </div>
+                `;
+            }
         }
     }
     html += '</div>';
@@ -835,19 +566,18 @@ window.openDetailModal = function(index) {
     if (!item) return;
 
     const title = item['課程名稱'] || item['講師姓名'] || item['顧問姓名'] || item['店家名稱'] || item['活動名稱'] || item['產品名稱'] || item['標題'] || item['職缺名稱'] || item['主旨/標題'] || '';
-    let desc = item['簡介'] || item['個人簡介'] || item['產品簡介'] || item['內容'] || '';
-    const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || item['產品logo及圖檔'] || item['公司Logo或環境照片'] || item['附圖網址'] || '';
+    let desc = item['簡介'] || item['個人簡介'] || item['產品簡介'] || item['內容'] || item['交流內容'] || '';
+    const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || item['產品logo及圖檔'] || item['公司Logo或環境照片'] || item['附圖網址'] || item['封面圖片網址'] || '';
     const linkRaw = item['報名連結'] || item['專屬付款網址'] || item['連結'] || item['專屬報名網址'] || item['相關連結'] || ''; 
 
     let extraHtml = '';
 
     if (item['發佈日期'] && item['相關連結']) {
-        desc = `📅 發佈日期：${item['發佈日期']}\n\n${desc}`;
+        return; 
     } else if (item['徵才機構']) {
         desc = `🏢 機構：${item['徵才機構']}\n📍 地點：${item['工作地點']}\n💰 薪資：${item['薪資待遇']}\n📞 聯絡：${item['聯絡方式']}\n\n【條件要求】\n${item['條件要求']}`;
     } else if (item['發文者姓名']) {
-        desc = `👤 發文者：${item['發文者姓名']}\n🕒 時間：${item['發文時間']}\n\n${item['交流內容']}`;
-        extraHtml = buildCommentsHtml(item['主旨/標題']||'', item['發文時間']||'', index, true);
+        extraHtml = `<div style="font-size:12px; color:var(--champagne); margin-top:10px; text-align:center;">${item['發文者姓名']} • ${item['發文時間']}</div>`;
     } else if (item['專長項目']) {
         desc = `【專長項目】\n${item['專長項目']}\n\n${desc}`;
     } else if (item['店家名稱']) {
@@ -913,4 +643,119 @@ function setupContactModal() {
             finally { submitBtn.innerText = '確認送出'; submitBtn.disabled = false; }
         });
     }
+}
+
+window.submitComment = async function(event, index, postTitle, postTime) {
+    if(event) event.stopPropagation(); 
+    const input = document.getElementById(`comment-input-${index}`);
+    const content = input.value.trim();
+    if (!content) { alert('請輸入留言內容！'); return; }
+
+    const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
+    const memberInfo = JSON.parse(localStorage.getItem('cia_member_info'));
+    
+    if (!credentials || !memberInfo) {
+        alert('請先登入會員才能留言！');
+        return;
+    }
+
+    const btn = event.target;
+    const ogText = btn.innerText;
+    btn.innerText = '傳送中...';
+    btn.disabled = true;
+
+    try {
+        await fetch(GAS_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                token: API_SECRET_TOKEN,
+                action: 'submitComment',
+                lineUid: credentials.lineUid,
+                postTitle: postTitle,
+                postTime: postTime,
+                content: content
+            })
+        });
+        alert('留言成功！');
+        input.value = '';
+        await loadListData('美業資訊交流'); 
+    } catch(e) {
+        alert('留言失敗，請稍後再試。');
+    } finally {
+        btn.innerText = ogText;
+        btn.disabled = false;
+    }
+};
+
+function logoutMember() {
+    localStorage.removeItem('cia_member_credentials');
+    localStorage.removeItem('cia_member_info');
+    localStorage.removeItem('cia_auth_time');
+    sessionStorage.clear();
+    
+    if (liff.isLoggedIn()) { liff.logout(); }
+    alert('已登出。');
+    window.location.hash = '#news';
+    loadPage();
+}
+
+function setupMemberLogin() {
+    const lineBtns = document.querySelectorAll('.line-login-trigger');
+    lineBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (!liff.isLoggedIn()) {
+                liff.login({ redirectUri: window.location.href });
+            } else {
+                handleLineLoginCallback();
+            }
+        });
+    });
+}
+
+function setupMobileMenu() {
+    const mobileBtn = document.getElementById('mobile-menu-btn');
+    const mainNav = document.getElementById('main-nav-menu');
+    if (mobileBtn && mainNav) {
+        mobileBtn.addEventListener('click', () => {
+            mainNav.classList.toggle('show');
+            document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('mobile-active'));
+        });
+        
+        mainNav.querySelectorAll('a:not(.dropdown-toggle)').forEach(link => { 
+            link.addEventListener('click', () => mainNav.classList.remove('show')); 
+        });
+        
+        const dropdowns = document.querySelectorAll('.dropdown-toggle');
+        dropdowns.forEach(dropdown => {
+            dropdown.addEventListener('click', (e) => {
+                if (window.innerWidth <= 768) {
+                    dropdowns.forEach(d => { if (d !== dropdown) d.classList.remove('mobile-active'); });
+                    dropdown.classList.toggle('mobile-active');
+                }
+            });
+        });
+    }
+}
+
+function optimizeImageUrl(url) {
+    if (url.includes('drive.google.com') && !url.includes('thumbnail')) {
+        const idMatch = url.match(/id=([^&]+)/);
+        if (idMatch && idMatch[1]) return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w800`;
+    }
+    return url;
+}
+
+function generateImageHTML(imgString) {
+    const rawUrls = imgString.split(',').map(u => u.trim()).filter(u => u);
+    if (rawUrls.length === 0) return '';
+    
+    const urls = rawUrls.map(url => optimizeImageUrl(url));
+    if (urls.length === 1) {
+        return `<div class="img-wrapper"><img src="${urls[0]}" alt="Image"></div>`;
+    }
+    
+    let html = `<div class="img-wrapper"><div class="carousel-container">`;
+    urls.forEach(url => { html += `<img src="${url}" alt="Image">`; });
+    html += `</div></div><div class="carousel-hint">← 左右滑動查看多圖 →</div>`;
+    return html;
 }
