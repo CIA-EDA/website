@@ -1,12 +1,10 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：快取引擎、前台路由、動態懶加載 LINE 驗證 (解決卡頓)、全模組智能排版
+ * 職責：快取引擎、前台路由、非阻塞背景初始化 (解決卡頓)、全模組智能排版
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
-
-// 🔑 官方 LINE LIFF ID (供一般網頁登入使用)
 const LIFF_ID = '2012121201-DRHgrrOJ'; 
 
 const AUTH_EXPIRY_MS = 3 * 60 * 60 * 1000; 
@@ -48,10 +46,7 @@ function getSafeMemberInfo() {
         let info = localStorage.getItem('cia_member_info');
         if (info === 'undefined' || info === 'null') return null;
         return JSON.parse(info);
-    } catch(e) {
-        localStorage.removeItem('cia_member_info');
-        return null;
-    }
+    } catch(e) { localStorage.removeItem('cia_member_info'); return null; }
 }
 
 function getSafeCredentials() {
@@ -59,10 +54,7 @@ function getSafeCredentials() {
         let creds = localStorage.getItem('cia_member_credentials');
         if (creds === 'undefined' || creds === 'null') return null;
         return JSON.parse(creds);
-    } catch(e) {
-        localStorage.removeItem('cia_member_credentials');
-        return null;
-    }
+    } catch(e) { localStorage.removeItem('cia_member_credentials'); return null; }
 }
 
 function isAuthValid() {
@@ -102,12 +94,15 @@ const readFileAsBase64 = (file) => new Promise((res, rej) => {
     r.readAsDataURL(file); 
 });
 
-// === 核心修復：非阻塞式初始化，確保網站瞬間解開遮罩 ===
+// === 核心修復：強制防呆，絕對秒開 ===
 function initSystem() {
-    // 1. 第一時間載入畫面並解除遮罩，保證形象網站瞬間開啟！
+    // 終極保險：如果任何 JS 發生異常，3 秒後絕對強制解除遮罩，保證不卡死
+    setTimeout(hidePreloader, 3000);
+    
+    // 1. 瞬間載入畫面並解除遮罩
     loadPage();
 
-    // 2. 背景載入計數器
+    // 2. 背景載入計數器 (不阻擋畫面)
     fetch(`${GAS_URL}?action=getVisitorCount`)
         .then(res => res.json())
         .then(countData => {
@@ -117,17 +112,21 @@ function initSystem() {
             }
         }).catch(e => console.log('計數器載入跳過'));
 
-    // 3. 只有在「登入跳轉回傳」時，才在背景啟動 LIFF 接收資料，平時不打擾網站
+    // 3. 只有當網址列帶有 LINE 回傳的登入碼時，才啟動 LIFF
     const urlSearch = window.location.search;
     if (urlSearch.includes('liff.state') || urlSearch.includes('code=')) {
         showPreloader();
-        liff.init({ liffId: LIFF_ID }).then(() => {
-            if (liff.isLoggedIn() && !getSafeCredentials()) {
-                handleLineLoginCallback(true);
-            } else {
-                hidePreloader();
-            }
-        }).catch(() => hidePreloader());
+        if (typeof liff !== 'undefined') {
+            liff.init({ liffId: LIFF_ID }).then(() => {
+                if (liff.isLoggedIn() && !getSafeCredentials()) {
+                    handleLineLoginCallback(true);
+                } else {
+                    hidePreloader();
+                }
+            }).catch(() => hidePreloader());
+        } else {
+            hidePreloader();
+        }
     }
 }
 
@@ -148,7 +147,7 @@ async function handleLineLoginCallback(isSilent = false) {
             
             updateMemberUI();
             
-            // 清除網址列上的 LINE 追蹤碼，保持乾淨並防止重新整理時卡頓
+            // 清除網址列上的 LINE 追蹤碼，防重新整理卡頓
             if (window.location.search.includes('liff.state') || window.location.search.includes('code=')) {
                 window.history.replaceState(null, '', window.location.pathname + (window.location.hash || '#member-zone'));
             }
@@ -276,6 +275,10 @@ function buildHomeNavigation() {
 
 async function loadPage() {
     showPreloader(); 
+    
+    // 強制防呆，防止 fetch 掛掉
+    setTimeout(hidePreloader, 3000);
+    
     const hash = window.location.hash || '#news';
     const config = PAGE_CONFIG[hash] || PAGE_CONFIG['#news'];
 
@@ -417,15 +420,16 @@ async function loadPage() {
         if (config.sheet === '會員專屬影片') {
              res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'verifyAndGetCourses', credentials: credentials }) });
         } else {
-             res = await fetch(`${GAS_URL}?sheetName=${config.sheet}`);
+             // 恢復穩定版本的 fetchWithCache
+             const result = await fetchWithCache(config.sheet);
+             res = { json: async () => result }; 
         }
         const dataObj = await res.json();
         
         if (config.sheet === '美業資訊交流') {
-            const commentsRes = await fetch(`${GAS_URL}?sheetName=交流留言`);
-            const commentsData = await commentsRes.json();
-            if (commentsData.status === 'success' && commentsData.data.length > 1) {
-                window.currentCommentsCache = commentsData.data.slice(1);
+            const commentsRes = await fetchWithCache('交流留言');
+            if (commentsRes.status === 'success' && commentsRes.data.length > 1) {
+                window.currentCommentsCache = commentsRes.data.slice(1);
             } else {
                 window.currentCommentsCache = [];
             }
@@ -450,7 +454,7 @@ async function loadPage() {
             dataContainer.innerHTML = '<p style="text-align:center; width:100%; color:#7A7A7A;">目前尚無資料。</p>';
         }
     } catch (error) { 
-        dataContainer.innerHTML = '<p style="text-align:center; width:100%; color:red;">資料載入異常。</p>'; 
+        dataContainer.innerHTML = '<p style="text-align:center; width:100%; color:red;">資料載入異常，請稍後重試。</p>'; 
     } finally { 
         hidePreloader(); 
     }
@@ -705,7 +709,9 @@ function logoutMember() {
     sessionStorage.clear();
     
     try {
-        if (liff.id && liff.isLoggedIn()) { liff.logout(); }
+        if (typeof liff !== 'undefined' && liff.id && liff.isLoggedIn()) { 
+            liff.logout(); 
+        }
     } catch(e) {}
     
     alert('已登出。');
@@ -713,13 +719,18 @@ function logoutMember() {
     loadPage();
 }
 
-// 核心：點擊按鈕時才動態啟動 LIFF 並導航
 function setupMemberLogin() {
     const lineBtns = document.querySelectorAll('.line-login-trigger');
     lineBtns.forEach(btn => {
         btn.addEventListener('click', async () => {
             showPreloader();
             try {
+                if (typeof liff === 'undefined') {
+                    alert('系統載入異常，請重新整理網頁。');
+                    hidePreloader();
+                    return;
+                }
+                
                 if (!liff.id) {
                     await liff.init({ liffId: LIFF_ID });
                 }
