@@ -1,12 +1,12 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：快取引擎、前台路由、LIFF 基礎驗證、全模組智能排版 (專服於形象官網)
+ * 職責：快取引擎、前台路由、非阻塞背景初始化、全模組智能排版 (專服於形象官網)
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
 
-// 🔑 請填寫您的官方 LINE LIFF ID (供一般網頁登入使用)
+// 🔑 官方 LINE LIFF ID (供一般網頁登入使用)
 const LIFF_ID = '2012121201-DRHgrrOJ'; 
 
 const AUTH_EXPIRY_MS = 3 * 60 * 60 * 1000; 
@@ -48,10 +48,7 @@ function getSafeMemberInfo() {
         let info = localStorage.getItem('cia_member_info');
         if (info === 'undefined' || info === 'null') return null;
         return JSON.parse(info);
-    } catch(e) {
-        localStorage.removeItem('cia_member_info');
-        return null;
-    }
+    } catch(e) { localStorage.removeItem('cia_member_info'); return null; }
 }
 
 function getSafeCredentials() {
@@ -59,10 +56,7 @@ function getSafeCredentials() {
         let creds = localStorage.getItem('cia_member_credentials');
         if (creds === 'undefined' || creds === 'null') return null;
         return JSON.parse(creds);
-    } catch(e) {
-        localStorage.removeItem('cia_member_credentials');
-        return null;
-    }
+    } catch(e) { localStorage.removeItem('cia_member_credentials'); return null; }
 }
 
 function isAuthValid() {
@@ -102,25 +96,29 @@ const readFileAsBase64 = (file) => new Promise((res, rej) => {
     r.readAsDataURL(file); 
 });
 
-async function initSystem() {
-    try {
-        const countRes = await fetch(`${GAS_URL}?action=getVisitorCount`);
-        const countData = await countRes.json();
-        if(countData.status === 'success') {
-            const counterEl = document.getElementById('visitor-counter');
-            if(counterEl) counterEl.innerText = countData.count.toLocaleString();
-        }
-    } catch(e) {}
+// === 核心優化：非阻塞式背景載入 (解除無限 Loading 卡死) ===
+function initSystem() {
+    // 1. 背景載入計數器 (不阻擋主畫面)
+    fetch(`${GAS_URL}?action=getVisitorCount`)
+        .then(res => res.json())
+        .then(countData => {
+            if (countData.status === 'success') {
+                const counterEl = document.getElementById('visitor-counter');
+                if (counterEl) counterEl.innerText = countData.count.toLocaleString();
+            }
+        }).catch(e => console.log('計數器載入跳過', e));
 
-    try {
-        await liff.init({ liffId: LIFF_ID });
-        if (liff.isLoggedIn() && !getSafeCredentials()) {
-            handleLineLoginCallback(true); 
-        }
-    } catch (err) { 
-        console.error('LIFF 初始化跳過', err); 
-    }
-    
+    // 2. 背景初始化 LIFF (不阻擋主畫面)
+    liff.init({ liffId: LIFF_ID })
+        .then(() => {
+            if (liff.isLoggedIn() && !getSafeCredentials()) {
+                handleLineLoginCallback(true);
+            }
+        }).catch(err => {
+            console.error('LIFF 初始化跳過', err);
+        });
+        
+    // 3. 立即載入主頁面，瞬間解除 Logo 遮罩！
     loadPage();
 }
 
@@ -362,7 +360,6 @@ async function loadPage() {
             document.getElementById('e-fields').value = memberInfo.fields || '';
             document.getElementById('e-company').value = memberInfo.company || '';
             document.getElementById('e-jobtitle').value = memberInfo.jobTitle || '';
-            if(memberInfo.membership) document.getElementById('e-membership').value = memberInfo.membership;
 
             hidePreloader();
             return;
