@@ -303,7 +303,6 @@ async function loadPage() {
             return;
         }
         
-        // 核心對標：填寫前端表單
         if (config.isEditProfile) {
             editProfileContainer.style.display = 'block';
             document.getElementById('v-memberId').innerText = memberInfo.memberId || '審核中';
@@ -684,6 +683,7 @@ function setupMemberLogin() {
     });
 }
 
+// === 修改為防跑位手風琴選單 ===
 function setupMobileMenu() {
     const mobileBtn = document.getElementById('mobile-menu-btn');
     const mainNav = document.getElementById('main-nav-menu');
