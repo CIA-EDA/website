@@ -1,6 +1,6 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：快取引擎、前台路由、單一 LIFF 安全防呆驗證、全模組智能排版
+ * 職責：快取引擎、前台路由(首頁最新消息)、單一 LIFF 驗證、全模組智能排版
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
@@ -12,7 +12,6 @@ const LIFF_ID = '2012121201-XXXXXXXX'; // ⚠️ 請填寫您唯一的官方 LIN
 const AUTH_EXPIRY_MS = 3 * 60 * 60 * 1000; 
 const CACHE_EXPIRY_MS = 5 * 60 * 1000; 
 
-// === 更新：首頁預設為最新消息，並分割課程模組 ===
 const PAGE_CONFIG = {
     '': { title: '最新消息', subtitle: '掌握協會最新動態與公告。', sheet: '最新消息', layout: 'card' },
     '#home': { title: '最新消息', subtitle: '掌握協會最新動態與公告。', sheet: '最新消息', layout: 'card' },
@@ -51,26 +50,19 @@ function getCleanTime() {
     return now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
 }
 
-// === 核心防呆處理：安全抓取快取資料 ===
 function getSafeMemberInfo() {
     try {
         let info = localStorage.getItem('cia_member_info');
         if (info === 'undefined' || info === 'null') return null;
         return JSON.parse(info);
-    } catch(e) {
-        localStorage.removeItem('cia_member_info');
-        return null;
-    }
+    } catch(e) { localStorage.removeItem('cia_member_info'); return null; }
 }
 function getSafeCredentials() {
     try {
         let creds = localStorage.getItem('cia_member_credentials');
         if (creds === 'undefined' || creds === 'null') return null;
         return JSON.parse(creds);
-    } catch(e) {
-        localStorage.removeItem('cia_member_credentials');
-        return null;
-    }
+    } catch(e) { localStorage.removeItem('cia_member_credentials'); return null; }
 }
 
 function isAuthValid() {
@@ -133,13 +125,9 @@ async function initSystem() {
                 handleLineLoginCallback(true); 
             }
         }
-    } catch (err) { 
-        console.error('LIFF 初始化跳過', err); 
-        hidePreloader(); // 確保不會卡死
-    }
+    } catch (err) { console.error('LIFF 初始化跳過', err); hidePreloader(); }
 }
 
-// 核心修復：強制轉跳與防呆
 async function handleLineLoginCallback(isSilent = false) {
     if (!isSilent) showPreloader();
     try {
@@ -209,18 +197,8 @@ document.addEventListener('DOMContentLoaded', () => {
     loadPage();
 });
 
-function showPreloader() { 
-    const p = document.getElementById('preloader'); 
-    if(p) { p.style.display = 'flex'; p.style.visibility = 'visible'; p.style.opacity = '1'; }
-}
-function hidePreloader() { 
-    const p = document.getElementById('preloader'); 
-    if(p) {
-        p.style.opacity = '0'; 
-        p.style.visibility = 'hidden'; 
-        setTimeout(() => { p.style.display = 'none'; }, 300); 
-    }
-}
+function showPreloader() { const p = document.getElementById('preloader'); if(p) { p.style.display = 'flex'; p.style.visibility = 'visible'; p.style.opacity = '1'; } }
+function hidePreloader() { const p = document.getElementById('preloader'); if(p) { p.style.opacity = '0'; p.style.visibility = 'hidden'; setTimeout(() => { p.style.display = 'none'; }, 300); } }
 
 function buildMemberDashboard(memberInfo) {
     let avatarHtml = memberInfo.avatar ? `<img src="${memberInfo.avatar}" style="width:60px; height:60px; border-radius:50%; vertical-align:middle; margin-right:15px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">` : '';
@@ -246,6 +224,17 @@ function buildMemberDashboard(memberInfo) {
     `;
 }
 
+// 核心：首頁下方加入綜合導航
+function buildHomeNavigation() {
+    return `
+        <div class="home-nav-grid">
+            <a href="#gallery" class="home-nav-card"><div class="home-nav-icon">📸</div><div class="home-nav-title">活動花絮</div></a>
+            <a href="#team" class="home-nav-card"><div class="home-nav-icon">🎓</div><div class="home-nav-title">專業師資</div></a>
+            <a href="#consultants" class="home-nav-card"><div class="home-nav-icon">🏆</div><div class="home-nav-title">專業顧問</div></a>
+        </div>
+    `;
+}
+
 async function loadPage() {
     showPreloader(); 
     const hash = window.location.hash || '#news';
@@ -267,6 +256,7 @@ async function loadPage() {
     const editProfileContainer = document.getElementById('edit-profile-container');
     const joinPromptContainer = document.getElementById('join-prompt-container'); 
     const actionContainer = document.getElementById('action-container'); 
+    const homeNavContainer = document.getElementById('home-nav-container');
 
     if(!dataContainer) { hidePreloader(); return; }
 
@@ -275,6 +265,8 @@ async function loadPage() {
     if(profileContainer) profileContainer.style.display = 'none';
     if(editProfileContainer) editProfileContainer.style.display = 'none';
     if(joinPromptContainer) joinPromptContainer.style.display = 'none';
+    if(homeNavContainer) homeNavContainer.style.display = 'none';
+    
     actionContainer.style.display = 'none';
     actionContainer.innerHTML = '';
     dataContainer.innerHTML = '';
@@ -380,6 +372,13 @@ async function loadPage() {
                 finalData.unshift(headers);
             }
             renderData(finalData, config.layout, dataContainer);
+            
+            // 首頁附加綜合導航區
+            if ((hash === '' || hash === '#news' || hash === '#home') && homeNavContainer) {
+                homeNavContainer.style.display = 'block';
+                homeNavContainer.innerHTML = buildHomeNavigation();
+            }
+
         } else {
             dataContainer.innerHTML = '<p style="text-align:center; width:100%; color:#7A7A7A;">目前尚無資料。</p>';
         }
@@ -670,13 +669,25 @@ function setupMobileMenu() {
     const mobileBtn = document.getElementById('mobile-menu-btn');
     const mainNav = document.getElementById('main-nav-menu');
     if (mobileBtn && mainNav) {
-        mobileBtn.addEventListener('click', () => mainNav.classList.toggle('show'));
-        mainNav.querySelectorAll('a:not(.dropdown-toggle)').forEach(link => { link.addEventListener('click', () => mainNav.classList.remove('show')); });
+        mobileBtn.addEventListener('click', () => {
+            mainNav.classList.toggle('show');
+            // 如果點開主選單，確保所有子選單預設是收合的
+            document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('mobile-active'));
+        });
         
+        // 點擊一般連結時收合整個選單
+        mainNav.querySelectorAll('a:not(.dropdown-toggle)').forEach(link => { 
+            link.addEventListener('click', () => mainNav.classList.remove('show')); 
+        });
+        
+        // 手機版樹枝圖展開/收合防跑位邏輯
         const dropdowns = document.querySelectorAll('.dropdown-toggle');
         dropdowns.forEach(dropdown => {
             dropdown.addEventListener('click', (e) => {
                 if (window.innerWidth <= 768) {
+                    // 關閉其他的下拉選單
+                    dropdowns.forEach(d => { if (d !== dropdown) d.classList.remove('mobile-active'); });
+                    // 切換目前的下拉選單
                     dropdown.classList.toggle('mobile-active');
                 }
             });
@@ -819,7 +830,7 @@ window.openDetailModal = function(index) {
     if (item['發佈日期'] && item['相關連結']) {
         desc = `📅 發佈日期：${item['發佈日期']}\n\n${desc}`;
     } else if (item['徵才機構']) {
-        desc = `🏢 機構：${item['徵才機構']}\n📍 地點：${item['工作地點']}\n💰 薪滿：${item['薪資待遇']}\n📞 聯絡：${item['聯絡方式']}\n\n【條件要求】\n${item['條件要求']}`;
+        desc = `🏢 機構：${item['徵才機構']}\n📍 地點：${item['工作地點']}\n💰 薪資：${item['薪資待遇']}\n📞 聯絡：${item['聯絡方式']}\n\n【條件要求】\n${item['條件要求']}`;
     } else if (item['發文者姓名']) {
         desc = `👤 發文者：${item['發文者姓名']}\n🕒 時間：${item['發文時間']}\n\n${item['交流內容']}`;
         extraHtml = buildCommentsHtml(item['主旨/標題']||'', item['發文時間']||'', index, true);
