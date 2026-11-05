@@ -91,7 +91,6 @@ async function fetchWithCache(sheetName) {
 
 const readFileAsBase64 = (file) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.readAsDataURL(file); });
 
-// === 核心：還原標準網站的啟動流程，拔除強制跳轉 ===
 async function initSystem() {
     try {
         const countRes = await fetch(`${GAS_URL}?action=getVisitorCount`);
@@ -104,7 +103,6 @@ async function initSystem() {
 
     try {
         await liff.init({ liffId: LIFF_ID });
-        // 在形象網站中，我們只用 LIFF 來執行「按鈕登入」與「登入回呼」，不再自動跳轉
         if (liff.isLoggedIn() && !getSafeCredentials()) {
             handleLineLoginCallback(true); 
         }
@@ -135,7 +133,7 @@ async function handleLineLoginCallback(isSilent = false) {
             if (data.member.needsProfileCompletion && window.location.hash !== '#join') {
                 window.location.hash = '#join';
             } else if (!isSilent && window.location.hash !== '#member-zone') {
-                window.location.hash = '#member-zone'; // 手動登入成功後，帶去會員大廳
+                window.location.hash = '#member-zone'; 
             }
             loadPage();
         } else {
@@ -305,16 +303,35 @@ async function loadPage() {
             return;
         }
         
+        // 核心對標：填寫前端表單
         if (config.isEditProfile) {
             editProfileContainer.style.display = 'block';
+            document.getElementById('v-memberId').innerText = memberInfo.memberId || '審核中';
+            document.getElementById('v-level').innerText = memberInfo.level || '一般會員';
+            document.getElementById('v-expiry').innerText = memberInfo.expiryDate ? new Date(memberInfo.expiryDate).toISOString().split('T')[0] : '無';
+            document.getElementById('v-status').innerText = memberInfo.memberStatus || '待審核';
+
             document.getElementById('e-name-zh').value = memberInfo.name || '';
             document.getElementById('e-name-en').value = memberInfo.nameEn || '';
             if(memberInfo.gender) document.getElementById('e-gender').value = memberInfo.gender;
-            if(memberInfo.birth) document.getElementById('e-birth').value = new Date(memberInfo.birth).toISOString().split('T')[0];
+            
+            if(memberInfo.birth) {
+                try { document.getElementById('e-birth').value = new Date(memberInfo.birth).toISOString().split('T')[0]; } 
+                catch(e) { document.getElementById('e-birth').value = ''; }
+            }
+            
+            document.getElementById('e-id').value = memberInfo.idNum || '';
             document.getElementById('e-phone').value = memberInfo.phone || '';
             document.getElementById('e-line').value = memberInfo.lineId || '';
             document.getElementById('e-email').value = memberInfo.email || '';
             document.getElementById('e-address').value = memberInfo.address || '';
+            
+            if(memberInfo.edu) document.getElementById('e-edu').value = memberInfo.edu;
+            document.getElementById('e-fields').value = memberInfo.fields || '';
+            document.getElementById('e-company').value = memberInfo.company || '';
+            document.getElementById('e-jobtitle').value = memberInfo.jobTitle || '';
+            if(memberInfo.membership) document.getElementById('e-membership').value = memberInfo.membership;
+
             hidePreloader();
             return;
         }
@@ -507,10 +524,16 @@ function setupEditProfileForm() {
             nameEn: document.getElementById('e-name-en').value.trim(),
             gender: document.getElementById('e-gender').value,
             birth: document.getElementById('e-birth').value,
+            idNum: document.getElementById('e-id').value.trim(),
             phone: document.getElementById('e-phone').value.trim(),
             line: document.getElementById('e-line').value.trim(),
             email: document.getElementById('e-email').value.trim(),
-            address: document.getElementById('e-address').value.trim()
+            address: document.getElementById('e-address').value.trim(),
+            edu: document.getElementById('e-edu').value,
+            fields: document.getElementById('e-fields').value.trim(),
+            company: document.getElementById('e-company').value.trim(),
+            jobTitle: document.getElementById('e-jobtitle').value.trim(),
+            membership: document.getElementById('e-membership').value
         };
 
         submitBtn.innerText = '更新資料中...'; submitBtn.disabled = true;
@@ -522,13 +545,11 @@ function setupEditProfileForm() {
             });
             
             let memberInfo = getSafeMemberInfo();
-            memberInfo.nameEn = profileData.nameEn;
-            memberInfo.gender = profileData.gender;
-            memberInfo.birth = profileData.birth;
-            memberInfo.phone = profileData.phone;
-            memberInfo.lineId = profileData.line;
-            memberInfo.email = profileData.email;
-            memberInfo.address = profileData.address;
+            Object.assign(memberInfo, {
+                nameEn: profileData.nameEn, gender: profileData.gender, birth: profileData.birth, idNum: profileData.idNum, 
+                phone: profileData.phone, lineId: profileData.line, email: profileData.email, address: profileData.address,
+                edu: profileData.edu, fields: profileData.fields, company: profileData.company, jobTitle: profileData.jobTitle, membership: profileData.membership
+            });
             localStorage.setItem('cia_member_info', JSON.stringify(memberInfo));
             
             alert('個人資料更新成功！');
@@ -655,7 +676,6 @@ function setupMemberLogin() {
     lineBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             if (!liff.isLoggedIn()) {
-                // 明確指定回調網址為形象網站
                 liff.login({ redirectUri: window.location.href });
             } else {
                 handleLineLoginCallback();
@@ -668,18 +688,15 @@ function setupMobileMenu() {
     const mobileBtn = document.getElementById('mobile-menu-btn');
     const mainNav = document.getElementById('main-nav-menu');
     if (mobileBtn && mainNav) {
-        // 切換主選單
         mobileBtn.addEventListener('click', () => {
             mainNav.classList.toggle('show');
             document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('mobile-active'));
         });
         
-        // 點擊一般連結收合
         mainNav.querySelectorAll('a:not(.dropdown-toggle)').forEach(link => { 
             link.addEventListener('click', () => mainNav.classList.remove('show')); 
         });
         
-        // 手機版下拉選單 (垂直手風琴防擠壓)
         const dropdowns = document.querySelectorAll('.dropdown-toggle');
         dropdowns.forEach(dropdown => {
             dropdown.addEventListener('click', (e) => {
