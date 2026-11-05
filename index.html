@@ -49,7 +49,6 @@
         .hero-section { padding: 80px 40px; text-align: center; background-color: var(--secondary-color); }
         .content-section { padding: 50px 8%; background-color: #ffffff; min-height: 40vh; position: relative;}
         
-        /* 圖片等比縮小不放大 */
         .course-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; margin-top: 30px; }
         .course-card { border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.03); display: flex; flex-direction: column; height: 100%; }
         .course-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
@@ -92,22 +91,19 @@
         .submit-btn-full { width: 100%; padding: 15px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; transition: 0.3s; font-size: 16px; font-weight: bold; margin-top: 10px; }
         .submit-btn-full:hover { background: #967a4a; box-shadow: 0 4px 15px rgba(184, 149, 90, 0.4); }
 
-        /* === 核心修復：手機版垂直手風琴選單 === */
+        /* 手機版垂直手風琴選單 (修復跑版問題) */
         @media (max-width: 768px) {
             header { padding: 10px 20px; position: sticky; top: 0; background-color: var(--mist-rose); z-index: 9999; }
             .brand-logo-img { height: 40px; }
             .menu-toggle { display: block; }
             
-            /* 手機主選單容器 */
             .main-nav { display: none; flex-direction: column; position: fixed; top: 60px; left: 0; width: 100%; height: calc(100vh - 60px); overflow-y: auto; background-color: var(--mist-rose); padding: 20px 0 100px 0; gap: 15px; box-shadow: 0 10px 15px rgba(0,0,0,0.1); z-index: 9998; box-sizing: border-box; justify-content: flex-start; }
             .main-nav.show { display: flex; align-items: center; } 
             
             .candy-btn { width: 85%; max-width: 350px; font-size: 15px; border-radius: 8px; margin: 0 auto; padding: 12px; text-align: center; }
             
-            /* 手機版下拉選單改為靜態向下展開，推擠下方元素 */
             .dropdown { width: 85%; max-width: 350px; margin: 0 auto; }
             .dropdown > .candy-btn { width: 100%; margin: 0; } 
-            /* 隱藏 hover 效果，統一用 JS 的 .mobile-active 處理 */
             .dropdown:hover .dropdown-content { visibility: hidden; opacity: 0; display: none; }
             
             .dropdown-content { position: static; visibility: visible; opacity: 1; transform: none; box-shadow: none; border: none; background: rgba(255,255,255,0.6); padding: 5px; display: none; margin-top: 5px; border-radius: 8px; width: 100%; box-sizing: border-box; }
@@ -250,7 +246,15 @@
             <div id="edit-profile-container" style="display: none; max-width: 800px; margin: 0 auto;">
                 <div class="form-section">
                     <button onclick="window.location.hash='#member-zone'" style="background:none; border:none; color:var(--taupe); cursor:pointer; font-size:14px; margin-bottom:15px; padding:0;">← 返回大廳</button>
-                    <h2 style="color:var(--ink-navy); text-align:center; margin-top:0;">修改個人設定</h2>
+                    <h2 style="color:var(--ink-navy); text-align:center; margin-top:0;">會員詳細資料與設定</h2>
+                    
+                    <div style="background: var(--pearl); padding: 20px; border-radius: 8px; margin-bottom: 25px; font-size: 14px; line-height: 1.8; border-left: 4px solid var(--champagne);">
+                        <strong style="color:var(--ink-navy); font-size: 16px;">💎 我的會籍資訊</strong><br>
+                        <span>會員編號：</span><strong id="v-memberId" style="color:var(--champagne);"></strong><br>
+                        <span>會員等級：</span><strong id="v-level"></strong><br>
+                        <span>帳號狀態：</span><strong id="v-status"></strong>
+                    </div>
+
                     <p style="text-align:center; color:var(--text-light); font-size:14px; margin-bottom:20px;">更新您的聯絡資訊，保持會員通訊順暢。</p>
                     <div class="form-row">
                         <div class="form-group"><label>真實姓名 (不可更改)</label><input type="text" id="e-name-zh" class="input-field" disabled style="background:#eee;"></div>
