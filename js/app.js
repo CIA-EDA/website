@@ -1,12 +1,12 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：快取引擎、前台路由、純按鈕觸發式 LINE 登入 (保障形象官網秒開)、全模組智能排版
+ * 職責：快取引擎、前台路由、純按鈕觸發式 LINE 登入 (保障形象官網秒開)
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
 
-// 🔑 官方 LINE LIFF ID (供形象網頁點擊登入時使用)
+// 🔑 官方 LINE LIFF ID (供形象網頁點擊登入時使用) - 依照要求更新為對應的 ID
 const LIFF_ID = '2012121201-DRHgrrOJ'; 
 
 const AUTH_EXPIRY_MS = 3 * 60 * 60 * 1000; 
@@ -27,7 +27,7 @@ const PAGE_CONFIG = {
     '#stores': { title: '認證店家', subtitle: 'CIA-EDA 嚴選認證，提供高品質的美業服務體驗。', sheet: '認證店家', layout: 'card' },
     '#jobs': { title: '徵才專區', subtitle: '網羅最新美業職缺與招募資訊，助您找到最適合的舞台。', sheet: '徵才專區', layout: 'card' },
     '#exchange': { title: '美業資訊交流', subtitle: '會員專屬交流天地，分享最新資訊與技術探討。', sheet: '美業資訊交流', layout: 'card' },
-    '#brands': { title: '品牌推廣與合作', subtitle: '嚴選業界頂尖品牌，共創美業生態圈。', sheet: '品牌推廣', layout: 'card' },
+    '#brands': { title: '品牌推廣與合作', subtitle: '嚴選業界頂尖品牌，共創美業生態圈。', sheet: '品牌推廣', layout: 'brand' }, // ★ 改用專屬 brand 版型
     '#join': { title: '入會申請', subtitle: '歡迎加入中華國際美學教育發展協會。為保障您的權益，請詳實填寫以下資料。', isJoinIntent: true },
     '#member-zone': { title: '會員專屬大廳', subtitle: '掌握最新行業動態與您的專屬權限', isMember: true },
     '#edit-profile': { title: '修改個人設定', subtitle: '保持最新的聯絡資訊，確保會員權益', isEditProfile: true }
@@ -96,15 +96,11 @@ const readFileAsBase64 = (file) => new Promise((res, rej) => {
     r.readAsDataURL(file); 
 });
 
-// === 核心調整：拔除自動初始化的綁架行為，保證網頁秒開 ===
 function initSystem() {
-    // 1. 強制防呆，2.5秒後絕對解除遮罩
     setTimeout(hidePreloader, 2500);
     
-    // 2. 瞬間開始載入網頁資料，不等任何人
     loadPage();
 
-    // 3. 背景默默抓取造訪人次 (不影響主畫面)
     fetch(`${GAS_URL}?action=getVisitorCount`)
         .then(res => res.json())
         .then(countData => {
@@ -114,7 +110,6 @@ function initSystem() {
             }
         }).catch(e => console.log('計數器跳過'));
 
-    // 4. 只有當網址出現 LINE 的登入回傳碼 (代表剛登入完跳轉回來) 時，才啟動 LIFF 處理資料
     const urlSearch = window.location.search;
     if (urlSearch.includes('liff.state') || urlSearch.includes('code=')) {
         showPreloader();
@@ -132,7 +127,6 @@ function initSystem() {
     }
 }
 
-// 核心調整：只有當會員點擊「LINE 一鍵登入」時，才動態呼叫 LINE
 function setupMemberLogin() {
     const lineBtns = document.querySelectorAll('.line-login-trigger');
     lineBtns.forEach(btn => {
@@ -145,13 +139,11 @@ function setupMemberLogin() {
                     return;
                 }
                 
-                // 動態啟動 LIFF SDK
                 if (!liff.id) {
                     await liff.init({ liffId: LIFF_ID });
                 }
                 
                 if (!liff.isLoggedIn()) {
-                    // 強制綁定回傳網址為形象網站 (過濾掉可能的參數)
                     liff.login({ redirectUri: window.location.href.split('?')[0] });
                 } else {
                     handleLineLoginCallback();
@@ -181,7 +173,6 @@ async function handleLineLoginCallback(isSilent = false) {
             
             updateMemberUI();
             
-            // 清除網址列上的 LINE 追蹤碼，保持乾淨
             if (window.location.search.includes('liff.state') || window.location.search.includes('code=')) {
                 window.history.replaceState(null, '', window.location.pathname + (window.location.hash || '#member-zone'));
             }
@@ -310,7 +301,6 @@ function buildHomeNavigation() {
 async function loadPage() {
     showPreloader(); 
     
-    // 超級防呆：3秒後強制解鎖載入畫面
     setTimeout(hidePreloader, 3000);
     
     const hash = window.location.hash || '#news';
@@ -446,7 +436,15 @@ async function loadPage() {
         return;
     }
 
-    dataContainer.style.display = 'grid'; 
+    // ★ 如果是品牌推廣，改用 grid 排版，每列三個，不使用一般卡片
+    if (config.layout === 'brand') {
+        dataContainer.style.display = 'grid'; 
+        dataContainer.style.gridTemplateColumns = 'repeat(auto-fit, minmax(280px, 1fr))';
+        dataContainer.style.gap = '20px';
+    } else {
+        dataContainer.style.display = 'grid'; 
+    }
+
     try {
         const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
         let res;
@@ -525,7 +523,7 @@ function renderData(rawData, layoutType, container) {
     const headers = rawData[0];
     currentViewDataCache = []; 
     
-    let html = layoutType === 'article' ? '<div style="max-width: 800px; margin: 0 auto; width:100%;">' : '<div class="course-grid" style="width:100%;">';
+    let html = layoutType === 'article' ? '<div style="max-width: 800px; margin: 0 auto; width:100%;">' : (layoutType === 'brand' ? '' : '<div class="course-grid" style="width:100%;">');
     
     for (let i = 1; i < rawData.length; i++) {
         let item = {};
@@ -539,8 +537,20 @@ function renderData(rawData, layoutType, container) {
         const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || item['產品logo及圖檔'] || item['公司Logo或環境照片'] || item['附圖網址'] || item['封面圖片網址'] || '';
         const linkRaw = item['報名連結'] || item['專屬付款網址'] || item['連結'] || item['專屬報名網址'] || item['相關連結'] || ''; 
         
+        // ★ 核心：針對品牌推廣 (brand) 只輸出純圖片圓角超連結
+        if (layoutType === 'brand') {
+            if (imgRaw) {
+                const optimizedUrl = optimizeImageUrl(imgRaw.split(',')[0].trim());
+                html += `
+                    <a href="${linkRaw || '#'}" target="${linkRaw ? '_blank' : '_self'}" style="display:block; border-radius:16px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.08); transition:0.3s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                        <img src="${optimizedUrl}" alt="${title}" style="width:100%; height:auto; display:block; object-fit:cover;">
+                    </a>
+                `;
+            }
+            continue; // 跳過後續一般卡片的組裝
+        }
+        
         let extraHtml = ''; 
-
         if (item['發佈日期']) {
             extraHtml = `<div style="font-size:12px; color:var(--champagne); margin-bottom:5px; font-weight:bold;">發佈日期：${item['發佈日期']}</div>`;
             if(linkRaw) extraHtml += `<a href="${linkRaw}" target="_blank" class="candy-btn payment-btn" style="margin-top:15px; padding:10px;">查看相關連結</a>`;
@@ -605,7 +615,7 @@ function renderData(rawData, layoutType, container) {
             }
         }
     }
-    html += '</div>';
+    if (layoutType !== 'article' && layoutType !== 'brand') html += '</div>';
     container.innerHTML = html;
 }
 
@@ -957,52 +967,4 @@ function logoutMember() {
     alert('已登出。');
     window.location.hash = '#news';
     loadPage();
-}
-
-function setupMobileMenu() {
-    const mobileBtn = document.getElementById('mobile-menu-btn');
-    const mainNav = document.getElementById('main-nav-menu');
-    if (mobileBtn && mainNav) {
-        mobileBtn.addEventListener('click', () => {
-            mainNav.classList.toggle('show');
-            document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('mobile-active'));
-        });
-        
-        mainNav.querySelectorAll('a:not(.dropdown-toggle)').forEach(link => { 
-            link.addEventListener('click', () => mainNav.classList.remove('show')); 
-        });
-        
-        const dropdowns = document.querySelectorAll('.dropdown-toggle');
-        dropdowns.forEach(dropdown => {
-            dropdown.addEventListener('click', (e) => {
-                if (window.innerWidth <= 768) {
-                    dropdowns.forEach(d => { if (d !== dropdown) d.classList.remove('mobile-active'); });
-                    dropdown.classList.toggle('mobile-active');
-                }
-            });
-        });
-    }
-}
-
-function optimizeImageUrl(url) {
-    if (url.includes('drive.google.com') && !url.includes('thumbnail')) {
-        const idMatch = url.match(/id=([^&]+)/);
-        if (idMatch && idMatch[1]) return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w800`;
-    }
-    return url;
-}
-
-function generateImageHTML(imgString) {
-    const rawUrls = imgString.split(',').map(u => u.trim()).filter(u => u);
-    if (rawUrls.length === 0) return '';
-    
-    const urls = rawUrls.map(url => optimizeImageUrl(url));
-    if (urls.length === 1) {
-        return `<div class="img-wrapper"><img src="${urls[0]}" alt="Image"></div>`;
-    }
-    
-    let html = `<div class="img-wrapper"><div class="carousel-container">`;
-    urls.forEach(url => { html += `<img src="${url}" alt="Image">`; });
-    html += `</div></div><div class="carousel-hint">← 左右滑動查看多圖 →</div>`;
-    return html;
 }
