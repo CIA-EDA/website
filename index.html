@@ -32,18 +32,18 @@
         .member-btn { background: linear-gradient(135deg, var(--ink-navy) 0%, #3a4a6b 100%); color: #fff !important; }
         .line-btn { background: #06C755; color: white !important; border: none; box-shadow: 0 4px 10px rgba(6, 199, 85, 0.3); margin-top: 15px; }
 
+        /* 電腦版選單樣式保留 */
         .dropdown { position: relative; display: inline-block; }
         .dropdown-content { visibility: hidden; opacity: 0; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); background-color: rgba(255,255,255,0.95); min-width: 160px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); border-radius: 12px; padding: 10px 0; z-index: 10000; transition: 0.3s; border: 1px solid #eee; backdrop-filter: blur(10px); }
         .dropdown:hover .dropdown-content { visibility: visible; opacity: 1; transform: translateX(-50%) translateY(5px); }
         .dropdown-content a { color: var(--ink-navy) !important; padding: 12px 20px; text-decoration: none; display: block; font-size: 14px; font-weight: 500; transition: 0.2s; text-align: center; border-radius: 0; box-shadow: none; border: none; background: transparent; }
         .dropdown-content a:hover { background-color: var(--mist-rose); color: var(--ink-navy); transform: none; }
-        .dropdown-toggle::after { content: ' ▼'; font-size: 10px; margin-left: 3px; }
+        .dropdown-toggle::after { content: ' ▼'; font-size: 10px; margin-left: 3px; display: inline-block; transition: transform 0.3s; }
 
         .floating-contact-btn { position: fixed; bottom: 30px; right: 30px; z-index: 9998; cursor: pointer; background: linear-gradient(135deg, var(--champagne) 0%, #967a4a 100%); color: #fff; box-shadow: 0 6px 15px rgba(184, 149, 90, 0.4); border: 1px solid rgba(255,255,255,0.3); border-radius: 50px; padding: 15px 25px; transition: 0.3s; font-weight: bold; }
         
         .hero-section { padding: 80px 40px; text-align: center; background-color: var(--secondary-color); }
         
-        /* === 全新 4 等分網格系統 === */
         .responsive-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 30px; margin-top: 20px; width: 100%; box-sizing: border-box; }
         
         .course-card { border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.03); display: flex; flex-direction: column; height: 100%; }
@@ -87,32 +87,40 @@
         .submit-btn-full { width: 100%; padding: 15px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; transition: 0.3s; font-size: 16px; font-weight: bold; margin-top: 10px; }
         .submit-btn-full:hover { background: #967a4a; box-shadow: 0 4px 15px rgba(184, 149, 90, 0.4); }
 
+        /* === 重大修復：手機版手風琴選單 === */
         @media (max-width: 768px) {
             header { padding: 15px 20px; position: sticky; top: 0; background-color: var(--mist-rose); z-index: 9999; }
             .brand-logo-img { height: 40px; }
             .menu-toggle { display: block; }
             
             .main-nav { 
-                display: none; 
+                /* 隱藏主選單時將高度歸零 */
+                max-height: 0;
+                overflow: hidden;
                 flex-direction: column; 
                 width: 100%; 
                 flex-basis: 100%; 
-                margin-top: 15px; 
-                padding-top: 15px; 
-                border-top: 1px solid rgba(0,0,0,0.05); 
-                gap: 10px; 
-                background: transparent;
-                box-shadow: none;
-                position: static;
+                background: var(--mist-rose);
+                position: absolute;
+                top: 100%; /* 接在 header 下方 */
+                left: 0;
+                transition: max-height 0.3s ease-in-out;
+                box-shadow: 0 10px 15px rgba(0,0,0,0.1);
             }
-            .main-nav.show { display: flex; } 
+            .main-nav.show { max-height: 80vh; /* 展開時的高度 */ overflow-y: auto; } 
             
-            .candy-btn { width: 100%; font-size: 15px; border-radius: 8px; margin: 0; padding: 12px; box-sizing: border-box; text-align: center; display: block; }
+            .nav-item-container { padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,0.3); text-align: center; }
             
-            .dropdown { width: 100%; margin: 0; display: block; }
-            .dropdown > .candy-btn { width: 100%; margin: 0; } 
+            .candy-btn { width: 100%; max-width: 300px; font-size: 16px; border-radius: 12px; margin: 0 auto; padding: 14px; box-sizing: border-box; text-align: center; display: block; }
+            
+            /* 下拉選單母層 */
+            .dropdown { width: 100%; margin: 0; display: block; position: static; }
+            .dropdown > .candy-btn { width: 100%; max-width: 300px; margin: 0 auto; } 
+            
+            /* 取消 hover 觸發，改為 js 控制 class */
             .dropdown:hover .dropdown-content { display: none; }
             
+            /* 下拉子選單：利用 max-height 做平滑展開 */
             .dropdown-content { 
                 position: static; 
                 visibility: visible; 
@@ -121,15 +129,24 @@
                 box-shadow: none; 
                 border: none; 
                 background: rgba(255,255,255,0.6); 
-                padding: 5px; 
-                display: none; 
-                margin-top: 5px; 
-                border-radius: 8px; 
+                padding: 0; 
+                margin: 0 auto; 
+                max-width: 300px;
+                border-radius: 0 0 12px 12px; 
                 width: 100%; 
                 box-sizing: border-box; 
+                
+                max-height: 0;
+                overflow: hidden;
+                transition: max-height 0.3s ease-in-out, padding 0.3s ease-in-out, margin 0.3s ease-in-out;
             }
-            .dropdown.mobile-active .dropdown-content { display: block; }
-            .dropdown-content a { padding: 12px; font-size: 14px; border-bottom: 1px solid rgba(0,0,0,0.05); display: block; }
+            /* JS 加上 mobile-active 時展開 */
+            .dropdown.mobile-active .dropdown-content { max-height: 300px; padding: 10px 5px; margin-top: -10px; }
+            
+            /* 箭頭旋轉動畫 */
+            .dropdown.mobile-active .dropdown-toggle::after { transform: rotate(180deg); }
+            
+            .dropdown-content a { padding: 12px; font-size: 15px; border-bottom: 1px dashed rgba(0,0,0,0.1); display: block; color: var(--ink-navy); text-decoration: none; }
             .dropdown-content a:last-child { border-bottom: none; }
             
             .hero-title { font-size: 24px !important; }
@@ -152,40 +169,46 @@
         <a href="#news"><img src="images/CIAEDA_直式標準_標準彩色.png" alt="Logo" class="brand-logo-img"></a>
         <div class="menu-toggle" id="mobile-menu-btn">☰</div>
         <nav class="main-nav" id="main-nav-menu">
-            <a href="#news" class="candy-btn nav-link">最新消息</a>
+            <div class="nav-item-container"><a href="#news" class="candy-btn nav-link">最新消息</a></div>
             
-            <div class="dropdown candy-btn nav-link dropdown-toggle" style="cursor: pointer;">
-                課程與培訓
-                <div class="dropdown-content">
-                    <a href="#courses" class="nav-link">課程總覽</a>
-                    <a href="#courses-gov" class="nav-link">政府補助課程</a>
-                    <a href="#courses-self" class="nav-link">其他自費課程</a>
-                    <a href="#course-platform" class="nav-link">線上課程平台</a>
+            <div class="nav-item-container">
+                <div class="dropdown">
+                    <div class="candy-btn nav-link dropdown-toggle" style="cursor: pointer;">課程與培訓</div>
+                    <div class="dropdown-content">
+                        <a href="#courses" class="nav-link">課程總覽</a>
+                        <a href="#courses-gov" class="nav-link">政府補助課程</a>
+                        <a href="#courses-self" class="nav-link">其他自費課程</a>
+                        <a href="#course-platform" class="nav-link">線上課程平台</a>
+                    </div>
                 </div>
             </div>
             
-            <div class="dropdown candy-btn nav-link dropdown-toggle" style="cursor: pointer;">
-                關於協會
-                <div class="dropdown-content">
-                    <a href="#about" class="nav-link">協會介紹</a>
-                    <a href="#gallery" class="nav-link">活動花絮</a>
-                    <a href="#team" class="nav-link">專業師資</a>
-                    <a href="#consultants" class="nav-link">專業顧問</a>
+            <div class="nav-item-container">
+                <div class="dropdown">
+                    <div class="candy-btn nav-link dropdown-toggle" style="cursor: pointer;">關於協會</div>
+                    <div class="dropdown-content">
+                        <a href="#about" class="nav-link">協會介紹</a>
+                        <a href="#gallery" class="nav-link">活動花絮</a>
+                        <a href="#team" class="nav-link">專業師資</a>
+                        <a href="#consultants" class="nav-link">專業顧問</a>
+                    </div>
                 </div>
             </div>
             
-            <div class="dropdown candy-btn nav-link dropdown-toggle" style="cursor: pointer;">
-                交流區
-                <div class="dropdown-content">
-                    <a href="#stores" class="nav-link">認證店家</a>
-                    <a href="#jobs" class="nav-link">徵才專區</a>
-                    <a href="#exchange" class="nav-link">美業資訊交流</a>
+            <div class="nav-item-container">
+                <div class="dropdown">
+                    <div class="candy-btn nav-link dropdown-toggle" style="cursor: pointer;">交流區</div>
+                    <div class="dropdown-content">
+                        <a href="#stores" class="nav-link">認證店家</a>
+                        <a href="#jobs" class="nav-link">徵才專區</a>
+                        <a href="#exchange" class="nav-link">美業資訊交流</a>
+                    </div>
                 </div>
             </div>
             
-            <a href="#brands" class="candy-btn nav-link">品牌推廣</a>
-            <a href="#join" class="candy-btn nav-link">入會申請</a>
-            <a href="#member-zone" class="candy-btn nav-link member-btn" id="nav-member-btn">👤 會員登入</a>
+            <div class="nav-item-container"><a href="#brands" class="candy-btn nav-link">品牌推廣</a></div>
+            <div class="nav-item-container"><a href="#join" class="candy-btn nav-link">入會申請</a></div>
+            <div class="nav-item-container"><a href="#member-zone" class="candy-btn nav-link member-btn" id="nav-member-btn">👤 會員登入</a></div>
         </nav>
     </header>
 
@@ -374,13 +397,9 @@
         <p style="color: var(--ink-navy); font-size: 13px; margin: 0;">&copy; 2026 中華國際美學教育發展協會 CIA-EDA. All Rights Reserved.</p>
     </footer>
 
-        <!-- 引入模組化的 4 個核心腳本 -->
     <script src="js/config.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/app.js"></script>
-</body>
-</html>
-
 </body>
 </html>
