@@ -1,12 +1,12 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：快取引擎、前台路由、純按鈕觸發式 LINE 登入 (保障形象官網秒開)
+ * 職責：快取引擎、前台路由、純按鈕觸發式 LINE 登入 (保障形象官網秒開)、全模組智能排版
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
 
-// 🔑 官方 LINE LIFF ID (供形象網頁點擊登入時使用) - 依照要求更新為對應的 ID
+// 🔑 官方 LINE LIFF ID (供形象網頁點擊登入時使用)
 const LIFF_ID = '2012121201-DRHgrrOJ'; 
 
 const AUTH_EXPIRY_MS = 3 * 60 * 60 * 1000; 
@@ -96,11 +96,25 @@ const readFileAsBase64 = (file) => new Promise((res, rej) => {
     r.readAsDataURL(file); 
 });
 
+function showPreloader() { 
+    const p = document.getElementById('preloader'); 
+    if(p) { p.style.display = 'flex'; p.style.visibility = 'visible'; p.style.opacity = '1'; }
+}
+
+function hidePreloader() { 
+    const p = document.getElementById('preloader'); 
+    if(p) { p.style.opacity = '0'; p.style.visibility = 'hidden'; setTimeout(() => { p.style.display = 'none'; }, 300); }
+}
+
+// === 核心調整：強制解鎖防呆 ===
 function initSystem() {
+    // 1. 無論如何，2.5 秒後強制隱藏載入動畫，保證不卡住
     setTimeout(hidePreloader, 2500);
     
+    // 2. 立即載入網頁內容
     loadPage();
 
+    // 3. 獨立處理計數器，失敗也不影響畫面
     fetch(`${GAS_URL}?action=getVisitorCount`)
         .then(res => res.json())
         .then(countData => {
@@ -108,25 +122,35 @@ function initSystem() {
                 const counterEl = document.getElementById('visitor-counter');
                 if (counterEl) counterEl.innerText = countData.count.toLocaleString();
             }
-        }).catch(e => console.log('計數器跳過'));
+        }).catch(e => console.error('計數器載入失敗', e));
 
+    // 4. 處理 LINE 登入回傳邏輯
     const urlSearch = window.location.search;
     if (urlSearch.includes('liff.state') || urlSearch.includes('code=')) {
         showPreloader();
-        if (typeof liff !== 'undefined') {
-            liff.init({ liffId: LIFF_ID }).then(() => {
-                if (liff.isLoggedIn() && !getSafeCredentials()) {
-                    handleLineLoginCallback(true);
-                } else {
+        try {
+            if (typeof liff !== 'undefined') {
+                liff.init({ liffId: LIFF_ID }).then(() => {
+                    if (liff.isLoggedIn() && !getSafeCredentials()) {
+                        handleLineLoginCallback(true);
+                    } else {
+                        hidePreloader();
+                    }
+                }).catch((e) => {
+                    console.error('LIFF Init 失敗', e);
                     hidePreloader();
-                }
-            }).catch(() => hidePreloader());
-        } else {
+                });
+            } else {
+                hidePreloader();
+            }
+        } catch (error) {
+            console.error('LIFF 處理錯誤', error);
             hidePreloader();
         }
     }
 }
 
+// 點擊「LINE 一鍵登入」按鈕的事件處理
 function setupMemberLogin() {
     const lineBtns = document.querySelectorAll('.line-login-trigger');
     lineBtns.forEach(btn => {
@@ -134,7 +158,7 @@ function setupMemberLogin() {
             showPreloader();
             try {
                 if (typeof liff === 'undefined') {
-                    alert('無法連線到 LINE 伺服器，請重新整理網頁。');
+                    alert('無法載入 LINE 登入套件，請檢查網路連線。');
                     hidePreloader();
                     return;
                 }
@@ -149,7 +173,8 @@ function setupMemberLogin() {
                     handleLineLoginCallback();
                 }
             } catch(e) {
-                alert('無法啟動 LINE 登入，請確認網路連線。');
+                alert('登入程序發生錯誤，請重試。');
+                console.error(e);
                 hidePreloader();
             }
         });
@@ -173,6 +198,7 @@ async function handleLineLoginCallback(isSilent = false) {
             
             updateMemberUI();
             
+            // 清理網址
             if (window.location.search.includes('liff.state') || window.location.search.includes('code=')) {
                 window.history.replaceState(null, '', window.location.pathname + (window.location.hash || '#member-zone'));
             }
@@ -184,10 +210,11 @@ async function handleLineLoginCallback(isSilent = false) {
             }
             loadPage();
         } else {
-            if (!isSilent) alert('登入異常：' + data.message);
+            if (!isSilent) alert('登入失敗：' + data.message);
         }
     } catch(e) { 
-        if (!isSilent) alert('LINE 登入連線失敗。'); 
+        if (!isSilent) alert('連線伺服器失敗，請檢查網路狀態。'); 
+        console.error(e);
     } finally { 
         hidePreloader(); 
     }
@@ -254,15 +281,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initSystem(); 
 });
 
-function showPreloader() { 
-    const p = document.getElementById('preloader'); 
-    if(p) { p.style.display = 'flex'; p.style.visibility = 'visible'; p.style.opacity = '1'; }
-}
-
-function hidePreloader() { 
-    const p = document.getElementById('preloader'); 
-    if(p) { p.style.opacity = '0'; p.style.visibility = 'hidden'; setTimeout(() => { p.style.display = 'none'; }, 300); }
-}
 
 function buildMemberDashboard(memberInfo) {
     let avatarHtml = memberInfo.avatar ? `<img src="${memberInfo.avatar}" style="width:60px; height:60px; border-radius:50%; vertical-align:middle; margin-right:15px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">` : '';
@@ -301,6 +319,7 @@ function buildHomeNavigation() {
 async function loadPage() {
     showPreloader(); 
     
+    // 強制防呆，防止 fetch 掛掉
     setTimeout(hidePreloader, 3000);
     
     const hash = window.location.hash || '#news';
@@ -436,7 +455,6 @@ async function loadPage() {
         return;
     }
 
-    // ★ 如果是品牌推廣，改用 grid 排版，每列三個，不使用一般卡片
     if (config.layout === 'brand') {
         dataContainer.style.display = 'grid'; 
         dataContainer.style.gridTemplateColumns = 'repeat(auto-fit, minmax(280px, 1fr))';
@@ -485,6 +503,7 @@ async function loadPage() {
             dataContainer.innerHTML = '<p style="text-align:center; width:100%; color:#7A7A7A;">目前尚無資料。</p>';
         }
     } catch (error) { 
+        console.error("資料載入失敗:", error);
         dataContainer.innerHTML = '<p style="text-align:center; width:100%; color:red;">資料載入異常，請稍後重試。</p>'; 
     } finally { 
         hidePreloader(); 
@@ -537,7 +556,6 @@ function renderData(rawData, layoutType, container) {
         const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || item['產品logo及圖檔'] || item['公司Logo或環境照片'] || item['附圖網址'] || item['封面圖片網址'] || '';
         const linkRaw = item['報名連結'] || item['專屬付款網址'] || item['連結'] || item['專屬報名網址'] || item['相關連結'] || ''; 
         
-        // ★ 核心：針對品牌推廣 (brand) 只輸出純圖片圓角超連結
         if (layoutType === 'brand') {
             if (imgRaw) {
                 const optimizedUrl = optimizeImageUrl(imgRaw.split(',')[0].trim());
@@ -547,7 +565,7 @@ function renderData(rawData, layoutType, container) {
                     </a>
                 `;
             }
-            continue; // 跳過後續一般卡片的組裝
+            continue; 
         }
         
         let extraHtml = ''; 
@@ -967,4 +985,52 @@ function logoutMember() {
     alert('已登出。');
     window.location.hash = '#news';
     loadPage();
+}
+
+function setupMobileMenu() {
+    const mobileBtn = document.getElementById('mobile-menu-btn');
+    const mainNav = document.getElementById('main-nav-menu');
+    if (mobileBtn && mainNav) {
+        mobileBtn.addEventListener('click', () => {
+            mainNav.classList.toggle('show');
+            document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('mobile-active'));
+        });
+        
+        mainNav.querySelectorAll('a:not(.dropdown-toggle)').forEach(link => { 
+            link.addEventListener('click', () => mainNav.classList.remove('show')); 
+        });
+        
+        const dropdowns = document.querySelectorAll('.dropdown-toggle');
+        dropdowns.forEach(dropdown => {
+            dropdown.addEventListener('click', (e) => {
+                if (window.innerWidth <= 768) {
+                    dropdowns.forEach(d => { if (d !== dropdown) d.classList.remove('mobile-active'); });
+                    dropdown.classList.toggle('mobile-active');
+                }
+            });
+        });
+    }
+}
+
+function optimizeImageUrl(url) {
+    if (url.includes('drive.google.com') && !url.includes('thumbnail')) {
+        const idMatch = url.match(/id=([^&]+)/);
+        if (idMatch && idMatch[1]) return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w800`;
+    }
+    return url;
+}
+
+function generateImageHTML(imgString) {
+    const rawUrls = imgString.split(',').map(u => u.trim()).filter(u => u);
+    if (rawUrls.length === 0) return '';
+    
+    const urls = rawUrls.map(url => optimizeImageUrl(url));
+    if (urls.length === 1) {
+        return `<div class="img-wrapper"><img src="${urls[0]}" alt="Image"></div>`;
+    }
+    
+    let html = `<div class="img-wrapper"><div class="carousel-container">`;
+    urls.forEach(url => { html += `<img src="${url}" alt="Image">`; });
+    html += `</div></div><div class="carousel-hint">← 左右滑動查看多圖 →</div>`;
+    return html;
 }
