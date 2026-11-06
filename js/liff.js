@@ -1,6 +1,6 @@
 /**
  * 檔案名稱：js/liff.js
- * 職責：統一 4 欄網格排版、專屬 LINE 大廳全自動登入 (加入強制防呆機制)
+ * 職責：統一 4 欄網格排版、專屬 LINE 大廳全自動登入 (加入強制防呆與智慧按鈕邏輯)
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
@@ -52,8 +52,6 @@ async function switchNav(target) {
 
 function initApp() {
     showPreloader();
-    
-    // 終極防呆：2.5 秒後一定解鎖
     setTimeout(hidePreloader, 2500);
     
     try {
@@ -209,7 +207,6 @@ async function loadListData(sheetName) {
                 let imgUrl = item['公司Logo或環境照片'] || item['附圖網址'] || item['封面圖片網址'] || item['圖片網址'] || item['產品logo及圖檔'] || '';
                 let linkUrl = item['專屬付款網址'] || item['連結'] || item['專屬報名網址'] || item['相關連結'] || '';
                 
-                // ★ 品牌推廣處理：無連結則不掛 <a> 標籤
                 if (sheetName === '品牌推廣') {
                     if (imgUrl) {
                         const optimizedUrl = imgUrl.split(',')[0].trim();
@@ -231,7 +228,13 @@ async function loadListData(sheetName) {
                 }
 
                 if (sheetName === '徵才專區') {
-                    desc = `機構：${item['徵才機構']}<br>地點：${item['工作地點']}<br>薪資：${item['薪資待遇']}<br>聯絡：${item['聯絡方式']}`;
+                    let parts = [];
+                    if (item['徵才機構']) parts.push(`🏢 機構：${item['徵才機構']}`);
+                    if (item['工作地點']) parts.push(`📍 地點：${item['工作地點']}`);
+                    if (item['薪資待遇']) parts.push(`💰 薪資：${item['薪資待遇']}`);
+                    if (item['聯絡方式']) parts.push(`📞 聯絡：${item['聯絡方式']}`);
+                    if (item['條件要求']) parts.push(`\n【條件要求】\n${item['條件要求']}`);
+                    desc = parts.join('\n');
                 } else if (sheetName === '美業資訊交流') {
                     extra = `<div style="font-size:12px; color:var(--app-gold); margin-top:10px;">${item['發文者姓名']} • ${item['發文時間']}</div>`;
                     extra += buildCommentsHtml(title, item['發文時間'], idx);
@@ -246,6 +249,14 @@ async function loadListData(sheetName) {
                     }
                 } else if (sheetName === '課程介紹') {
                      if(linkUrl) extra += `<a href="${linkUrl}" target="_blank" class="btn-primary" style="margin-top:15px; padding:10px;">報名 / 了解更多</a>`;
+                } else if (item['店家名稱']) {
+                    // ★ 判斷空值
+                    let parts = [];
+                    if (item['負責人']) parts.push(`👤 負責人：${item['負責人']}`);
+                    if (item['地址']) parts.push(`📍 地址：${item['地址']}`);
+                    if (item['聯絡電話']) parts.push(`📞 電話：${item['聯絡電話']}`);
+                    if (item['簡介']) parts.push(`\n${item['簡介']}`);
+                    desc = parts.join('\n').trim();
                 }
                 
                 let imgHtml = '';
@@ -256,10 +267,14 @@ async function loadListData(sheetName) {
                 
                 let shortDesc = desc.length > maxDescLength ? desc.substring(0, maxDescLength) + '...' : desc;
 
+                const isClickable = Boolean(linkUrl) || Boolean(imgUrl);
+                const cursorStyle = isClickable ? 'cursor: pointer;' : '';
+                const clickAction = isClickable ? `onclick="openDetailModal(${idx})"` : '';
+
                 if (sheetName === '最新消息') {
                      html += `<div class="card">${extra}<div class="card-title">${title}</div><div class="card-desc">${shortDesc.replace(/\n/g, '<br>')}</div>${imgHtml}</div>`;
                 } else {
-                    html += `<div class="card"><div class="card-title">${title}</div><div class="card-desc">${shortDesc.replace(/\n/g, '<br>')}</div>${imgHtml}${extra}</div>`;
+                     html += `<div class="card" ${clickAction} style="${cursorStyle}"><div class="card-title">${title}</div><div class="card-desc">${shortDesc.replace(/\n/g, '<br>')}</div>${imgHtml}${extra}</div>`;
                 }
             });
             html += '</div>';
@@ -300,6 +315,64 @@ function buildCommentsHtml(postTitle, postTime, dataIndex) {
     </div>`;
     return html;
 }
+
+window.openDetailModal = function(index) {
+    const item = currentViewDataCache[index];
+    if (!item) return;
+
+    const title = item['課程名稱'] || item['講師姓名'] || item['顧問姓名'] || item['店家名稱'] || item['活動名稱'] || item['產品名稱'] || item['標題'] || item['職缺名稱'] || item['主旨/標題'] || '';
+    let desc = item['簡介'] || item['個人簡介'] || item['產品簡介'] || item['內容'] || item['交流內容'] || '';
+    const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || item['產品logo及圖檔'] || item['公司Logo或環境照片'] || item['附圖網址'] || item['封面圖片網址'] || '';
+    const linkRaw = item['報名連結'] || item['專屬付款網址'] || item['連結'] || item['專屬報名網址'] || item['相關連結'] || ''; 
+
+    let extraHtml = '';
+
+    if (item['發佈日期'] && item['相關連結']) {
+        return; 
+    } else if (item['徵才機構']) {
+        let parts = [];
+        if (item['徵才機構']) parts.push(`🏢 機構：${item['徵才機構']}`);
+        if (item['工作地點']) parts.push(`📍 地點：${item['工作地點']}`);
+        if (item['薪資待遇']) parts.push(`💰 薪資：${item['薪資待遇']}`);
+        if (item['聯絡方式']) parts.push(`📞 聯絡：${item['聯絡方式']}`);
+        if (item['條件要求']) parts.push(`\n【條件要求】\n${item['條件要求']}`);
+        desc = parts.join('\n');
+    } else if (item['發文者姓名']) {
+        extraHtml = `<div style="font-size:12px; color:var(--champagne); margin-top:10px; text-align:center;">${item['發文者姓名']} • ${item['發文時間']}</div>`;
+    } else if (item['專長項目']) {
+        desc = (item['專長項目'] ? `【專長項目】\n${item['專長項目']}\n\n` : '') + desc;
+    } else if (item['店家名稱']) {
+        let parts = [];
+        if (item['負責人']) parts.push(`👤 負責人：${item['負責人']}`);
+        if (item['地址']) parts.push(`📍 地址：${item['地址']}`);
+        if (item['聯絡電話']) parts.push(`📞 電話：${item['聯絡電話']}`);
+        if (item['簡介']) parts.push(`\n${item['簡介']}`);
+        desc = parts.join('\n').trim();
+    }
+
+    let imagesHtml = '';
+    const rawUrls = imgRaw.split(',').map(u => u.trim()).filter(u => u);
+    if (rawUrls.length > 0) {
+        rawUrls.forEach(url => {
+            imagesHtml += `<img src="${optimizeImageUrl(url)}" style="width: 100%; display: block; border-bottom: 1px solid #eee;">`;
+        });
+    }
+
+    const btnText = item['店家名稱'] ? '前往該品牌' : '了解更多 / 報名';
+    let actionHtml = linkRaw ? `<a href="${linkRaw}" target="_blank" class="btn-primary" style="font-size: 18px; padding: 12px 30px; margin-top: 15px;">${btnText}</a>` : '';
+    
+    if (item['最低權限要求(例如:一般會員)'] !== undefined) {
+        const reqLevel = item['最低權限要求(例如:一般會員)'] || '會員';
+        actionHtml = `<button class="btn-primary member-btn" style="width:100%; font-size:18px; padding: 12px 30px; margin-top: 15px;" onclick="playCourseVideo(event, '${title}', '${reqLevel}')">▶️ 播放線上課程 (${reqLevel}專屬)</button>`;
+    }
+
+    document.getElementById('detail-modal-images').innerHTML = imagesHtml;
+    document.getElementById('detail-modal-title').innerText = title;
+    document.getElementById('detail-modal-desc').innerHTML = desc.replace(/\n/g, '<br>') + extraHtml;
+    document.getElementById('detail-modal-action').innerHTML = actionHtml;
+
+    document.getElementById('detail-modal').classList.add('active');
+};
 
 window.submitComment = async function(event, index, postTitle, postTime) {
     if(event) event.stopPropagation(); 
