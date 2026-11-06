@@ -85,28 +85,43 @@
         .submit-btn-full { width: 100%; padding: 15px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; transition: 0.3s; font-size: 16px; font-weight: bold; margin-top: 10px; }
         .submit-btn-full:hover { background: #967a4a; box-shadow: 0 4px 15px rgba(184, 149, 90, 0.4); }
 
-        /* === 徹底退回原版 CSS，保證完美不跑版 === */
+        /* === 重大修復：回歸原版最穩定的向下推擠佈局，保證不跑版 === */
         @media (max-width: 768px) {
-            header { padding: 10px 15px; }
+            header { padding: 15px 20px; }
             .brand-logo-img { height: 40px; }
             .menu-toggle { display: block; }
             
-            /* 恢復最原始穩定的定位方式：置中手風琴下拉 */
-            .main-nav { display: none; flex-direction: column; position: absolute; top: 60px; left: 0; width: 100%; background-color: var(--mist-rose); padding: 15px 0; gap: 5px; box-shadow: 0 10px 15px rgba(0,0,0,0.1); z-index: 9999; }
-            .main-nav.show { display: flex; align-items: stretch; }
+            /* 將導覽列改為靜態自然向下推擠，完全不使用 absolute 破壞版面 */
+            .main-nav { 
+                display: none; 
+                flex-direction: column; 
+                width: 100%; 
+                flex-basis: 100%; 
+                margin-top: 15px; 
+                padding-top: 15px; 
+                border-top: 1px solid rgba(0,0,0,0.05); 
+                gap: 10px; 
+                background: transparent;
+                box-shadow: none;
+                position: static;
+            }
+            .main-nav.show { display: flex; } 
             
-            .candy-btn { font-size: 14px; border-radius: 8px; margin: 0 15px; padding: 12px; }
-            .dropdown { width: auto; margin: 0; }
+            .candy-btn { width: 100%; font-size: 15px; border-radius: 8px; margin: 0; padding: 12px; box-sizing: border-box; text-align: center; }
             
-            /* 內部靜態向下推開 (手風琴)，絕不擠壓外部排版 */
-            .dropdown-content { position: static; visibility: visible; opacity: 1; transform: none; box-shadow: none; border: none; background: rgba(255,255,255,0.5); padding: 0; display: none; margin-top: 5px; }
-            .dropdown.mobile-active .dropdown-content { display: block; }
-            .dropdown-content a { padding: 10px; font-size: 13px; }
+            .dropdown { width: 100%; margin: 0; }
+            .dropdown > .candy-btn { width: 100%; margin: 0; } 
+            .dropdown:hover .dropdown-content { visibility: hidden; opacity: 0; display: none; }
+            
+            .dropdown-content { position: static; visibility: visible; opacity: 1; transform: none; box-shadow: none; border: none; background: rgba(255,255,255,0.6); padding: 5px; display: none; margin-top: 5px; border-radius: 8px; width: 100%; box-sizing: border-box; }
+            .dropdown.mobile-active .dropdown-content { display: block !important; }
+            .dropdown-content a { padding: 12px; font-size: 14px; border-bottom: 1px solid rgba(0,0,0,0.05); }
+            .dropdown-content a:last-child { border-bottom: none; }
             
             .hero-title { font-size: 24px !important; }
             .hero-section { padding: 40px 20px; }
             .content-section { padding: 20px 15px; }
-            .course-grid { grid-template-columns: 1fr; gap: 20px; }
+            .course-grid { grid-template-columns: 1fr; gap: 20px; } 
             
             .modal-content { padding: 25px 15px; width: 92%; }
             .form-row { flex-direction: column; gap: 10px; }
@@ -235,7 +250,7 @@
                 </div>
             </div>
 
-            <!-- === 官網會員資料修改區 (確保移除會籍修改，純檢視) === -->
+            <!-- === 官網會員資料同步擴充 (確保移除會籍修改選單) === -->
             <div id="edit-profile-container" style="display: none; max-width: 800px; margin: 0 auto;">
                 <div class="form-section">
                     <button onclick="window.location.hash='#member-zone'" style="background:none; border:none; color:var(--taupe); cursor:pointer; font-size:14px; margin-bottom:15px; padding:0;">← 返回大廳</button>
