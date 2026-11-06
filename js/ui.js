@@ -1,6 +1,6 @@
 /**
  * 檔案名稱：js/ui.js
- * 職責：負責畫面的組裝、卡片渲染、網格佈局 (強制統一套用 responsive-grid 防跑板)
+ * 職責：負責畫面的組裝、卡片渲染、網格佈局 (加入空值自動隱藏與智慧按鈕文字、按鈕置底)
  */
 
 function buildMemberDashboard(memberInfo) {
@@ -239,125 +239,6 @@ function buildCommentsHtml(postTitle, postTime, dataIndex) {
     return html;
 }
 
-// 被 LIFF 共用，移除所有內聯 inline style 覆蓋，完全仰賴 .responsive-grid
-window.loadListData = async function(sheetName) {
-    const container = document.getElementById('list-container');
-    container.innerHTML = '<div style="text-align:center; padding:30px; color:var(--app-gold); font-weight:bold;">載入中...</div>';
-    try {
-        const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
-        let res;
-        if (sheetName === '會員專屬影片') {
-             res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'verifyAndGetCourses', credentials: credentials }) });
-        } else {
-             res = await fetch(`${GAS_URL}?sheetName=${sheetName}`);
-        }
-        
-        const dataObj = await res.json();
-
-        if (sheetName === '美業資訊交流') {
-            const commentsRes = await fetch(`${GAS_URL}?sheetName=交流留言`);
-            const commentsData = await commentsRes.json();
-            if (commentsData.status === 'success' && commentsData.data.length > 1) {
-                window.currentCommentsCache = commentsData.data.slice(1);
-            } else {
-                window.currentCommentsCache = [];
-            }
-        }
-        
-        if (dataObj.status === 'success' && dataObj.data.length > 1) {
-            let dataArray = dataObj.data;
-            const headers = dataArray.shift();
-            
-            if (sheetName === '美業資訊交流' || sheetName === '徵才專區' || sheetName === '最新消息') dataArray = dataArray.reverse();
-            
-            // ★ 強制套用 responsive-grid，保證手機單欄、電腦 4 欄
-            let html = '<div class="responsive-grid">';
-            const maxDescLength = 50; 
-            
-            dataArray.forEach((row, idx) => {
-                let item = {};
-                headers.forEach((h, i) => item[h] = row[i]);
-                
-                const title = item['職缺名稱'] || item['主旨/標題'] || item['課程名稱'] || item['標題'] || item['產品名稱'] || '無標題';
-                let desc = item['交流內容'] || item['課程簡介'] || item['內容'] || '';
-                let extra = '';
-                let imgUrl = item['公司Logo或環境照片'] || item['附圖網址'] || item['封面圖片網址'] || item['圖片網址'] || item['產品logo及圖檔'] || '';
-                let linkUrl = item['專屬付款網址'] || item['連結'] || item['專屬報名網址'] || item['相關連結'] || '';
-                
-                if (sheetName === '品牌推廣') {
-                    if (imgUrl) {
-                        const optimizedUrl = imgUrl.split(',')[0].trim();
-                        if(linkUrl) {
-                            html += `
-                                <a href="${linkUrl}" target="_blank" style="display:block; border-radius:16px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.08); transition:0.3s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
-                                    <img src="${optimizedUrl}" alt="${title}" style="width:100%; height:auto; display:block; object-fit:cover;">
-                                </a>
-                            `;
-                        } else {
-                             html += `
-                                <div style="display:block; border-radius:16px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.08);">
-                                    <img src="${optimizedUrl}" alt="${title}" style="width:100%; height:auto; display:block; object-fit:cover;">
-                                </div>
-                            `;
-                        }
-                    }
-                    return; 
-                }
-
-                if (sheetName === '徵才專區') {
-                    desc = `機構：${item['徵才機構']}<br>地點：${item['工作地點']}<br>薪資：${item['薪資待遇']}<br>聯絡：${item['聯絡方式']}`;
-                } else if (sheetName === '美業資訊交流') {
-                    extra = `<div style="font-size:12px; color:var(--app-gold); margin-top:10px;">${item['發文者姓名']} • ${item['發文時間']}</div>`;
-                    extra += buildCommentsHtml(title, item['發文時間'], idx);
-                } else if (sheetName === '最新消息') {
-                    extra = `<div style="font-size:12px; color:var(--app-gold); margin-bottom:5px; font-weight:bold;">發佈日期：${item['發佈日期']}</div>`;
-                    if(linkUrl) extra += `<a href="${linkUrl}" target="_blank" class="btn-primary" style="margin-top:15px; padding:10px;">查看相關連結</a>`;
-                } else if (sheetName === '會員專屬影片') {
-                    const vLink = item['影片嵌入網址'];
-                    if (vLink) {
-                        extra = `<div class="video-container" id="vid-${idx}"><iframe src="${vLink}" allowfullscreen></iframe></div>
-                                 <button class="btn-primary" style="margin-top:15px; padding:10px;" onclick="document.getElementById('vid-${idx}').style.display='block'; this.style.display='none';">▶️ 播放影片</button>`;
-                    }
-                } else if (sheetName === '課程介紹') {
-                     if(linkUrl) extra += `<a href="${linkUrl}" target="_blank" class="btn-primary" style="margin-top:15px; padding:10px;">報名 / 了解更多</a>`;
-                } else if (item['店家名稱']) {
-                    let parts = [];
-                    if (item['負責人']) parts.push(`👤 負責人：${item['負責人']}`);
-                    if (item['地址']) parts.push(`📍 地址：${item['地址']}`);
-                    if (item['聯絡電話']) parts.push(`📞 電話：${item['聯絡電話']}`);
-                    if (item['簡介']) parts.push(`\n${item['簡介']}`);
-                    desc = parts.join('\n').trim();
-                }
-                
-                let imgHtml = '';
-                if (imgUrl) {
-                    const firstImg = imgUrl.split(',')[0].trim();
-                    imgHtml = `<img src="${firstImg}" class="post-img">`;
-                }
-                
-                let shortDesc = desc.length > maxDescLength ? desc.substring(0, maxDescLength) + '...' : desc;
-
-                const isClickable = Boolean(linkUrl) || Boolean(imgUrl);
-                const cursorStyle = isClickable ? 'cursor: pointer;' : '';
-                const clickAction = isClickable ? `onclick="openDetailModal(${idx})"` : '';
-
-                if (sheetName === '最新消息') {
-                     html += `<div class="card">${extra}<div class="card-title">${title}</div><div class="card-desc">${shortDesc.replace(/\n/g, '<br>')}</div>${imgHtml}</div>`;
-                } else {
-                     html += `<div class="card" ${clickAction} style="${cursorStyle}"><div class="card-title">${title}</div><div class="card-desc">${shortDesc.replace(/\n/g, '<br>')}</div>${imgHtml}${extra}</div>`;
-                }
-            });
-            html += '</div>';
-            container.innerHTML = html;
-        } else {
-            container.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">目前尚無資料</div>';
-        }
-    } catch(e) { 
-        console.error(e);
-        container.innerHTML = '<div style="text-align:center; padding:30px; color:red;">連線失敗，請稍後重試</div>'; 
-    }
-}
-
 function renderData(rawData, layoutType, container) {
     const headers = rawData[0];
     currentViewDataCache = []; 
@@ -432,11 +313,11 @@ function renderData(rawData, layoutType, container) {
         let paymentBtnHtml = '';
         if (linkRaw && !item['發佈日期']) {
             const btnText = item['店家名稱'] ? '前往該品牌' : '了解更多 / 報名';
-            paymentBtnHtml = `<a href="${linkRaw}" target="_blank" class="candy-btn payment-btn" style="display:block; text-align:center; margin-top:20px;" onclick="event.stopPropagation();">${btnText}</a>`;
+            paymentBtnHtml = `<a href="${linkRaw}" target="_blank" class="candy-btn payment-btn" onclick="event.stopPropagation();">${btnText}</a>`;
         }
         if (item['最低權限要求(例如:一般會員)'] !== undefined) {
             const reqLevel = item['最低權限要求(例如:一般會員)'] || '會員';
-            paymentBtnHtml = `<button class="candy-btn member-btn" style="display:block; width:100%; text-align:center; margin-top:20px;" onclick="playCourseVideo(event, '${title}', '${reqLevel}')">▶️ 播放線上課程 (${reqLevel}專屬)</button>`;
+            paymentBtnHtml = `<button class="candy-btn member-btn" onclick="playCourseVideo(event, '${title}', '${reqLevel}')">▶️ 播放線上課程 (${reqLevel}專屬)</button>`;
         }
         
         let shortDesc = desc.length > maxDescLength ? desc.substring(0, maxDescLength) + '...' : desc;
@@ -449,6 +330,7 @@ function renderData(rawData, layoutType, container) {
             html += paymentBtnHtml; 
             html += `</div>`;
         } else {
+            // ★ 修改點擊邏輯：若沒網址且是店家/課程，不產生 onclick，避免跳首頁
             const isClickable = Boolean(linkRaw) || Boolean(imgRaw); 
             const cursorStyle = isClickable ? 'cursor: pointer;' : '';
             const clickAction = isClickable ? `onclick="openDetailModal(${dataIndex})"` : '';
@@ -470,8 +352,11 @@ function renderData(rawData, layoutType, container) {
                         ${imgHtml}
                         <div class="course-info">
                             ${title ? `<h3 class="course-title">${title}</h3>` : ''}
-                            ${shortDesc ? `<p class="course-desc">${shortDesc.replace(/\n/g, '<br>')}</p>` : ''}
-                            ${paymentBtnHtml}
+                            <!-- ★ 強制保留 p.course-desc，讓 flex: 1 生效，把底下的 .card-actions 推到底部 -->
+                            <p class="course-desc">${shortDesc.replace(/\n/g, '<br>')}</p>
+                            <div class="card-actions">
+                                ${paymentBtnHtml}
+                            </div>
                             ${extraHtml}
                         </div>
                     </div>
