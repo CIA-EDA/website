@@ -1,6 +1,6 @@
 /**
  * 檔案名稱：js/liff.js
- * 職責：專屬於 LINE 官方帳號內的會員大廳運作邏輯
+ * 職責：專屬於 LINE 官方帳號內的會員大廳運作邏輯 (全自動無縫登入版)
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
@@ -49,22 +49,28 @@ async function switchNav(target) {
     }
 }
 
+// === 核心調整：完全自動化登入，零點擊 ===
 async function initApp() {
+    showPreloader();
     try {
         await liff.init({ liffId: LIFF_ID_MEMBER });
+        
         if (liff.isLoggedIn()) {
+            // 已登入：直接向後端驗證身分並進入大廳
             await processLogin(true);
-        } else if (liff.isInClient()) {
-            liff.login(); 
         } else {
-            hidePreloader();
-            showView('login');
+            // 未登入：強制全自動跳轉 LINE 授權，不顯示任何登入按鈕畫面！
+            liff.login({ redirectUri: window.location.href }); 
         }
-    } catch (err) { alert('系統初始化失敗，請在 LINE 中開啟'); hidePreloader(); }
+    } catch (err) { 
+        alert('系統初始化失敗，請在 LINE 中開啟'); 
+        hidePreloader(); 
+    }
 }
 
+// 保留作為 fallback，但正常情況下不會再被點擊到
 async function triggerLineLogin() {
-    if (!liff.isLoggedIn()) liff.login();
+    if (!liff.isLoggedIn()) liff.login({ redirectUri: window.location.href });
     else await processLogin();
 }
 
