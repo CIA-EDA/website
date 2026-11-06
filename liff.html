@@ -50,6 +50,7 @@
         .btn-danger { background: #fff; color: #FF3B30; border: 1px solid #FF3B30; border-radius: 25px; padding: 12px; width: 100%; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 15px; }
         .line-login-btn { background: #06C755; color: #fff; border: none; border-radius: 25px; padding: 15px; width: 100%; font-size: 16px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; }
         
+        /* 調整導航列為 4 等分，寬度 25% */
         .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; height: 65px; background: rgba(255,255,255,0.95); backdrop-filter: blur(15px); border-top: 1px solid rgba(0,0,0,0.05); display: flex; justify-content: space-around; align-items: center; z-index: 1000; padding-bottom: env(safe-area-inset-bottom); box-shadow: 0 -2px 10px rgba(0,0,0,0.03);}
         .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-sub); width: 25%; font-size: 10px; font-weight: 500; text-decoration: none; cursor: pointer; transition: 0.2s;}
         .nav-item.active { color: var(--app-gold); }
@@ -144,6 +145,7 @@
             </div>
 
             <h3 style="font-size: 16px; color: var(--app-blue); margin: 25px 0 10px 5px;">常用服務</h3>
+            <!-- ★ 大廳四個方格 -->
             <div class="grid-menu">
                 <div class="grid-item" onclick="switchNav('courses-all')"><div class="grid-icon">📖</div><div class="grid-text">課程總覽</div></div>
                 <div class="grid-item" onclick="switchNav('brands')"><div class="grid-icon">💎</div><div class="grid-text">品牌推廣</div></div>
@@ -201,6 +203,7 @@
         </div>
     </main>
 
+    <!-- ★ 恢復完美的四等分底部導航列 -->
     <nav class="bottom-nav" id="bottom-nav" style="display: none;">
         <div class="nav-item active" data-target="dashboard" onclick="switchNav('dashboard')"><div class="nav-icon">🏠</div>大廳</div>
         <div class="nav-item" data-target="courses" onclick="switchNav('courses')"><div class="nav-icon">🎬</div>課程</div>
