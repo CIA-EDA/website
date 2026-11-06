@@ -90,10 +90,15 @@
             header { padding: 10px 15px; }
             .brand-logo-img { height: 40px; }
             .menu-toggle { display: block; }
+            
+            /* 恢復最原始穩定的定位方式：置中手風琴下拉 */
             .main-nav { display: none; flex-direction: column; position: absolute; top: 60px; left: 0; width: 100%; background-color: var(--mist-rose); padding: 15px 0; gap: 5px; box-shadow: 0 10px 15px rgba(0,0,0,0.1); z-index: 9999; }
             .main-nav.show { display: flex; align-items: stretch; }
+            
             .candy-btn { font-size: 14px; border-radius: 8px; margin: 0 15px; padding: 12px; }
             .dropdown { width: auto; margin: 0; }
+            
+            /* 內部靜態向下推開 (手風琴)，絕不擠壓外部排版 */
             .dropdown-content { position: static; visibility: visible; opacity: 1; transform: none; box-shadow: none; border: none; background: rgba(255,255,255,0.5); padding: 0; display: none; margin-top: 5px; }
             .dropdown.mobile-active .dropdown-content { display: block; }
             .dropdown-content a { padding: 10px; font-size: 13px; }
@@ -230,7 +235,7 @@
                 </div>
             </div>
 
-            <!-- === 官網會員資料同步擴充 (確保移除會籍修改選單) === -->
+            <!-- === 官網會員資料修改區 (確保移除會籍修改，純檢視) === -->
             <div id="edit-profile-container" style="display: none; max-width: 800px; margin: 0 auto;">
                 <div class="form-section">
                     <button onclick="window.location.hash='#member-zone'" style="background:none; border:none; color:var(--taupe); cursor:pointer; font-size:14px; margin-bottom:15px; padding:0;">← 返回大廳</button>
