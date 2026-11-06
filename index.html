@@ -85,9 +85,9 @@
         .submit-btn-full { width: 100%; padding: 15px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; transition: 0.3s; font-size: 16px; font-weight: bold; margin-top: 10px; }
         .submit-btn-full:hover { background: #967a4a; box-shadow: 0 4px 15px rgba(184, 149, 90, 0.4); }
 
-        /* === 修復：確保手機版下拉選單能夠正確顯示 === */
+        /* === 徹底修復：手機版下拉選單回歸原生堆疊模式 === */
         @media (max-width: 768px) {
-            header { padding: 15px 20px; }
+            header { padding: 15px 20px; position: sticky; top: 0; background-color: var(--mist-rose); z-index: 9999; }
             .brand-logo-img { height: 40px; }
             .menu-toggle { display: block; }
             
@@ -106,17 +106,17 @@
             }
             .main-nav.show { display: flex; } 
             
-            .candy-btn { width: 100%; font-size: 15px; border-radius: 8px; margin: 0; padding: 12px; box-sizing: border-box; text-align: center; }
+            .candy-btn { width: 100%; font-size: 15px; border-radius: 8px; margin: 0; padding: 12px; box-sizing: border-box; text-align: center; display: block; }
             
-            .dropdown { width: 100%; margin: 0; }
+            .dropdown { width: 100%; margin: 0; display: block; }
             .dropdown > .candy-btn { width: 100%; margin: 0; } 
-            .dropdown:hover .dropdown-content { visibility: hidden; opacity: 0; display: none; }
+            .dropdown:hover .dropdown-content { display: none; }
             
-            /* 修正此處的 visibility 與 opacity 讓選單能正確浮現 */
+            /* 修正為 display: block 原生堆疊，絕對不跑版 */
             .dropdown-content { 
                 position: static; 
-                visibility: visible !important; 
-                opacity: 1 !important; 
+                visibility: visible; 
+                opacity: 1; 
                 transform: none; 
                 box-shadow: none; 
                 border: none; 
@@ -128,8 +128,8 @@
                 width: 100%; 
                 box-sizing: border-box; 
             }
-            .dropdown.mobile-active .dropdown-content { display: block !important; }
-            .dropdown-content a { padding: 12px; font-size: 14px; border-bottom: 1px solid rgba(0,0,0,0.05); }
+            .dropdown.mobile-active .dropdown-content { display: block; }
+            .dropdown-content a { padding: 12px; font-size: 14px; border-bottom: 1px solid rgba(0,0,0,0.05); display: block; }
             .dropdown-content a:last-child { border-bottom: none; }
             
             .hero-title { font-size: 24px !important; }
