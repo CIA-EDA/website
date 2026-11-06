@@ -1,12 +1,12 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：快取引擎、前台路由、純按鈕觸發式 LINE 登入 (保障形象官網秒開)
+ * 職責：快取引擎、前台路由、純按鈕觸發式 LINE 登入 (保障形象官網秒開)、全模組智能排版
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
 
-// 🔑 官方 LINE LIFF ID
+// 🔑 官方 LINE LIFF ID (供一般網頁登入使用)
 const LIFF_ID = '2012121201-DRHgrrOJ'; 
 
 const AUTH_EXPIRY_MS = 3 * 60 * 60 * 1000; 
@@ -48,7 +48,10 @@ function getSafeMemberInfo() {
         let info = localStorage.getItem('cia_member_info');
         if (info === 'undefined' || info === 'null') return null;
         return JSON.parse(info);
-    } catch(e) { localStorage.removeItem('cia_member_info'); return null; }
+    } catch(e) {
+        localStorage.removeItem('cia_member_info');
+        return null;
+    }
 }
 
 function getSafeCredentials() {
@@ -56,7 +59,10 @@ function getSafeCredentials() {
         let creds = localStorage.getItem('cia_member_credentials');
         if (creds === 'undefined' || creds === 'null') return null;
         return JSON.parse(creds);
-    } catch(e) { localStorage.removeItem('cia_member_credentials'); return null; }
+    } catch(e) {
+        localStorage.removeItem('cia_member_credentials');
+        return null;
+    }
 }
 
 function isAuthValid() {
@@ -89,6 +95,12 @@ async function fetchWithCache(sheetName) {
     }
     return data;
 }
+
+const readFileAsBase64 = (file) => new Promise((res, rej) => { 
+    const r = new FileReader(); 
+    r.onload = () => res(r.result.split(',')[1]); 
+    r.readAsDataURL(file); 
+});
 
 // === 核心修復：拔除 LIFF 啟動綁架，讓形象網站光速秒開 ===
 function initSystem() {
@@ -174,6 +186,7 @@ async function handleLineLoginCallback(isSilent = false) {
             
             updateMemberUI();
             
+            // 清除網址列上的 LINE 追蹤碼，保持乾淨並防止重新整理時卡頓
             if (window.location.search.includes('liff.state') || window.location.search.includes('code=')) {
                 window.history.replaceState(null, '', window.location.pathname + (window.location.hash || '#member-zone'));
             }
@@ -190,7 +203,7 @@ async function handleLineLoginCallback(isSilent = false) {
     } catch(e) { 
         if (!isSilent) alert('LINE 登入連線失敗。'); 
     } finally { 
-        hidePreloader(); 
+        hidePreloader(); // 確保一定解除遮罩
     }
 }
 
@@ -241,6 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupProfileCompletionForm(); 
     setupEditProfileForm();
     setupContactModal(); 
+    setupPostModal(); // 【重大修復】：補回所有完整功能，防止 JS 崩潰！
     
     window.addEventListener('hashchange', () => { 
         handlePageTransition(); 
@@ -301,7 +315,7 @@ function buildHomeNavigation() {
 async function loadPage() {
     showPreloader(); 
     
-    // 超級防呆：3秒後強制解鎖載入畫面
+    // 強制防呆，防止 fetch 掛掉
     setTimeout(hidePreloader, 3000);
     
     const hash = window.location.hash || '#news';
@@ -484,6 +498,7 @@ async function loadPage() {
     }
 }
 
+// 【重大修復】：補回 1/3 被刪除的功能 (留言、影片、發文表單等)
 function buildCommentsHtml(postTitle, postTime, dataIndex) {
     const comments = (window.currentCommentsCache || []).filter(c => c[0] === postTitle && c[1] === postTime);
     let html = '<div style="margin-top:15px; border-top:1px dashed #eee; padding-top:15px; text-align:left;">';
@@ -647,6 +662,56 @@ window.openDetailModal = function(index) {
     document.getElementById('detail-modal').classList.add('active');
 };
 
+window.playCourseVideo = async function(event, courseTitle, reqLevel) {
+    event.stopPropagation();
+    if (!isAuthValid()) {
+         alert('請先登入會員！');
+         window.location.hash = '#member-zone';
+         return;
+    }
+    const credentials = getSafeCredentials();
+    const memberInfo = getSafeMemberInfo();
+    if (!credentials || !memberInfo) {
+         alert('請先登入會員！');
+         window.location.hash = '#member-zone';
+         return;
+    }
+    if (memberInfo.memberStatus === '停用' || memberInfo.memberStatus === '待審核') {
+        alert(`您的狀態為【${memberInfo.memberStatus}】，無法觀看課程。`);
+        return;
+    }
+    
+    const btn = event.target;
+    const ogText = btn.innerText;
+    btn.innerText = '驗證專屬權限中...';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(GAS_URL, {
+            method: 'POST',
+            body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'verifyAndGetCourses', credentials: credentials })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            const courses = data.data.slice(1);
+            const course = courses.find(c => c[0] === courseTitle);
+            if (course && course[1]) {
+                document.getElementById('video-player-container').innerHTML = `<iframe src="${course[1]}" allowfullscreen></iframe>`;
+                document.getElementById('video-modal').classList.add('active');
+            } else {
+                alert(`權限不足或找不到該課程影片。此課程需為【${reqLevel}】。`);
+            }
+        } else {
+            alert(data.message || '驗證失敗');
+        }
+    } catch(e) {
+        alert('連線失敗，請稍後再試。');
+    } finally {
+        btn.innerText = ogText;
+        btn.disabled = false;
+    }
+}
+
 function setupContactModal() {
     const contactModal = document.getElementById('contact-modal');
     const openContactBtn = document.getElementById('open-contact-btn');
@@ -726,70 +791,71 @@ window.submitComment = async function(event, index, postTitle, postTime) {
     }
 };
 
-function logoutMember() {
-    localStorage.removeItem('cia_member_credentials');
-    localStorage.removeItem('cia_member_info');
-    localStorage.removeItem('cia_auth_time');
-    sessionStorage.clear();
+function setupPostModal() {
+    const postModal = document.getElementById('post-modal');
+    const closePostBtn = document.getElementById('close-post-btn');
+    const submitPostBtn = document.getElementById('submit-post-btn');
     
-    try {
-        if (typeof liff !== 'undefined' && liff.id && liff.isLoggedIn()) { 
-            liff.logout(); 
-        }
-    } catch(e) {}
-    
-    alert('已登出。');
-    window.location.hash = '#news';
-    loadPage();
-}
+    if(closePostBtn) closePostBtn.addEventListener('click', () => postModal.classList.remove('active'));
+    window.addEventListener('click', (e) => { if (e.target === postModal) postModal.classList.remove('active'); });
 
-// 核心：回歸最單純的絕對定位與置中設定，保證永遠不跑版
-function setupMobileMenu() {
-    const mobileBtn = document.getElementById('mobile-menu-btn');
-    const mainNav = document.getElementById('main-nav-menu');
-    if (mobileBtn && mainNav) {
-        mobileBtn.addEventListener('click', () => {
-            mainNav.classList.toggle('show');
-            document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('mobile-active'));
-        });
-        
-        mainNav.querySelectorAll('a:not(.dropdown-toggle)').forEach(link => { 
-            link.addEventListener('click', () => mainNav.classList.remove('show')); 
-        });
-        
-        const dropdowns = document.querySelectorAll('.dropdown-toggle');
-        dropdowns.forEach(dropdown => {
-            dropdown.addEventListener('click', (e) => {
-                if (window.innerWidth <= 768) {
-                    dropdowns.forEach(d => { if (d !== dropdown) d.classList.remove('mobile-active'); });
-                    dropdown.classList.toggle('mobile-active');
+    if (submitPostBtn) {
+        submitPostBtn.addEventListener('click', async () => {
+            const title = document.getElementById('post-title').value.trim();
+            const content = document.getElementById('post-content').value.trim();
+            const fileInput = document.getElementById('post-image');
+
+            if (!title || !content) { alert('請填寫標題與內容！'); return; }
+
+            let base64Data = null;
+            let mimeType = null;
+            let fileName = null;
+
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('照片大小超過 5MB 上限，請壓縮後再上傳！');
+                    return;
                 }
-            });
+                base64Data = await readFileAsBase64(file);
+                mimeType = file.type;
+                fileName = file.name;
+            }
+
+            submitPostBtn.innerText = '發佈中...'; submitPostBtn.disabled = true;
+            
+            try {
+                const credentials = getSafeCredentials();
+                let imgUrl = '';
+                if (base64Data) {
+                    submitPostBtn.innerText = '上傳圖片中...';
+                    const resImg = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'uploadImage', sheetName: '美業資訊交流', base64Data: base64Data, mimeType: mimeType, fileName: fileName }) });
+                    const imgData = await resImg.json();
+                    if (imgData.status === 'success') imgUrl = imgData.url;
+                }
+
+                submitPostBtn.innerText = '寫入資料庫...';
+                await fetch(GAS_URL, { 
+                    method: 'POST', 
+                    body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'userPostExchange', lineUid: credentials.lineUid, postTitle: title, postContent: content, imgUrl: imgUrl }) 
+                });
+                
+                alert('發佈成功！');
+                postModal.classList.remove('active');
+                document.getElementById('post-title').value = '';
+                document.getElementById('post-content').value = '';
+                fileInput.value = '';
+                
+                sessionStorage.removeItem('cia_cache_美業資訊交流');
+                loadPage();
+
+            } catch(e) { 
+                alert('發佈失敗：' + e.message); 
+            } finally { 
+                submitPostBtn.innerText = '確認發佈'; submitPostBtn.disabled = false; 
+            }
         });
     }
-}
-
-function optimizeImageUrl(url) {
-    if (url.includes('drive.google.com') && !url.includes('thumbnail')) {
-        const idMatch = url.match(/id=([^&]+)/);
-        if (idMatch && idMatch[1]) return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w800`;
-    }
-    return url;
-}
-
-function generateImageHTML(imgString) {
-    const rawUrls = imgString.split(',').map(u => u.trim()).filter(u => u);
-    if (rawUrls.length === 0) return '';
-    
-    const urls = rawUrls.map(url => optimizeImageUrl(url));
-    if (urls.length === 1) {
-        return `<div class="img-wrapper"><img src="${urls[0]}" alt="Image"></div>`;
-    }
-    
-    let html = `<div class="img-wrapper"><div class="carousel-container">`;
-    urls.forEach(url => { html += `<img src="${url}" alt="Image">`; });
-    html += `</div></div><div class="carousel-hint">← 左右滑動查看多圖 →</div>`;
-    return html;
 }
 
 function setupProfileCompletionForm() {
@@ -880,4 +946,27 @@ function setupEditProfileForm() {
         } catch(e) { alert('更新失敗'); } 
         finally { submitBtn.innerText = '儲存變更'; submitBtn.disabled = false; }
     });
+}
+
+function optimizeImageUrl(url) {
+    if (url.includes('drive.google.com') && !url.includes('thumbnail')) {
+        const idMatch = url.match(/id=([^&]+)/);
+        if (idMatch && idMatch[1]) return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w800`;
+    }
+    return url;
+}
+
+function generateImageHTML(imgString) {
+    const rawUrls = imgString.split(',').map(u => u.trim()).filter(u => u);
+    if (rawUrls.length === 0) return '';
+    
+    const urls = rawUrls.map(url => optimizeImageUrl(url));
+    if (urls.length === 1) {
+        return `<div class="img-wrapper"><img src="${urls[0]}" alt="Image"></div>`;
+    }
+    
+    let html = `<div class="img-wrapper"><div class="carousel-container">`;
+    urls.forEach(url => { html += `<img src="${url}" alt="Image">`; });
+    html += `</div></div><div class="carousel-hint">← 左右滑動查看多圖 →</div>`;
+    return html;
 }
