@@ -319,7 +319,6 @@ function buildHomeNavigation() {
 async function loadPage() {
     showPreloader(); 
     
-    // 強制防呆，防止 fetch 掛掉
     setTimeout(hidePreloader, 3000);
     
     const hash = window.location.hash || '#news';
@@ -455,6 +454,7 @@ async function loadPage() {
         return;
     }
 
+    // ★ 如果是品牌推廣，改用 grid 排版，每列三個，不使用一般卡片
     if (config.layout === 'brand') {
         dataContainer.style.display = 'grid'; 
         dataContainer.style.gridTemplateColumns = 'repeat(auto-fit, minmax(280px, 1fr))';
@@ -556,6 +556,7 @@ function renderData(rawData, layoutType, container) {
         const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || item['產品logo及圖檔'] || item['公司Logo或環境照片'] || item['附圖網址'] || item['封面圖片網址'] || '';
         const linkRaw = item['報名連結'] || item['專屬付款網址'] || item['連結'] || item['專屬報名網址'] || item['相關連結'] || ''; 
         
+        // ★ 核心：針對品牌推廣 (brand) 只輸出純圖片圓角超連結
         if (layoutType === 'brand') {
             if (imgRaw) {
                 const optimizedUrl = optimizeImageUrl(imgRaw.split(',')[0].trim());
@@ -565,7 +566,7 @@ function renderData(rawData, layoutType, container) {
                     </a>
                 `;
             }
-            continue; 
+            continue; // 跳過後續一般卡片的組裝
         }
         
         let extraHtml = ''; 
