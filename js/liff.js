@@ -6,7 +6,7 @@
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
 
-// 🔑 官方 LINE LIFF ID (供行動版會員大廳使用) - 依照要求更新為對應的 ID
+// 🔑 官方 LINE LIFF ID (供行動版會員大廳使用)
 const LIFF_ID_MEMBER = '2012121201-JKa4hPdF'; 
 
 let currentTab = 'dashboard';
@@ -52,10 +52,11 @@ async function switchNav(target) {
     }
 }
 
+// === 核心調整：強制防呆 ===
 async function initApp() {
     showPreloader();
     
-    // ★ 加入終極防呆，2.5秒後必定解鎖畫面，防止任何情況的死當
+    // 終極保險：2.5 秒後一定解鎖
     setTimeout(hidePreloader, 2500);
     
     try {
@@ -68,6 +69,7 @@ async function initApp() {
         }
     } catch (err) { 
         alert('系統初始化失敗，請在 LINE 中開啟'); 
+        console.error(err);
         hidePreloader(); 
     }
 }
@@ -92,8 +94,12 @@ async function processLogin(isSilent = false) {
             alert('登入失敗：' + data.message);
             showView('login');
         }
-    } catch(e) { alert('連線異常'); showView('login'); }
-    finally { hidePreloader(); }
+    } catch(e) { 
+        alert('連線異常，請檢查網路'); 
+        showView('login'); 
+    } finally { 
+        hidePreloader(); 
+    }
 }
 
 function checkMemberState(member) {
@@ -187,7 +193,7 @@ async function loadListData(sheetName) {
             
             if (sheetName === '美業資訊交流' || sheetName === '徵才專區' || sheetName === '最新消息') dataArray = dataArray.reverse();
             
-            // ★ 若為品牌推廣，加上網格排版的容器樣式
+            // ★ 品牌推廣專屬排版 (純圖片圓角直達)
             if (sheetName === '品牌推廣') {
                 container.innerHTML = '<div class="brand-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:20px;"></div>';
                 const gridContainer = container.querySelector('.brand-grid');
@@ -210,7 +216,7 @@ async function loadListData(sheetName) {
                     }
                 });
                 gridContainer.innerHTML = html;
-                return; // 品牌推廣處理完畢，提早返回
+                return; 
             }
             
             let html = '';
