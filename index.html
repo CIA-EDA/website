@@ -32,6 +32,7 @@
         .member-btn { background: linear-gradient(135deg, var(--ink-navy) 0%, #3a4a6b 100%); color: #fff !important; }
         .line-btn { background: #06C755; color: white !important; border: none; box-shadow: 0 4px 10px rgba(6, 199, 85, 0.3); margin-top: 15px; }
 
+        /* === 電腦版選單樣式保留 === */
         .dropdown { position: relative; display: inline-block; }
         .dropdown-content { visibility: hidden; opacity: 0; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); background-color: rgba(255,255,255,0.95); min-width: 160px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); border-radius: 12px; padding: 10px 0; z-index: 10000; transition: 0.3s; border: 1px solid #eee; backdrop-filter: blur(10px); }
         .dropdown:hover .dropdown-content { visibility: visible; opacity: 1; transform: translateX(-50%) translateY(5px); }
@@ -43,6 +44,7 @@
         
         .hero-section { padding: 80px 40px; text-align: center; background-color: var(--secondary-color); }
         
+        /* 統一 4 等分網格系統 */
         .responsive-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 30px; margin-top: 20px; width: 100%; box-sizing: border-box; }
         
         .course-card { border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.03); display: flex; flex-direction: column; height: 100%; }
@@ -57,10 +59,9 @@
         
         .course-info { padding: 25px 20px; display: flex; flex-direction: column; flex: 1; }
         .course-title { margin: 0 0 12px 0; color: var(--ink-navy); font-size: 20px; line-height: 1.3; }
-        /* 確保簡介區域具有彈性，並將下方的按鈕推到底部 */
         .course-desc { color: var(--text-light); font-size: 14px; line-height: 1.6; flex: 1; margin: 0 0 15px 0; white-space: pre-wrap; }
         
-        /* ★ 新增：強制卡片內的按鈕區塊置底 */
+        /* ★ 強制置底：讓 .card-actions 永遠被推到卡片最下方 */
         .card-actions { margin-top: auto; width: 100%; }
 
         .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 15px; margin-top: 25px; }
@@ -90,38 +91,61 @@
         .submit-btn-full { width: 100%; padding: 15px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; transition: 0.3s; font-size: 16px; font-weight: bold; margin-top: 10px; }
         .submit-btn-full:hover { background: #967a4a; box-shadow: 0 4px 15px rgba(184, 149, 90, 0.4); }
 
+        /* === 終極防跑版：完全原生的區塊堆疊佈局 === */
         @media (max-width: 768px) {
             header { padding: 15px 20px; position: sticky; top: 0; background-color: var(--mist-rose); z-index: 9999; }
             .brand-logo-img { height: 40px; }
             .menu-toggle { display: block; }
             
+            /* 將導覽列改為區塊推擠 */
             .main-nav { 
-                max-height: 0; overflow: hidden; flex-direction: column; width: 100%; flex-basis: 100%; background: var(--mist-rose); position: absolute; top: 100%; left: 0; transition: max-height 0.3s ease-in-out; box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+                display: none; 
+                flex-direction: column; 
+                width: 100%; 
+                margin-top: 15px; 
+                padding-top: 15px; 
+                border-top: 1px solid rgba(0,0,0,0.05); 
+                gap: 10px; 
             }
-            .main-nav.show { max-height: 80vh; overflow-y: auto; } 
+            /* JS 加上 .show 時顯示 */
+            .main-nav.show { display: flex !important; } 
             
-            .nav-item-container { padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,0.3); text-align: center; }
+            .candy-btn { width: 100%; max-width: 350px; font-size: 16px; border-radius: 8px; margin: 0 auto; padding: 14px; box-sizing: border-box; text-align: center; display: block; }
             
-            .candy-btn { width: 100%; max-width: 300px; font-size: 16px; border-radius: 12px; margin: 0 auto; padding: 14px; box-sizing: border-box; text-align: center; display: block; }
+            /* 下拉母按鈕重置 */
+            .dropdown { width: 100%; display: block; position: static; text-align: center; }
             
-            .dropdown { width: 100%; margin: 0; display: block; position: static; }
-            .dropdown > .candy-btn { width: 100%; max-width: 300px; margin: 0 auto; } 
+            /* 關鍵：關閉所有 hover，只聽 JS 的 class 切換 */
             .dropdown:hover .dropdown-content { display: none; }
             
+            /* 子選單：原生區塊，直接塞在母按鈕下方 */
             .dropdown-content { 
-                position: static; visibility: visible; opacity: 1; transform: none; box-shadow: none; border: none; background: rgba(255,255,255,0.6); padding: 0; margin: 0 auto; max-width: 300px; border-radius: 0 0 12px 12px; width: 100%; box-sizing: border-box; 
-                max-height: 0; overflow: hidden; transition: max-height 0.3s ease-in-out, padding 0.3s ease-in-out, margin 0.3s ease-in-out;
+                position: static !important; 
+                visibility: visible !important; 
+                opacity: 1 !important; 
+                transform: none !important; 
+                box-shadow: none !important; 
+                border: none !important; 
+                background: rgba(255,255,255,0.6) !important; 
+                padding: 5px !important; 
+                display: none; /* 預設隱藏 */
+                margin: 5px auto 0 !important; 
+                border-radius: 8px !important; 
+                width: 100% !important; 
+                max-width: 350px;
+                box-sizing: border-box !important; 
             }
-            .dropdown.mobile-active .dropdown-content { max-height: 300px; padding: 10px 5px; margin-top: -10px; }
-            .dropdown.mobile-active .dropdown-toggle::after { transform: rotate(180deg); }
+            /* JS 切換 .mobile-active 時強制顯示為 block，往下推擠 */
+            .dropdown.mobile-active .dropdown-content { display: block !important; }
             
-            .dropdown-content a { padding: 12px; font-size: 15px; border-bottom: 1px dashed rgba(0,0,0,0.1); display: block; color: var(--ink-navy); text-decoration: none; }
+            .dropdown-content a { padding: 12px; font-size: 15px; border-bottom: 1px dashed rgba(0,0,0,0.1); display: block; }
             .dropdown-content a:last-child { border-bottom: none; }
             
             .hero-title { font-size: 24px !important; }
             .hero-section { padding: 40px 20px; }
             .content-section { padding: 20px 15px; }
             
+            /* 手機版網格單欄向下排列 */
             .responsive-grid { grid-template-columns: 1fr; gap: 20px; } 
             
             .modal-content { padding: 25px 15px; width: 92%; }
@@ -137,46 +161,40 @@
         <a href="#news"><img src="images/CIAEDA_直式標準_標準彩色.png" alt="Logo" class="brand-logo-img"></a>
         <div class="menu-toggle" id="mobile-menu-btn">☰</div>
         <nav class="main-nav" id="main-nav-menu">
-            <div class="nav-item-container"><a href="#news" class="candy-btn nav-link">最新消息</a></div>
+            <div style="width:100%; text-align:center;"><a href="#news" class="candy-btn nav-link">最新消息</a></div>
             
-            <div class="nav-item-container">
-                <div class="dropdown">
-                    <div class="candy-btn nav-link dropdown-toggle" style="cursor: pointer;">課程與培訓</div>
-                    <div class="dropdown-content">
-                        <a href="#courses" class="nav-link">課程總覽</a>
-                        <a href="#courses-gov" class="nav-link">政府補助課程</a>
-                        <a href="#courses-self" class="nav-link">其他自費課程</a>
-                        <a href="#course-platform" class="nav-link">線上課程平台</a>
-                    </div>
+            <div class="dropdown">
+                <div class="candy-btn nav-link dropdown-toggle" style="cursor: pointer;">課程與培訓</div>
+                <div class="dropdown-content">
+                    <a href="#courses" class="nav-link">課程總覽</a>
+                    <a href="#courses-gov" class="nav-link">政府補助課程</a>
+                    <a href="#courses-self" class="nav-link">其他自費課程</a>
+                    <a href="#course-platform" class="nav-link">線上課程平台</a>
                 </div>
             </div>
             
-            <div class="nav-item-container">
-                <div class="dropdown">
-                    <div class="candy-btn nav-link dropdown-toggle" style="cursor: pointer;">關於協會</div>
-                    <div class="dropdown-content">
-                        <a href="#about" class="nav-link">協會介紹</a>
-                        <a href="#gallery" class="nav-link">活動花絮</a>
-                        <a href="#team" class="nav-link">專業師資</a>
-                        <a href="#consultants" class="nav-link">專業顧問</a>
-                    </div>
+            <div class="dropdown">
+                <div class="candy-btn nav-link dropdown-toggle" style="cursor: pointer;">關於協會</div>
+                <div class="dropdown-content">
+                    <a href="#about" class="nav-link">協會介紹</a>
+                    <a href="#gallery" class="nav-link">活動花絮</a>
+                    <a href="#team" class="nav-link">專業師資</a>
+                    <a href="#consultants" class="nav-link">專業顧問</a>
                 </div>
             </div>
             
-            <div class="nav-item-container">
-                <div class="dropdown">
-                    <div class="candy-btn nav-link dropdown-toggle" style="cursor: pointer;">交流區</div>
-                    <div class="dropdown-content">
-                        <a href="#stores" class="nav-link">認證店家</a>
-                        <a href="#jobs" class="nav-link">徵才專區</a>
-                        <a href="#exchange" class="nav-link">美業資訊交流</a>
-                    </div>
+            <div class="dropdown">
+                <div class="candy-btn nav-link dropdown-toggle" style="cursor: pointer;">交流區</div>
+                <div class="dropdown-content">
+                    <a href="#stores" class="nav-link">認證店家</a>
+                    <a href="#jobs" class="nav-link">徵才專區</a>
+                    <a href="#exchange" class="nav-link">美業資訊交流</a>
                 </div>
             </div>
             
-            <div class="nav-item-container"><a href="#brands" class="candy-btn nav-link">品牌推廣</a></div>
-            <div class="nav-item-container"><a href="#join" class="candy-btn nav-link">入會申請</a></div>
-            <div class="nav-item-container"><a href="#member-zone" class="candy-btn nav-link member-btn" id="nav-member-btn">👤 會員登入</a></div>
+            <div style="width:100%; text-align:center;"><a href="#brands" class="candy-btn nav-link">品牌推廣</a></div>
+            <div style="width:100%; text-align:center;"><a href="#join" class="candy-btn nav-link">入會申請</a></div>
+            <div style="width:100%; text-align:center;"><a href="#member-zone" class="candy-btn nav-link member-btn" id="nav-member-btn">👤 會員登入</a></div>
         </nav>
     </header>
 
