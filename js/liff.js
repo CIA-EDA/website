@@ -1,12 +1,10 @@
 /**
  * 檔案名稱：js/liff.js
- * 職責：專屬於 LINE 官方帳號內的會員大廳運作邏輯 (全自動無縫登入版)
+ * 職責：統一 4 欄網格排版、專屬 LINE 大廳全自動登入 (加入強制防呆機制)
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
-
-// 🔑 官方 LINE LIFF ID (供行動版會員大廳使用)
 const LIFF_ID_MEMBER = '2012121201-JKa4hPdF'; 
 
 let currentTab = 'dashboard';
@@ -45,30 +43,35 @@ async function switchNav(target) {
         if(target === 'news') { sheetName = '最新消息'; setHeader('最新消息'); } 
         if(target === 'exchange') { sheetName = '美業資訊交流'; setHeader('美業資訊交流'); }
         if(target === 'jobs') { sheetName = '徵才專區'; setHeader('徵才專區'); }
-        if(target === 'brands') { sheetName = '品牌推廣'; setHeader('品牌推廣與合作'); } // ★ 新增品牌推廣路由
+        if(target === 'brands') { sheetName = '品牌推廣'; setHeader('品牌推廣與合作'); } 
         
         showView('list');
         await loadListData(sheetName);
     }
 }
 
-// === 核心調整：強制防呆 ===
-async function initApp() {
+function initApp() {
     showPreloader();
     
-    // 終極保險：2.5 秒後一定解鎖
+    // 終極防呆：2.5 秒後一定解鎖
     setTimeout(hidePreloader, 2500);
     
     try {
-        await liff.init({ liffId: LIFF_ID_MEMBER });
-        
-        if (liff.isLoggedIn()) {
-            await processLogin(true);
+        if (typeof liff !== 'undefined') {
+            liff.init({ liffId: LIFF_ID_MEMBER }).then(() => {
+                if (liff.isLoggedIn()) {
+                    processLogin(true);
+                } else {
+                    liff.login({ redirectUri: window.location.href }); 
+                }
+            }).catch((err) => {
+                console.error(err);
+                hidePreloader();
+            });
         } else {
-            liff.login({ redirectUri: window.location.href }); 
+            hidePreloader();
         }
     } catch (err) { 
-        alert('系統初始化失敗，請在 LINE 中開啟'); 
         console.error(err);
         hidePreloader(); 
     }
@@ -95,7 +98,7 @@ async function processLogin(isSilent = false) {
             showView('login');
         }
     } catch(e) { 
-        alert('連線異常，請檢查網路'); 
+        console.error(e);
         showView('login'); 
     } finally { 
         hidePreloader(); 
@@ -193,43 +196,31 @@ async function loadListData(sheetName) {
             
             if (sheetName === '美業資訊交流' || sheetName === '徵才專區' || sheetName === '最新消息') dataArray = dataArray.reverse();
             
-            // ★ 品牌推廣專屬排版 (純圖片圓角直達)
-            if (sheetName === '品牌推廣') {
-                container.innerHTML = '<div class="brand-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:20px;"></div>';
-                const gridContainer = container.querySelector('.brand-grid');
-                
-                let html = '';
-                dataArray.forEach((row) => {
-                    let item = {};
-                    headers.forEach((h, i) => item[h] = row[i]);
-                    const title = item['產品名稱'] || item['標題'] || '';
-                    const imgRaw = item['產品logo及圖檔'] || item['圖片網址'] || '';
-                    const linkRaw = item['相關連結'] || item['連結'] || '#'; 
-                    
-                    if (imgRaw) {
-                        const optimizedUrl = imgRaw.split(',')[0].trim();
-                        html += `
-                            <a href="${linkRaw}" target="${linkRaw !== '#' ? '_blank' : '_self'}" style="display:block; border-radius:16px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.08); transition:0.3s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
-                                <img src="${optimizedUrl}" alt="${title}" style="width:100%; height:auto; display:block; object-fit:cover;">
-                            </a>
-                        `;
-                    }
-                });
-                gridContainer.innerHTML = html;
-                return; 
-            }
+            // ★ 使用與網頁版相同的 .responsive-grid
+            let html = '<div class="responsive-grid">';
             
-            let html = '';
             dataArray.forEach((row, idx) => {
                 let item = {};
                 headers.forEach((h, i) => item[h] = row[i]);
                 
-                const title = item['職缺名稱'] || item['主旨/標題'] || item['課程名稱'] || item['標題'] || '無標題';
+                const title = item['職缺名稱'] || item['主旨/標題'] || item['課程名稱'] || item['標題'] || item['產品名稱'] || '無標題';
                 let desc = item['交流內容'] || item['課程簡介'] || item['內容'] || '';
                 let extra = '';
-                let imgUrl = item['公司Logo或環境照片'] || item['附圖網址'] || item['封面圖片網址'] || item['圖片網址'] || '';
+                let imgUrl = item['公司Logo或環境照片'] || item['附圖網址'] || item['封面圖片網址'] || item['圖片網址'] || item['產品logo及圖檔'] || '';
                 let linkUrl = item['專屬付款網址'] || item['連結'] || item['專屬報名網址'] || item['相關連結'] || '';
                 
+                if (sheetName === '品牌推廣') {
+                    if (imgUrl) {
+                        const optimizedUrl = imgUrl.split(',')[0].trim();
+                        html += `
+                            <a href="${linkUrl || '#'}" target="${linkUrl ? '_blank' : '_self'}" style="display:block; border-radius:16px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.08); transition:0.3s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <img src="${optimizedUrl}" alt="${title}" style="width:100%; height:auto; display:block; object-fit:cover;">
+                            </a>
+                        `;
+                    }
+                    return; 
+                }
+
                 if (sheetName === '徵才專區') {
                     desc = `機構：${item['徵才機構']}<br>地點：${item['工作地點']}<br>薪資：${item['薪資待遇']}<br>聯絡：${item['聯絡方式']}`;
                 } else if (sheetName === '美業資訊交流') {
@@ -260,11 +251,15 @@ async function loadListData(sheetName) {
                     html += `<div class="card"><div class="card-title">${title}</div><div class="card-desc">${desc.replace(/\n/g, '<br>')}</div>${imgHtml}${extra}</div>`;
                 }
             });
+            html += '</div>';
             container.innerHTML = html;
         } else {
             container.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">目前尚無資料</div>';
         }
-    } catch(e) { container.innerHTML = '<div style="text-align:center; padding:30px; color:red;">連線失敗，請稍後重試</div>'; }
+    } catch(e) { 
+        console.error(e);
+        container.innerHTML = '<div style="text-align:center; padding:30px; color:red;">連線失敗，請稍後重試</div>'; 
+    }
 }
 
 function buildCommentsHtml(postTitle, postTime, dataIndex) {
