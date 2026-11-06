@@ -1,530 +1,223 @@
-/**
- * 檔案名稱：js/liff.js
- * 職責：統一 4 欄網格排版、專屬 LINE 大廳全自動登入 (加入空值自動隱藏、智慧按鈕與按鈕置底邏輯)
- */
-
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
-const API_SECRET_TOKEN = 'cla-eda-secure-2026';
-const LIFF_ID_MEMBER = '2012121201-JKa4hPdF'; 
-
-let currentTab = 'dashboard';
-window.currentCommentsCache = []; 
-
-function showPreloader() { document.getElementById('preloader').style.display = 'flex'; }
-function hidePreloader() { document.getElementById('preloader').style.display = 'none'; }
-
-function setHeader(title) { document.getElementById('app-title').innerText = title; }
-
-function showView(viewId) {
-    document.querySelectorAll('.view-panel').forEach(v => v.classList.remove('active'));
-    document.getElementById('view-' + viewId).classList.add('active');
-    
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    const activeNav = document.querySelector(`.nav-item[data-target="${viewId}"]`);
-    if (activeNav) activeNav.classList.add('active');
-    
-    document.getElementById('fab-post').style.display = (viewId === 'exchange') ? 'flex' : 'none';
-    document.querySelector('.app-main').scrollTo(0,0);
-}
-
-async function switchNav(target) {
-    currentTab = target;
-    if (target === 'dashboard') { setHeader('會員中心'); showView('dashboard'); }
-    else if (target === 'profile') { 
-        setHeader('我的會員資訊'); fillProfileForm(); showView('profile'); 
-    }
-    else if (target === 'post') {
-         setHeader('我要發文'); showView('post');
-    }
-    else {
-        let sheetName = '';
-        if(target === 'courses') { sheetName = '會員專屬影片'; setHeader('線上課程平台'); }
-        if(target === 'courses-all') { sheetName = '課程介紹'; setHeader('課程總覽'); } 
-        if(target === 'news') { sheetName = '最新消息'; setHeader('最新消息'); } 
-        if(target === 'exchange') { sheetName = '美業資訊交流'; setHeader('美業資訊交流'); }
-        if(target === 'jobs') { sheetName = '徵才專區'; setHeader('徵才專區'); }
-        if(target === 'brands') { sheetName = '品牌推廣'; setHeader('品牌推廣與合作'); } 
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CIA-EDA 會員中心</title>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --app-bg: #FAF7F2; --app-blue: #1F2D4A; --app-gold: #B8955A; --mist-rose: #E8D3CB; --text-main: #333333; --text-sub: #8E8E93; }
+        body { margin: 0; padding: 0; font-family: 'Noto Sans TC', sans-serif; background-color: var(--app-bg); color: var(--text-main); -webkit-tap-highlight-color: transparent; user-select: none; }
         
-        showView('list');
-        await loadListData(sheetName);
-    }
-}
-
-function initApp() {
-    showPreloader();
-    setTimeout(hidePreloader, 2500);
-    
-    try {
-        if (typeof liff !== 'undefined') {
-            liff.init({ liffId: LIFF_ID_MEMBER }).then(() => {
-                if (liff.isLoggedIn()) {
-                    processLogin(true);
-                } else {
-                    liff.login({ redirectUri: window.location.href }); 
-                }
-            }).catch((err) => {
-                console.error(err);
-                hidePreloader();
-            });
-        } else {
-            hidePreloader();
-        }
-    } catch (err) { 
-        console.error(err);
-        hidePreloader(); 
-    }
-}
-
-async function triggerLineLogin() {
-    if (!liff.isLoggedIn()) liff.login({ redirectUri: window.location.href });
-    else await processLogin();
-}
-
-async function processLogin(isSilent = false) {
-    if(!isSilent) showPreloader();
-    try {
-        const profile = await liff.getProfile();
-        const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'lineLogin', lineUid: profile.userId, displayName: profile.displayName, pictureUrl: profile.pictureUrl }) });
-        const data = await res.json();
+        .app-header { position: fixed; top: 0; left: 0; width: 100%; height: 50px; background: rgba(232, 211, 203, 0.95); backdrop-filter: blur(10px); display: flex; justify-content: center; align-items: center; box-shadow: 0 1px 10px rgba(0,0,0,0.05); z-index: 1000; font-weight: bold; font-size: 16px; color: var(--app-blue); }
         
-        if (data.status === 'success') {
-            localStorage.setItem('cia_member_credentials', JSON.stringify({ lineUid: profile.userId }));
-            localStorage.setItem('cia_member_info', JSON.stringify(data.member));
-            checkMemberState(data.member);
-        } else {
-            alert('登入失敗：' + data.message);
-            showView('login');
-        }
-    } catch(e) { 
-        console.error(e);
-        showView('login'); 
-    } finally { 
-        hidePreloader(); 
-    }
-}
+        .app-main { padding: 65px 15px 90px 15px; height: 100vh; box-sizing: border-box; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .view-panel { display: none; animation: fadeIn 0.3s ease; }
+        .view-panel.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-function checkMemberState(member) {
-    if (member.needsProfileCompletion) {
-        document.getElementById('r-name').value = member.name || '';
-        setHeader('建立資料');
-        showView('register');
-    } else if (member.memberStatus === '停用' || member.memberStatus === '待審核') {
-        setHeader('審核中');
-        showView('pending');
-    } else {
-        document.getElementById('bottom-nav').style.display = 'flex';
-        document.getElementById('dash-avatar').src = member.avatar || 'https://via.placeholder.com/60';
-        document.getElementById('dash-name').innerText = member.name;
-        document.getElementById('dash-level').innerText = member.level;
+        /* === 全新 4 等分網格系統 === */
+        .responsive-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 30px; margin-top: 20px; width: 100%; box-sizing: border-box; }
+        @media (max-width: 768px) {
+            .responsive-grid { grid-template-columns: 1fr; gap: 20px; } 
+        }
+
+        .card { background: #fff; border-radius: 16px; padding: 25px 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 15px; border: 1px solid rgba(184, 149, 90, 0.1); display: flex; flex-direction: column; }
+        .card-title { font-size: 18px; font-weight: bold; color: var(--app-blue); margin: 0 0 10px 0; display: flex; align-items: center; justify-content: space-between;}
         
-        const expiry = member.expiryDate ? new Date(member.expiryDate).toISOString().split('T')[0] : '無';
-        document.getElementById('dash-expiry').innerText = `到期日: ${expiry}`;
-
-        loadDashboardNews();
-        switchNav('dashboard');
-    }
-}
-
-async function loadDashboardNews() {
-    const container = document.getElementById('dash-news-container');
-    try {
-        const res = await fetch(`${GAS_URL}?sheetName=最新消息`);
-        const dataObj = await res.json();
-        if (dataObj.status === 'success' && dataObj.data.length > 1) {
-            let newsData = dataObj.data.slice(1).reverse().slice(0, 2); 
-            if (newsData.length > 0) {
-                let html = '';
-                newsData.forEach(item => {
-                    const date = item[0] || '';
-                    const title = item[1] || '無標題';
-                    html += `
-                        <div class="dash-news-item" onclick="switchNav('news')">
-                            <div class="dash-news-date">${date}</div>
-                            <div class="dash-news-title">${title}</div>
-                        </div>
-                    `;
-                });
-                container.innerHTML = html;
-                return;
-            }
-        }
-        container.innerHTML = '<div style="grid-column: span 2; text-align: center; color: #aaa; font-size: 12px; padding: 10px;">目前尚無最新消息</div>';
-    } catch(e) {
-        container.innerHTML = '<div style="grid-column: span 2; text-align: center; color: red; font-size: 12px; padding: 10px;">無法取得最新消息</div>';
-    }
-}
-
-function logout() {
-    localStorage.removeItem('cia_member_credentials');
-    localStorage.removeItem('cia_member_info');
-    if(liff.isLoggedIn()) liff.logout();
-    document.getElementById('bottom-nav').style.display = 'none';
-    document.getElementById('fab-post').style.display = 'none';
-    setHeader('會員中心');
-    showView('login');
-}
-
-window.loadListData = async function(sheetName) {
-    const container = document.getElementById('list-container');
-    container.innerHTML = '<div style="text-align:center; padding:30px; color:var(--app-gold); font-weight:bold;">載入中...</div>';
-    try {
-        const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
-        let res;
-        if (sheetName === '會員專屬影片') {
-             res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'verifyAndGetCourses', credentials: credentials }) });
-        } else {
-             res = await fetch(`${GAS_URL}?sheetName=${sheetName}`);
-        }
+        /* 保證簡介區塊具備彈性空間，把按鈕推到底部 */
+        .card-desc { font-size: 14px; color: var(--text-sub); line-height: 1.5; margin: 0 0 15px 0; flex: 1; }
         
-        const dataObj = await res.json();
+        /* ★ 強制大廳卡片內的按鈕區塊置底 */
+        .card-actions { margin-top: auto; width: 100%; }
 
-        if (sheetName === '美業資訊交流') {
-            const commentsRes = await fetch(`${GAS_URL}?sheetName=交流留言`);
-            const commentsData = await commentsRes.json();
-            if (commentsData.status === 'success' && commentsData.data.length > 1) {
-                window.currentCommentsCache = commentsData.data.slice(1);
-            } else {
-                window.currentCommentsCache = [];
-            }
-        }
+        .grid-menu { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+        .grid-item { background: #fff; border-radius: 16px; padding: 25px 10px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.03); cursor: pointer; transition: 0.2s; border: 1px solid transparent; }
+        .grid-item:active { transform: scale(0.96); border-color: var(--app-gold); }
+        .grid-icon { font-size: 36px; margin-bottom: 10px; }
+        .grid-text { font-size: 14px; font-weight: bold; color: var(--app-blue); }
+
+        .dash-news-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .dash-news-item { background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, #fff 100%); border-radius: 12px; padding: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); border: 1px solid rgba(184, 149, 90, 0.2); display: flex; flex-direction: column; cursor: pointer; transition: 0.2s; }
+        .dash-news-item:active { transform: scale(0.98); border-color: var(--app-gold); }
+        .dash-news-date { font-size: 11px; color: var(--app-gold); margin-bottom: 5px; font-weight: bold; }
+        .dash-news-title { font-size: 13px; color: var(--app-blue); font-weight: bold; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 13px; color: var(--app-blue); margin-bottom: 6px; font-weight: bold; }
+        .input-field, .select-field, .textarea-field { width: 100%; padding: 14px; border: 1px solid #E5E5EA; border-radius: 12px; font-size: 15px; background: #fff; box-sizing: border-box; outline: none; transition: 0.3s; }
+        .input-field:focus { border-color: var(--app-gold); box-shadow: 0 0 0 2px rgba(184,149,90,0.1); }
+        .textarea-field { height: 120px; resize: none; }
         
-        if (dataObj.status === 'success' && dataObj.data.length > 1) {
-            let dataArray = dataObj.data;
-            const headers = dataArray.shift();
-            if (sheetName === '美業資訊交流' || sheetName === '徵才專區' || sheetName === '最新消息') dataArray = dataArray.reverse();
-            
-            let html = '<div class="responsive-grid">';
-            const maxDescLength = 50; 
-            
-            dataArray.forEach((row, idx) => {
-                let item = {};
-                headers.forEach((h, i) => item[h] = row[i]);
-                
-                const title = item['職缺名稱'] || item['主旨/標題'] || item['課程名稱'] || item['標題'] || item['產品名稱'] || item['品牌名稱'] || '無標題';
-                let desc = item['交流內容'] || item['課程簡介'] || item['內容'] || '';
-                let extra = '';
-                let imgUrl = item['公司Logo或環境照片'] || item['附圖網址'] || item['封面圖片網址'] || item['圖片網址'] || item['產品logo及圖檔'] || item['照片網址'] || '';
-                let linkUrl = item['專屬付款網址'] || item['連結'] || item['專屬報名網址'] || item['相關連結'] || item['品牌官方連結'] || item['官方連結'] || '';
-                
-                if (sheetName === '徵才專區') {
-                    let parts = [];
-                    if (item['徵才機構']) parts.push(`🏢 機構：${item['徵才機構']}`);
-                    if (item['工作地點']) parts.push(`📍 地點：${item['工作地點']}`);
-                    if (item['薪資待遇']) parts.push(`💰 薪資：${item['薪資待遇']}`);
-                    if (item['聯絡方式']) parts.push(`📞 聯絡：${item['聯絡方式']}`);
-                    if (item['條件要求']) parts.push(`\n【條件要求】\n${item['條件要求']}`);
-                    desc = parts.join('\n');
-                } else if (sheetName === '美業資訊交流') {
-                    extra = `<div style="font-size:12px; color:var(--app-gold); margin-top:10px;">${item['發文者姓名']} • ${item['發文時間']}</div>`;
-                    extra += buildCommentsHtml(title, item['發文時間'], idx);
-                } else if (sheetName === '最新消息') {
-                    extra = `<div style="font-size:12px; color:var(--app-gold); margin-bottom:5px; font-weight:bold;">發佈日期：${item['發佈日期']}</div>`;
-                    if(linkUrl) extra += `<a href="${linkUrl}" target="_blank" class="btn-primary" style="margin-top:15px; padding:10px;">查看相關連結</a>`;
-                } else if (sheetName === '會員專屬影片') {
-                    const vLink = item['影片嵌入網址'];
-                    if (vLink) {
-                        extra = `<div class="video-container" id="vid-${idx}"><iframe src="${vLink}" allowfullscreen></iframe></div>
-                                 <button class="btn-primary" style="margin-top:15px; padding:10px;" onclick="document.getElementById('vid-${idx}').style.display='block'; this.style.display='none';">▶️ 播放影片</button>`;
-                    }
-                } else if (sheetName === '課程介紹') {
-                     if(linkUrl) extra += `<a href="${linkUrl}" target="_blank" class="btn-primary" style="margin-top:15px; padding:10px;">報名 / 了解更多</a>`;
-                } else if (item['店家名稱'] || item['品牌名稱']) {
-                    let parts = [];
-                    if (item['負責人']) parts.push(`👤 負責人：${item['負責人']}`);
-                    if (item['地址']) parts.push(`📍 地址：${item['地址']}`);
-                    if (item['聯絡電話']) parts.push(`📞 電話：${item['聯絡電話']}`);
-                    if (item['簡介']) parts.push(`\n${item['簡介']}`);
-                    desc = parts.join('\n').trim();
-                }
-                
-                let imgHtml = '';
-                if (imgUrl) {
-                    const firstImg = imgUrl.split(',')[0].trim();
-                    imgHtml = `<img src="${firstImg}" class="post-img">`;
-                }
-                
-                let shortDesc = desc.length > maxDescLength ? desc.substring(0, maxDescLength) + '...' : desc;
-                
-                const isClickable = Boolean(linkUrl) || Boolean(imgUrl);
-                const cursorStyle = isClickable ? 'cursor: pointer;' : '';
-                const clickAction = isClickable ? `onclick="openDetailModal(${idx})"` : '';
+        /* 讓底部按鈕不要自帶多餘的 margin-top，交給外層 .card-actions 控制 */
+        .btn-primary { background: linear-gradient(135deg, var(--app-gold) 0%, #967a4a 100%); color: #fff; border: none; border-radius: 25px; padding: 15px; width: 100%; font-size: 16px; font-weight: bold; box-shadow: 0 4px 15px rgba(184, 149, 90, 0.3); cursor: pointer; text-align: center; display: block; text-decoration: none; box-sizing: border-box; margin-top: 0;}
+        .btn-primary:active { transform: scale(0.98); }
+        .btn-danger { background: #fff; color: #FF3B30; border: 1px solid #FF3B30; border-radius: 25px; padding: 12px; width: 100%; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 15px; }
+        .line-login-btn { background: #06C755; color: #fff; border: none; border-radius: 25px; padding: 15px; width: 100%; font-size: 16px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; height: 65px; background: rgba(255,255,255,0.95); backdrop-filter: blur(15px); border-top: 1px solid rgba(0,0,0,0.05); display: flex; justify-content: space-around; align-items: center; z-index: 1000; padding-bottom: env(safe-area-inset-bottom); box-shadow: 0 -2px 10px rgba(0,0,0,0.03);}
+        .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-sub); width: 25%; font-size: 10px; font-weight: 500; text-decoration: none; cursor: pointer; transition: 0.2s;}
+        .nav-item.active { color: var(--app-gold); }
+        .nav-icon { font-size: 22px; margin-bottom: 2px; }
 
-                if (sheetName === '最新消息') {
-                     html += `<div class="card">${extra}<div class="card-title">${title}</div><p class="card-desc">${shortDesc.replace(/\n/g, '<br>')}</p>${imgHtml}</div>`;
-                } else {
-                     let paymentBtnHtml = '';
-                     if (linkUrl && !item['發佈日期']) {
-                         const btnText = (item['店家名稱'] || item['品牌名稱']) ? '前往該品牌' : '了解更多 / 報名';
-                         paymentBtnHtml = `<a href="${linkUrl}" target="_blank" class="btn-primary" onclick="event.stopPropagation();">${btnText}</a>`;
-                     }
-                     if (item['最低權限要求(例如:一般會員)'] !== undefined) {
-                         const reqLevel = item['最低權限要求(例如:一般會員)'] || '會員';
-                         paymentBtnHtml = `<button class="btn-primary member-btn" onclick="playCourseVideo(event, '${title}', '${reqLevel}')">▶️ 播放線上課程 (${reqLevel}專屬)</button>`;
-                     }
-                     
-                     html += `
-                        <div class="card" ${clickAction} style="${cursorStyle}">
-                            <div class="card-title">${title}</div>
-                            <p class="card-desc">${shortDesc.replace(/\n/g, '<br>')}</p>
-                            ${imgHtml}
-                            <div class="card-actions">${paymentBtnHtml}</div>
-                            ${extra}
-                        </div>
-                     `;
-                }
-            });
-            html += '</div>';
-            container.innerHTML = html;
-        } else {
-            container.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">目前尚無資料</div>';
-        }
-    } catch(e) { 
-        console.error(e);
-        container.innerHTML = '<div style="text-align:center; padding:30px; color:red;">連線失敗，請稍後重試</div>'; 
-    }
-}
+        #preloader { position: fixed; top:0; left:0; width:100%; height:100%; background:var(--app-bg); z-index:99999; display:flex; flex-direction:column; justify-content:center; align-items:center; }
+        .spinner { border: 4px solid rgba(184,149,90,0.2); border-top: 4px solid var(--app-gold); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-function buildCommentsHtml(postTitle, postTime, dataIndex) {
-    const comments = (window.currentCommentsCache || []).filter(c => c[0] === postTitle && c[1] === postTime);
-    let html = '<div style="margin-top:15px; border-top:1px dashed #eee; padding-top:15px; text-align:left;">';
-    
-    if (comments.length > 0) {
-        comments.forEach(c => {
-            html += `
-            <div style="font-size:13px; margin-bottom:10px; padding:10px; background:#f8f9fa; border-radius:8px; border-left:3px solid var(--app-gold);">
-                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                    <strong style="color:var(--app-blue);">${c[2]}</strong>
-                    <span style="color:#aaa; font-size:11px;">${c[3]}</span>
-                </div>
-                <div style="color:var(--text-main); line-height:1.5;">${c[4].replace(/\n/g, '<br>')}</div>
-            </div>`;
-        });
-    } else {
-        html += `<div style="font-size:12px; color:#aaa; margin-bottom:10px; text-align:center;">目前尚無留言，來搶頭香吧！</div>`;
-    }
-    
-    html += `
-        <div style="display:flex; gap:10px; margin-top:10px;" onclick="event.stopPropagation();">
-            <input type="text" id="comment-input-${dataIndex}" class="input-field" placeholder="輸入留言..." style="padding:10px; flex:1; font-size:13px;">
-            <button class="btn-primary" onclick="submitComment(event, ${dataIndex}, '${postTitle}', '${postTime}')" style="padding:10px 15px; width:auto; border-radius:8px;">留言</button>
+        .post-img { width: 100%; border-radius: 12px; margin-top: 10px; object-fit: contain; max-height: 300px; background: #fff; }
+        .video-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 12px; background: #000; margin-top:15px; display: none;}
+        .video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
+        
+        .fab-btn { position: fixed; bottom: 85px; right: 20px; background: var(--app-gold); color: #fff; width: 55px; height: 55px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; box-shadow: 0 4px 15px rgba(184, 149, 90, 0.4); z-index: 900; cursor:pointer;}
+    </style>
+</head>
+<body>
+    <div id="preloader"><div class="spinner"></div><div style="color:var(--app-gold); font-size:14px; font-weight:bold;">安全連線中...</div></div>
+
+    <div class="app-header" id="app-title">會員中心</div>
+
+    <main class="app-main">
+        <div id="view-login" class="view-panel">
+            <div class="card" style="text-align: center; margin-top: 20px; padding: 50px 20px;">
+                <img src="images/CIAEDA_直式標準_標準彩色.png" alt="Logo" style="height: 60px; margin-bottom: 20px;">
+                <h2 style="margin:0 0 10px 0; color:var(--app-blue);">專屬會員服務</h2>
+                <p class="card-desc" style="margin-bottom: 30px;">請授權 LINE 帳號以存取大廳。</p>
+                <button class="line-login-btn" onclick="triggerLineLogin()">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg" style="width:20px;"> LINE 一鍵登入
+                </button>
+            </div>
         </div>
-    </div>`;
-    return html;
-}
 
-window.openDetailModal = function(index) {
-    const item = currentViewDataCache[index];
-    if (!item) return;
+        <div id="view-pending" class="view-panel">
+            <div class="card" style="text-align: center; margin-top: 20px;">
+                <div style="font-size: 50px; margin-bottom: 10px;">⏳</div>
+                <h2 style="margin:0 0 10px 0; color:var(--app-gold);">資格審核中</h2>
+                <p class="card-desc" style="margin-bottom: 20px;">您的資料已送出。<br>請返回官方 LINE 傳送訊息聯繫客服人員，以進行人工確認與繳費。</p>
+                <a href="index.html" class="btn-primary" style="margin-bottom: 15px;">🌍 瀏覽官方形象網站</a>
+                <button class="btn-danger" onclick="logout()">登出帳號</button>
+            </div>
+        </div>
 
-    const title = item['課程名稱'] || item['講師姓名'] || item['顧問姓名'] || item['店家名稱'] || item['品牌名稱'] || item['活動名稱'] || item['產品名稱'] || item['標題'] || item['職缺名稱'] || item['主旨/標題'] || '';
-    let desc = item['簡介'] || item['個人簡介'] || item['產品簡介'] || item['內容'] || item['交流內容'] || '';
-    const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || item['產品logo及圖檔'] || item['公司Logo或環境照片'] || item['附圖網址'] || item['封面圖片網址'] || '';
-    const linkRaw = item['報名連結'] || item['專屬付款網址'] || item['連結'] || item['專屬報名網址'] || item['品牌官方連結'] || item['官方連結'] || item['相關連結'] || ''; 
+        <div id="view-register" class="view-panel">
+            <div class="card">
+                <h2 style="margin:0 0 5px 0; color:var(--app-gold); text-align:center;">會員資料建檔</h2>
+                <p class="card-desc" style="text-align:center; margin-bottom: 20px;">請完善以下資料以申請入會</p>
+                
+                <div class="form-group"><label>真實姓名 (中文) *</label><input type="text" id="r-name" class="input-field"></div>
+                <div class="form-group"><label>英文姓名</label><input type="text" id="r-enname" class="input-field"></div>
+                <div class="form-group"><label>性別 *</label><select id="r-gender" class="select-field"><option value="女">女</option><option value="男">男</option></select></div>
+                <div class="form-group"><label>出生日期 *</label><input type="date" id="r-birth" class="input-field"></div>
+                <div class="form-group"><label>身分證字號 *</label><input type="text" id="r-id" class="input-field"></div>
+                <div class="form-group"><label>聯絡電話(手機) *</label><input type="tel" id="r-phone" class="input-field"></div>
+                <div class="form-group"><label>LINE ID</label><input type="text" id="r-line" class="input-field"></div>
+                <div class="form-group"><label>電子郵件 *</label><input type="email" id="r-email" class="input-field"></div>
+                <div class="form-group"><label>通訊地址 (選填)</label><input type="text" id="r-address" class="input-field"></div>
+                
+                <h3 style="color:var(--app-blue); font-size:16px; margin: 25px 0 15px 0; border-bottom:1px solid #eee; padding-bottom:5px;">專業背景資訊</h3>
+                <div class="form-group"><label>最高學歷</label><select id="r-edu" class="select-field"><option value="高中/職">高中/職</option><option value="專科">專科</option><option value="學士">學士</option><option value="碩士">碩士</option><option value="博士">博士</option><option value="其他">其他</option></select></div>
+                <div class="form-group"><label>主要美學領域</label><input type="text" id="r-fields" class="input-field" placeholder="如: 美甲, 紋繡"></div>
+                <div class="form-group"><label>現職機構名稱</label><input type="text" id="r-company" class="input-field"></div>
+                <div class="form-group"><label>現任職稱</label><input type="text" id="r-jobtitle" class="input-field"></div>
+                <div class="form-group"><label>申請會籍類別 (期望申請)*</label>
+                    <select id="r-membership" class="select-field">
+                        <option value="一般會員">一般會員</option><option value="VIP會員">VIP會員</option>
+                        <option value="講師會員">講師會員</option><option value="顧問會員">顧問會員</option>
+                        <option value="企業會員">企業會員</option>
+                    </select>
+                </div>
+                <button class="btn-primary" id="btn-submit-register" style="margin-top: 15px;">送出申請</button>
+            </div>
+        </div>
 
-    let extraHtml = '';
+        <div id="view-dashboard" class="view-panel">
+            <div class="card" style="display:flex; align-items:center; gap:15px; padding:20px; background:linear-gradient(135deg, #fff 0%, var(--mist-rose) 100%); margin-bottom: 0;">
+                <img id="dash-avatar" src="" style="width:60px; height:60px; border-radius:50%; background:#fff; padding:2px; border:2px solid var(--app-gold);">
+                <div>
+                    <div style="font-size:20px; font-weight:bold; color:var(--app-blue);" id="dash-name">使用者</div>
+                    <div style="font-size:12px; color:#fff; background:var(--app-gold); padding:4px 12px; border-radius:12px; display:inline-block; margin-top:5px; font-weight:bold;" id="dash-level">會員等級</div>
+                    <div style="font-size:11px; color:var(--app-blue); display:inline-block; margin-left:8px; font-weight:bold;" id="dash-expiry"></div>
+                </div>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin: 20px 0 10px 5px;">
+                <h3 style="font-size: 16px; color: var(--app-blue); margin: 0;">最新消息</h3>
+                <span style="font-size: 12px; color: var(--app-gold); font-weight: bold; cursor: pointer;" onclick="switchNav('news')">查看更多 ></span>
+            </div>
+            
+            <div id="dash-news-container" class="dash-news-grid">
+                <div style="grid-column: span 2; text-align: center; color: var(--text-sub); font-size: 12px; padding: 10px;">讀取中...</div>
+            </div>
 
-    if (item['發佈日期'] && item['相關連結']) {
-        return; 
-    } else if (item['徵才機構']) {
-        let parts = [];
-        if (item['徵才機構']) parts.push(`🏢 機構：${item['徵才機構']}`);
-        if (item['工作地點']) parts.push(`📍 地點：${item['工作地點']}`);
-        if (item['薪資待遇']) parts.push(`💰 薪資：${item['薪資待遇']}`);
-        if (item['聯絡方式']) parts.push(`📞 聯絡：${item['聯絡方式']}`);
-        if (item['條件要求']) parts.push(`\n【條件要求】\n${item['條件要求']}`);
-        desc = parts.join('\n');
-    } else if (item['發文者姓名']) {
-        extraHtml = `<div style="font-size:12px; color:var(--champagne); margin-top:10px; text-align:center;">${item['發文者姓名']} • ${item['發文時間']}</div>`;
-    } else if (item['專長項目']) {
-        desc = (item['專長項目'] ? `【專長項目】\n${item['專長項目']}\n\n` : '') + desc;
-    } else if (item['店家名稱'] || item['品牌名稱']) {
-        let parts = [];
-        if (item['負責人']) parts.push(`👤 負責人：${item['負責人']}`);
-        if (item['地址']) parts.push(`📍 地址：${item['地址']}`);
-        if (item['聯絡電話']) parts.push(`📞 電話：${item['聯絡電話']}`);
-        if (item['簡介']) parts.push(`\n${item['簡介']}`);
-        desc = parts.join('\n').trim();
-    }
+            <h3 style="font-size: 16px; color: var(--app-blue); margin: 25px 0 10px 5px;">常用服務</h3>
+            <!-- ★ 大廳四個方格 -->
+            <div class="grid-menu">
+                <div class="grid-item" onclick="switchNav('courses-all')"><div class="grid-icon">📖</div><div class="grid-text">課程總覽</div></div>
+                <div class="grid-item" onclick="switchNav('brands')"><div class="grid-icon">💎</div><div class="grid-text">品牌推廣</div></div>
+                <div class="grid-item" onclick="switchNav('jobs')"><div class="grid-icon">🏢</div><div class="grid-text">徵才專區</div></div>
+                <a href="index.html" class="grid-item" style="text-decoration:none;"><div class="grid-icon">🌍</div><div class="grid-text">前往官網</div></a>
+            </div>
+        </div>
 
-    let imagesHtml = '';
-    const rawUrls = imgRaw.split(',').map(u => u.trim()).filter(u => u);
-    if (rawUrls.length > 0) {
-        rawUrls.forEach(url => {
-            imagesHtml += `<img src="${optimizeImageUrl(url)}" style="width: 100%; display: block; border-bottom: 1px solid #eee;">`;
-        });
-    }
+        <div id="view-list" class="view-panel">
+            <div id="list-container"></div>
+        </div>
 
-    const btnText = (item['店家名稱'] || item['品牌名稱']) ? '前往該品牌' : '了解更多 / 報名';
-    let actionHtml = linkRaw ? `<a href="${linkRaw}" target="_blank" class="btn-primary" style="font-size: 18px; padding: 12px 30px; margin-top: 15px;">${btnText}</a>` : '';
-    
-    if (item['最低權限要求(例如:一般會員)'] !== undefined) {
-        const reqLevel = item['最低權限要求(例如:一般會員)'] || '會員';
-        actionHtml = `<button class="btn-primary member-btn" style="width:100%; font-size:18px; padding: 12px 30px; margin-top: 15px;" onclick="playCourseVideo(event, '${title}', '${reqLevel}')">▶️ 播放線上課程 (${reqLevel}專屬)</button>`;
-    }
+        <div id="view-profile" class="view-panel">
+            <div class="card">
+                <h2 style="margin:0 0 15px 0; color:var(--app-gold);">我的會員資訊</h2>
+                
+                <div style="background: var(--mist-rose); padding: 15px; border-radius: 8px; margin-bottom: 25px; font-size: 14px; line-height: 1.8; color: var(--app-blue);">
+                    <strong>💎 會籍狀態</strong><br>
+                    會員編號：<strong id="v-memberId" style="color:var(--app-gold);"></strong><br>
+                    會員等級：<strong id="v-level"></strong><br>
+                    到期日期：<strong id="v-expiry"></strong><br>
+                    帳號狀態：<strong id="v-status"></strong>
+                    <div style="font-size:12px; color:#888; margin-top:5px;">※ 會籍與權限升級請聯繫協會。</div>
+                </div>
 
-    document.getElementById('detail-modal-images').innerHTML = imagesHtml;
-    document.getElementById('detail-modal-title').innerText = title;
-    document.getElementById('detail-modal-desc').innerHTML = desc.replace(/\n/g, '<br>') + extraHtml;
-    document.getElementById('detail-modal-action').innerHTML = actionHtml;
-
-    document.getElementById('detail-modal').classList.add('active');
-};
-
-window.submitComment = async function(event, index, postTitle, postTime) {
-    if(event) event.stopPropagation(); 
-    const input = document.getElementById(`comment-input-${index}`);
-    const content = input.value.trim();
-    if (!content) { alert('請輸入留言內容！'); return; }
-
-    const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
-    const memberInfo = JSON.parse(localStorage.getItem('cia_member_info'));
-    
-    if (!credentials || !memberInfo) {
-        alert('請先登入會員才能留言！');
-        return;
-    }
-
-    const btn = event.target;
-    const ogText = btn.innerText;
-    btn.innerText = '傳送中...';
-    btn.disabled = true;
-
-    try {
-        await fetch(GAS_URL, {
-            method: 'POST',
-            body: JSON.stringify({
-                token: API_SECRET_TOKEN,
-                action: 'submitComment',
-                lineUid: credentials.lineUid,
-                postTitle: postTitle,
-                postTime: postTime,
-                content: content
-            })
-        });
-        alert('留言成功！');
-        input.value = '';
-        await loadListData('美業資訊交流'); 
-    } catch(e) {
-        alert('留言失敗，請稍後再試。');
-    } finally {
-        btn.innerText = ogText;
-        btn.disabled = false;
-    }
-};
-
-document.addEventListener('DOMContentLoaded', () => {
-    initApp();
-
-    document.getElementById('btn-submit-register').addEventListener('click', async (e) => {
-        const btn = e.target;
-        const profileData = {
-            nameZh: document.getElementById('r-name').value.trim(), nameEn: document.getElementById('r-enname').value.trim(),
-            gender: document.getElementById('r-gender').value, birth: document.getElementById('r-birth').value,
-            idNum: document.getElementById('r-id').value.trim(), phone: document.getElementById('r-phone').value.trim(),
-            line: document.getElementById('r-line').value.trim(), email: document.getElementById('r-email').value.trim(),
-            address: document.getElementById('r-address').value.trim(), edu: document.getElementById('r-edu').value,
-            fields: document.getElementById('r-fields').value.trim(), company: document.getElementById('r-company').value.trim(),
-            jobTitle: document.getElementById('r-jobtitle').value.trim(), membership: document.getElementById('r-membership').value
-        };
-        if (!profileData.nameZh || !profileData.birth || !profileData.idNum || !profileData.phone || !profileData.email) {
-            alert('請填寫必填星號欄位！'); return;
-        }
-        btn.innerText = '處理中...'; btn.disabled = true; showPreloader();
-        try {
-            const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
-            await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'updateMemberProfile', lineUid: credentials.lineUid, profileData: profileData }) });
-            alert('入會申請已送出！請於 LINE 中聯絡客服。');
-            let memberInfo = JSON.parse(localStorage.getItem('cia_member_info'));
-            memberInfo.needsProfileCompletion = false; memberInfo.memberStatus = '待審核';
-            localStorage.setItem('cia_member_info', JSON.stringify(memberInfo));
-            checkMemberState(memberInfo);
-        } catch(err) { alert('儲存失敗'); } finally { btn.innerText = '送出申請'; btn.disabled = false; hidePreloader(); }
-    });
-
-    document.getElementById('btn-save-profile').addEventListener('click', async (e) => {
-        const btn = e.target;
-        const profileData = {
-            nameZh: document.getElementById('e-name').value.trim(), nameEn: document.getElementById('e-enname').value.trim(),
-            gender: document.getElementById('e-gender').value, birth: document.getElementById('e-birth').value,
-            idNum: document.getElementById('e-id').value.trim(), phone: document.getElementById('e-phone').value.trim(),
-            line: document.getElementById('e-line').value.trim(), email: document.getElementById('e-email').value.trim(),
-            address: document.getElementById('e-address').value.trim(), edu: document.getElementById('e-edu').value,
-            fields: document.getElementById('e-fields').value.trim(), company: document.getElementById('e-company').value.trim(),
-            jobTitle: document.getElementById('e-jobtitle').value.trim()
-        };
-        btn.innerText = '更新中...'; btn.disabled = true; showPreloader();
-        try {
-            const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
-            await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'editMemberProfile', lineUid: credentials.lineUid, profileData: profileData }) });
-            let memberInfo = JSON.parse(localStorage.getItem('cia_member_info'));
-            Object.assign(memberInfo, {
-                nameEn: profileData.nameEn, gender: profileData.gender, birth: profileData.birth, idNum: profileData.idNum, 
-                phone: profileData.phone, lineId: profileData.line, email: profileData.email, address: profileData.address,
-                edu: profileData.edu, fields: profileData.fields, company: profileData.company, jobTitle: profileData.jobTitle
-            });
-            localStorage.setItem('cia_member_info', JSON.stringify(memberInfo));
-            alert('資料更新成功！');
-            switchNav('dashboard');
-        } catch(err) { alert('更新失敗'); } finally { btn.innerText = '儲存變更'; btn.disabled = false; hidePreloader(); }
-    });
-
-    document.getElementById('btn-submit-post').addEventListener('click', async (e) => {
-        const btn = e.target;
-        const title = document.getElementById('post-title').value.trim();
-        const content = document.getElementById('post-content').value.trim();
-        const fileInput = document.getElementById('post-image');
-        if (!title || !content) { alert('請填寫標題與內容！'); return; }
+                <div class="form-group"><label>真實姓名 (不可更改)</label><input type="text" id="e-name" class="input-field" disabled style="background:#f0f0f0;"></div>
+                <div class="form-group"><label>英文姓名</label><input type="text" id="e-enname" class="input-field"></div>
+                <div class="form-group"><label>性別</label><select id="e-gender" class="select-field"><option value="女">女</option><option value="男">男</option></select></div>
+                <div class="form-group"><label>出生日期</label><input type="date" id="e-birth" class="input-field"></div>
+                <div class="form-group"><label>身分證字號</label><input type="text" id="e-id" class="input-field"></div>
+                <div class="form-group"><label>聯絡電話</label><input type="tel" id="e-phone" class="input-field"></div>
+                <div class="form-group"><label>LINE ID</label><input type="text" id="e-line" class="input-field"></div>
+                <div class="form-group"><label>電子郵件</label><input type="email" id="e-email" class="input-field"></div>
+                <div class="form-group"><label>通訊地址</label><input type="text" id="e-address" class="input-field"></div>
+                
+                <h3 style="color:var(--app-blue); font-size:16px; margin: 25px 0 15px 0; border-bottom:1px solid #eee; padding-bottom:5px;">專業背景資訊</h3>
+                <div class="form-group"><label>最高學歷</label><select id="e-edu" class="select-field"><option value="高中/職">高中/職</option><option value="專科">專科</option><option value="學士">學士</option><option value="碩士">碩士</option><option value="博士">博士</option><option value="其他">其他</option></select></div>
+                <div class="form-group"><label>主要美學領域</label><input type="text" id="e-fields" class="input-field"></div>
+                <div class="form-group"><label>現職機構名稱</label><input type="text" id="e-company" class="input-field"></div>
+                <div class="form-group"><label>現任職稱</label><input type="text" id="e-jobtitle" class="input-field"></div>
+                
+                <button class="btn-primary" id="btn-save-profile" style="margin-top:20px;">儲存變更</button>
+                <button class="btn-danger" onclick="logout()">安全登出帳號</button>
+            </div>
+        </div>
         
-        let base64Data = null; let mimeType = null; let fileName = null;
-        if (fileInput.files.length > 0) {
-            const file = fileInput.files[0];
-            if (file.size > 5 * 1024 * 1024) { alert('照片超過 5MB 上限！'); return; }
-            base64Data = await new Promise(r => { const rd = new FileReader(); rd.onload = () => r(rd.result.split(',')[1]); rd.readAsDataURL(file); });
-            mimeType = file.type; fileName = file.name;
-        }
+        <div id="view-post" class="view-panel">
+             <div class="card">
+                <h2 style="margin:0 0 15px 0; color:var(--app-gold);">發佈交流資訊</h2>
+                <div class="form-group"><label>標題 / 主旨 *</label><input type="text" id="post-title" class="input-field"></div>
+                <div class="form-group"><label>內容 *</label><textarea id="post-content" class="textarea-field"></textarea></div>
+                <div class="form-group"><label>附加圖片 (限5MB內)</label><input type="file" id="post-image" class="input-field" accept="image/*"></div>
+                <button class="btn-primary" id="btn-submit-post" style="margin-top:10px;">確認發佈</button>
+            </div>
+        </div>
+    </main>
 
-        btn.innerText = '發佈中...'; btn.disabled = true; showPreloader();
-        try {
-            const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
-            let imgUrl = '';
-            if (base64Data) {
-                const resImg = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'uploadImage', sheetName: '美業資訊交流', base64Data: base64Data, mimeType: mimeType, fileName: fileName }) });
-                imgUrl = (await resImg.json()).url;
-            }
-            await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'userPostExchange', lineUid: credentials.lineUid, postTitle: title, postContent: content, imgUrl: imgUrl }) });
-            alert('發佈成功！');
-            document.getElementById('post-title').value = ''; document.getElementById('post-content').value = ''; fileInput.value = '';
-            switchNav('exchange'); 
-        } catch(err) { alert('發佈失敗'); } finally { btn.innerText = '確認發佈'; btn.disabled = false; hidePreloader(); }
-    });
-});
+    <!-- ★ 四等分底部導航列 -->
+    <nav class="bottom-nav" id="bottom-nav" style="display: none;">
+        <div class="nav-item active" data-target="dashboard" onclick="switchNav('dashboard')"><div class="nav-icon">🏠</div>大廳</div>
+        <div class="nav-item" data-target="courses" onclick="switchNav('courses')"><div class="nav-icon">🎬</div>課程</div>
+        <div class="nav-item" data-target="exchange" onclick="switchNav('exchange')"><div class="nav-icon">💬</div>交流</div>
+        <div class="nav-item" data-target="profile" onclick="switchNav('profile')"><div class="nav-icon">⚙️</div>設定</div>
+    </nav>
+    
+    <div class="fab-btn" id="fab-post" style="display:none;" onclick="switchNav('post')">✏️</div>
 
-function fillProfileForm() {
-    const m = JSON.parse(localStorage.getItem('cia_member_info'));
-    if(!m) return;
-    
-    document.getElementById('v-memberId').innerText = m.memberId || '審核中';
-    document.getElementById('v-level').innerText = m.level || '一般會員';
-    document.getElementById('v-expiry').innerText = m.expiryDate ? new Date(m.expiryDate).toISOString().split('T')[0] : '無';
-    document.getElementById('v-status').innerText = m.memberStatus || '待審核';
-
-    document.getElementById('e-name').value = m.name || '';
-    document.getElementById('e-enname').value = m.nameEn || '';
-    if(m.gender) document.getElementById('e-gender').value = m.gender;
-    
-    if(m.birth) {
-        try { document.getElementById('e-birth').value = new Date(m.birth).toISOString().split('T')[0]; } 
-        catch(e) { document.getElementById('e-birth').value = ''; }
-    }
-    
-    document.getElementById('e-id').value = m.idNum || '';
-    document.getElementById('e-phone').value = m.phone || '';
-    document.getElementById('e-line').value = m.lineId || '';
-    document.getElementById('e-email').value = m.email || '';
-    document.getElementById('e-address').value = m.address || '';
-    
-    if(m.edu) document.getElementById('e-edu').value = m.edu;
-    document.getElementById('e-fields').value = m.fields || '';
-    document.getElementById('e-company').value = m.company || '';
-    document.getElementById('e-jobtitle').value = m.jobTitle || '';
-}
+    <script src="js/liff.js"></script>
+</body>
+</html>
