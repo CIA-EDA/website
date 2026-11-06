@@ -39,7 +39,7 @@ function buildHomeNavigation() {
 
 async function loadPage() {
     showPreloader(); 
-    setTimeout(hidePreloader, 3000); // 獨立頁面載入保險
+    setTimeout(hidePreloader, 3000); 
     
     const hash = window.location.hash || '#news';
     const config = PAGE_CONFIG[hash] || PAGE_CONFIG['#news'];
@@ -245,6 +245,8 @@ function renderData(rawData, layoutType, container) {
     
     let html = layoutType === 'article' ? '<div style="max-width: 800px; margin: 0 auto; width:100%;">' : '<div class="responsive-grid">';
     
+    const maxDescLength = 50; // ★ 設定卡片簡介字數限制
+    
     for (let i = 1; i < rawData.length; i++) {
         let item = {};
         for (let j = 0; j < headers.length; j++) item[headers[j]] = rawData[i][j];
@@ -257,14 +259,23 @@ function renderData(rawData, layoutType, container) {
         const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || item['產品logo及圖檔'] || item['公司Logo或環境照片'] || item['附圖網址'] || item['封面圖片網址'] || '';
         const linkRaw = item['報名連結'] || item['專屬付款網址'] || item['連結'] || item['專屬報名網址'] || item['相關連結'] || ''; 
         
+        // ★ 品牌推廣模式：處理沒有連結的狀況
         if (layoutType === 'brand') {
             if (imgRaw) {
                 const optimizedUrl = optimizeImageUrl(imgRaw.split(',')[0].trim());
-                html += `
-                    <a href="${linkRaw || '#'}" target="${linkRaw ? '_blank' : '_self'}" style="display:block; border-radius:16px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.08); transition:0.3s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
-                        <img src="${optimizedUrl}" alt="${title}" style="width:100%; height:auto; display:block; object-fit:cover;">
-                    </a>
-                `;
+                if (linkRaw) {
+                    html += `
+                        <a href="${linkRaw}" target="_blank" style="display:block; border-radius:16px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.08); transition:0.3s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                            <img src="${optimizedUrl}" alt="${title}" style="width:100%; height:auto; display:block; object-fit:cover;">
+                        </a>
+                    `;
+                } else {
+                    html += `
+                        <div style="display:block; border-radius:16px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.08);">
+                            <img src="${optimizedUrl}" alt="${title}" style="width:100%; height:auto; display:block; object-fit:cover;">
+                        </div>
+                    `;
+                }
             }
             continue; 
         }
@@ -298,7 +309,8 @@ function renderData(rawData, layoutType, container) {
             paymentBtnHtml = `<button class="candy-btn member-btn" style="display:block; width:100%; text-align:center; margin-top:20px;" onclick="playCourseVideo(event, '${title}', '${reqLevel}')">▶️ 播放線上課程 (${reqLevel}專屬)</button>`;
         }
         
-        let shortDesc = desc.length > 60 ? desc.substring(0, 60) + '...' : desc;
+        // ★ 應用字數限制
+        let shortDesc = desc.length > maxDescLength ? desc.substring(0, maxDescLength) + '...' : desc;
 
         if (layoutType === 'article') {
             html += `<div style="margin-bottom: 50px;">`;
@@ -308,6 +320,10 @@ function renderData(rawData, layoutType, container) {
             html += paymentBtnHtml; 
             html += `</div>`;
         } else {
+            // ★ 修改卡片點擊邏輯：若沒提供網址，且是店家資訊，可不顯示手勢提示或阻擋跳首頁
+            const cursorStyle = (linkRaw || layoutType !== 'brand') ? 'cursor: pointer;' : '';
+            const clickAction = (linkRaw || layoutType !== 'brand') ? `onclick="openDetailModal(${dataIndex})"` : '';
+            
             if (item['發佈日期']) {
                 html += `
                     <div class="course-card">
@@ -321,7 +337,7 @@ function renderData(rawData, layoutType, container) {
                 `;
             } else {
                 html += `
-                    <div class="course-card" onclick="openDetailModal(${dataIndex})" style="cursor: pointer;" title="點擊查看詳細資料">
+                    <div class="course-card" ${clickAction} style="${cursorStyle}" title="點擊查看詳細資料">
                         ${imgHtml}
                         <div class="course-info">
                             ${title ? `<h3 class="course-title">${title}</h3>` : ''}
