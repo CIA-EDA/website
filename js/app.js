@@ -1,10 +1,12 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：快取引擎、前台路由、非阻塞背景初始化 (解決卡頓)、全模組智能排版
+ * 職責：快取引擎、前台路由、純按鈕觸發式 LINE 登入 (保障形象官網秒開)
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
+
+// 🔑 官方 LINE LIFF ID
 const LIFF_ID = '2012121201-DRHgrrOJ'; 
 
 const AUTH_EXPIRY_MS = 3 * 60 * 60 * 1000; 
@@ -88,21 +90,15 @@ async function fetchWithCache(sheetName) {
     return data;
 }
 
-const readFileAsBase64 = (file) => new Promise((res, rej) => { 
-    const r = new FileReader(); 
-    r.onload = () => res(r.result.split(',')[1]); 
-    r.readAsDataURL(file); 
-});
-
-// === 核心修復：強制防呆，絕對秒開 ===
+// === 核心修復：拔除 LIFF 啟動綁架，讓形象網站光速秒開 ===
 function initSystem() {
-    // 終極保險：如果任何 JS 發生異常，3 秒後絕對強制解除遮罩，保證不卡死
-    setTimeout(hidePreloader, 3000);
+    // 終極保險：2.5 秒後強制解除遮罩，保證不會卡在 Logo 畫面
+    setTimeout(hidePreloader, 2500);
     
-    // 1. 瞬間載入畫面並解除遮罩
+    // 1. 瞬間開始載入網頁資料，不等任何人
     loadPage();
 
-    // 2. 背景載入計數器 (不阻擋畫面)
+    // 2. 在背景默默抓取造訪人次 (不影響主畫面)
     fetch(`${GAS_URL}?action=getVisitorCount`)
         .then(res => res.json())
         .then(countData => {
@@ -110,9 +106,9 @@ function initSystem() {
                 const counterEl = document.getElementById('visitor-counter');
                 if (counterEl) counterEl.innerText = countData.count.toLocaleString();
             }
-        }).catch(e => console.log('計數器載入跳過'));
+        }).catch(e => console.log('計數器跳過'));
 
-    // 3. 只有當網址列帶有 LINE 回傳的登入碼時，才啟動 LIFF
+    // 3. 只有當網址出現 LINE 的登入回傳碼時，才在背景處理登入，不阻擋網站
     const urlSearch = window.location.search;
     if (urlSearch.includes('liff.state') || urlSearch.includes('code=')) {
         showPreloader();
@@ -128,6 +124,37 @@ function initSystem() {
             hidePreloader();
         }
     }
+}
+
+// 只有在使用者「手動點擊」登入按鈕時，才會觸發此函數
+function setupMemberLogin() {
+    const lineBtns = document.querySelectorAll('.line-login-trigger');
+    lineBtns.forEach(btn => {
+        btn.addEventListener('click', async () => {
+            showPreloader();
+            try {
+                if (typeof liff === 'undefined') {
+                    alert('無法連線到 LINE 伺服器，請重新整理網頁。');
+                    hidePreloader();
+                    return;
+                }
+                
+                // 動態啟動 LIFF SDK
+                if (!liff.id) {
+                    await liff.init({ liffId: LIFF_ID });
+                }
+                
+                if (!liff.isLoggedIn()) {
+                    liff.login({ redirectUri: window.location.href.split('?')[0] });
+                } else {
+                    handleLineLoginCallback();
+                }
+            } catch(e) {
+                alert('無法啟動 LINE 登入，請確認網路連線。');
+                hidePreloader();
+            }
+        });
+    });
 }
 
 async function handleLineLoginCallback(isSilent = false) {
@@ -147,7 +174,6 @@ async function handleLineLoginCallback(isSilent = false) {
             
             updateMemberUI();
             
-            // 清除網址列上的 LINE 追蹤碼，防重新整理卡頓
             if (window.location.search.includes('liff.state') || window.location.search.includes('code=')) {
                 window.history.replaceState(null, '', window.location.pathname + (window.location.hash || '#member-zone'));
             }
@@ -164,7 +190,7 @@ async function handleLineLoginCallback(isSilent = false) {
     } catch(e) { 
         if (!isSilent) alert('LINE 登入連線失敗。'); 
     } finally { 
-        hidePreloader(); // 確保一定解除遮罩
+        hidePreloader(); 
     }
 }
 
@@ -215,7 +241,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setupProfileCompletionForm(); 
     setupEditProfileForm();
     setupContactModal(); 
-    setupPostModal(); 
     
     window.addEventListener('hashchange', () => { 
         handlePageTransition(); 
@@ -276,7 +301,7 @@ function buildHomeNavigation() {
 async function loadPage() {
     showPreloader(); 
     
-    // 強制防呆，防止 fetch 掛掉
+    // 超級防呆：3秒後強制解鎖載入畫面
     setTimeout(hidePreloader, 3000);
     
     const hash = window.location.hash || '#news';
@@ -420,7 +445,6 @@ async function loadPage() {
         if (config.sheet === '會員專屬影片') {
              res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'verifyAndGetCourses', credentials: credentials }) });
         } else {
-             // 恢復穩定版本的 fetchWithCache
              const result = await fetchWithCache(config.sheet);
              res = { json: async () => result }; 
         }
@@ -693,7 +717,7 @@ window.submitComment = async function(event, index, postTitle, postTime) {
         });
         alert('留言成功！');
         input.value = '';
-        await loadPage(); // 重新載入列表
+        await loadPage(); 
     } catch(e) {
         alert('留言失敗，請稍後再試。');
     } finally {
@@ -719,35 +743,7 @@ function logoutMember() {
     loadPage();
 }
 
-function setupMemberLogin() {
-    const lineBtns = document.querySelectorAll('.line-login-trigger');
-    lineBtns.forEach(btn => {
-        btn.addEventListener('click', async () => {
-            showPreloader();
-            try {
-                if (typeof liff === 'undefined') {
-                    alert('系統載入異常，請重新整理網頁。');
-                    hidePreloader();
-                    return;
-                }
-                
-                if (!liff.id) {
-                    await liff.init({ liffId: LIFF_ID });
-                }
-                
-                if (!liff.isLoggedIn()) {
-                    liff.login({ redirectUri: window.location.href.split('?')[0] });
-                } else {
-                    handleLineLoginCallback();
-                }
-            } catch(e) {
-                alert('無法啟動 LINE 登入，請確認網路連線。');
-                hidePreloader();
-            }
-        });
-    });
-}
-
+// 核心：回歸最單純的絕對定位與置中設定，保證永遠不跑版
 function setupMobileMenu() {
     const mobileBtn = document.getElementById('mobile-menu-btn');
     const mainNav = document.getElementById('main-nav-menu');
@@ -794,4 +790,94 @@ function generateImageHTML(imgString) {
     urls.forEach(url => { html += `<img src="${url}" alt="Image">`; });
     html += `</div></div><div class="carousel-hint">← 左右滑動查看多圖 →</div>`;
     return html;
+}
+
+function setupProfileCompletionForm() {
+    const submitBtn = document.getElementById('submit-profile-btn');
+    if (!submitBtn) return;
+    submitBtn.addEventListener('click', async () => {
+        const profileData = {
+            nameZh: document.getElementById('p-name-zh').value.trim(),
+            nameEn: document.getElementById('p-name-en').value.trim(),
+            gender: document.getElementById('p-gender').value,
+            birth: document.getElementById('p-birth').value,
+            idNum: document.getElementById('p-id').value.trim(),
+            phone: document.getElementById('p-phone').value.trim(),
+            line: document.getElementById('p-line').value.trim(),
+            email: document.getElementById('p-email').value.trim(),
+            address: document.getElementById('p-address').value.trim(),
+            edu: document.getElementById('p-edu').value,
+            fields: document.getElementById('p-fields').value.trim(),
+            company: document.getElementById('p-company').value.trim(),
+            jobTitle: document.getElementById('p-jobtitle').value.trim(),
+            membership: document.getElementById('p-membership').value
+        };
+
+        if (!profileData.nameZh || !profileData.birth || !profileData.idNum || !profileData.phone || !profileData.email) {
+            alert('請填寫所有標示星號 (*) 的必填欄位！'); return;
+        }
+
+        submitBtn.innerText = '送出審核中...'; submitBtn.disabled = true;
+        try {
+            const credentials = getSafeCredentials();
+            await fetch(GAS_URL, { 
+                method: 'POST', 
+                body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'updateMemberProfile', lineUid: credentials.lineUid, profileData: profileData }) 
+            });
+            
+            alert('入會申請送出成功！\n\n請前往「官方 LINE」聯繫客服人員，我們提供【現金 / 轉帳 / 刷卡】服務。\n繳費並經管理員審核通過後，即可為您開通會員權限！');
+            
+            let memberInfo = getSafeMemberInfo();
+            memberInfo.needsProfileCompletion = false;
+            memberInfo.name = profileData.nameZh;
+            memberInfo.memberStatus = '待審核';
+            localStorage.setItem('cia_member_info', JSON.stringify(memberInfo));
+            
+            window.location.hash = '#member-zone';
+        } catch(e) { alert('儲存失敗，請稍後再試。'); } 
+        finally { submitBtn.innerText = '確認送出申請'; submitBtn.disabled = false; }
+    });
+}
+
+function setupEditProfileForm() {
+    const submitBtn = document.getElementById('submit-edit-profile-btn');
+    if (!submitBtn) return;
+    submitBtn.addEventListener('click', async () => {
+        const profileData = {
+            nameZh: document.getElementById('e-name-zh').value.trim(),
+            nameEn: document.getElementById('e-name-en').value.trim(),
+            gender: document.getElementById('e-gender').value,
+            birth: document.getElementById('e-birth').value,
+            idNum: document.getElementById('e-id').value.trim(),
+            phone: document.getElementById('e-phone').value.trim(),
+            line: document.getElementById('e-line').value.trim(),
+            email: document.getElementById('e-email').value.trim(),
+            address: document.getElementById('e-address').value.trim(),
+            edu: document.getElementById('e-edu').value,
+            fields: document.getElementById('e-fields').value.trim(),
+            company: document.getElementById('e-company').value.trim(),
+            jobTitle: document.getElementById('e-jobtitle').value.trim()
+        };
+
+        submitBtn.innerText = '更新資料中...'; submitBtn.disabled = true;
+        try {
+            const credentials = getSafeCredentials();
+            await fetch(GAS_URL, { 
+                method: 'POST', 
+                body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'editMemberProfile', lineUid: credentials.lineUid, profileData: profileData }) 
+            });
+            
+            let memberInfo = getSafeMemberInfo();
+            Object.assign(memberInfo, {
+                nameEn: profileData.nameEn, gender: profileData.gender, birth: profileData.birth, idNum: profileData.idNum, 
+                phone: profileData.phone, lineId: profileData.line, email: profileData.email, address: profileData.address,
+                edu: profileData.edu, fields: profileData.fields, company: profileData.company, jobTitle: profileData.jobTitle
+            });
+            localStorage.setItem('cia_member_info', JSON.stringify(memberInfo));
+            
+            alert('個人資料更新成功！');
+            window.location.hash = '#member-zone';
+        } catch(e) { alert('更新失敗'); } 
+        finally { submitBtn.innerText = '儲存變更'; submitBtn.disabled = false; }
+    });
 }
