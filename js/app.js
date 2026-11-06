@@ -1,6 +1,6 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：事件綁定中心、各類彈窗邏輯與表單送出
+ * 職責：事件綁定中心、各類彈窗邏輯與表單送出 (已修復手機下拉選單精準定位)
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -27,22 +27,34 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupMobileMenu() {
     const mobileBtn = document.getElementById('mobile-menu-btn');
     const mainNav = document.getElementById('main-nav-menu');
+    
     if (mobileBtn && mainNav) {
+        // 點擊漢堡選單：展開或收合導覽列
         mobileBtn.addEventListener('click', () => {
             mainNav.classList.toggle('show');
+            // 每次開關主選單，自動把裡面的子選單全收起來
             document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('mobile-active'));
         });
         
+        // 點擊一般連結時，自動收起手機主選單
         mainNav.querySelectorAll('a:not(.dropdown-toggle)').forEach(link => { 
             link.addEventListener('click', () => mainNav.classList.remove('show')); 
         });
         
-        const dropdowns = document.querySelectorAll('.dropdown-toggle');
-        dropdowns.forEach(dropdown => {
-            dropdown.addEventListener('click', (e) => {
+        // 修正：針對下拉按鈕，確保 class 加在父容器 (.dropdown) 上
+        const dropdownToggles = document.querySelectorAll('.dropdown-toggle');
+        dropdownToggles.forEach(toggleBtn => {
+            toggleBtn.addEventListener('click', (e) => {
                 if (window.innerWidth <= 768) {
-                    dropdowns.forEach(d => { if (d !== dropdown) d.classList.remove('mobile-active'); });
-                    dropdown.classList.toggle('mobile-active');
+                    const parentDropdown = toggleBtn.closest('.dropdown');
+                    
+                    // 關閉其他已展開的選單，保持畫面乾淨
+                    document.querySelectorAll('.dropdown').forEach(d => { 
+                        if (d !== parentDropdown) d.classList.remove('mobile-active'); 
+                    });
+                    
+                    // 切換當前點擊的選單展開/收合
+                    parentDropdown.classList.toggle('mobile-active');
                 }
             });
         });
@@ -64,7 +76,14 @@ window.openDetailModal = function(index) {
     if (item['徵才機構']) desc = `🏢 機構：${item['徵才機構']}\n📍 地點：${item['工作地點']}\n💰 薪資：${item['薪資待遇']}\n📞 聯絡：${item['聯絡方式']}\n\n【條件要求】\n${item['條件要求']}`;
     else if (item['發文者姓名']) extraHtml = `<div style="font-size:12px; color:var(--champagne); margin-top:10px; text-align:center;">${item['發文者姓名']} • ${item['發文時間']}</div>`;
     else if (item['專長項目']) desc = `【專長項目】\n${item['專長項目']}\n\n${desc}`;
-    else if (item['店家名稱']) desc = `👤 負責人：${item['負責人']}\n📍 地址：${item['地址']}\n📞 電話：${item['聯絡電話']}\n\n${item['簡介']}`;
+    else if (item['店家名稱']) {
+        let parts = [];
+        if (item['負責人']) parts.push(`👤 負責人：${item['負責人']}`);
+        if (item['地址']) parts.push(`📍 地址：${item['地址']}`);
+        if (item['聯絡電話']) parts.push(`📞 電話：${item['聯絡電話']}`);
+        if (item['簡介']) parts.push(`\n${item['簡介']}`);
+        desc = parts.join('\n').trim();
+    }
 
     let imagesHtml = '';
     const rawUrls = imgRaw.split(',').map(u => u.trim()).filter(u => u);
@@ -74,7 +93,9 @@ window.openDetailModal = function(index) {
         });
     }
 
-    let actionHtml = linkRaw ? `<a href="${linkRaw}" target="_blank" class="candy-btn payment-btn" style="font-size: 18px; padding: 12px 30px;">💳 了解更多 / 報名</a>` : '';
+    const btnText = item['店家名稱'] ? '前往該品牌' : '了解更多 / 報名';
+    let actionHtml = linkRaw ? `<a href="${linkRaw}" target="_blank" class="candy-btn payment-btn" style="font-size: 18px; padding: 12px 30px;">${btnText}</a>` : '';
+    
     if (item['最低權限要求(例如:一般會員)'] !== undefined) {
         const reqLevel = item['最低權限要求(例如:一般會員)'] || '會員';
         actionHtml = `<button class="candy-btn member-btn" style="width:100%; font-size:18px; padding: 12px 30px;" onclick="playCourseVideo(event, '${title}', '${reqLevel}')">▶️ 播放線上課程 (${reqLevel}專屬)</button>`;
@@ -153,29 +174,6 @@ function setupContactModal() {
     }
 }
 
-window.submitComment = async function(event, index, postTitle, postTime) {
-    if(event) event.stopPropagation(); 
-    const input = document.getElementById(`comment-input-${index}`);
-    const content = input.value.trim();
-    if (!content) { alert('請輸入留言內容！'); return; }
-
-    const credentials = getSafeCredentials();
-    const memberInfo = getSafeMemberInfo();
-    if (!credentials || !memberInfo) { alert('請先登入會員才能留言！'); return; }
-
-    const btn = event.target; const ogText = btn.innerText;
-    btn.innerText = '傳送中...'; btn.disabled = true;
-
-    try {
-        await fetch(GAS_URL, {
-            method: 'POST',
-            body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'submitComment', lineUid: credentials.lineUid, postTitle: postTitle, postTime: postTime, content: content })
-        });
-        alert('留言成功！'); input.value = ''; await loadPage(); 
-    } catch(e) { alert('留言失敗，請稍後再試。'); } 
-    finally { btn.innerText = ogText; btn.disabled = false; }
-};
-
 function setupPostModal() {
     const postModal = document.getElementById('post-modal');
     const closePostBtn = document.getElementById('close-post-btn');
@@ -192,15 +190,23 @@ function setupPostModal() {
 
             if (!title || !content) { alert('請填寫標題與內容！'); return; }
 
-            let base64Data = null; let mimeType = null; let fileName = null;
+            let base64Data = null;
+            let mimeType = null;
+            let fileName = null;
+
             if (fileInput.files.length > 0) {
                 const file = fileInput.files[0];
-                if (file.size > 5 * 1024 * 1024) { alert('照片超過 5MB 上限！'); return; }
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('照片大小超過 5MB 上限，請壓縮後再上傳！');
+                    return;
+                }
                 base64Data = await readFileAsBase64(file);
-                mimeType = file.type; fileName = file.name;
+                mimeType = file.type;
+                fileName = file.name;
             }
 
             submitPostBtn.innerText = '發佈中...'; submitPostBtn.disabled = true;
+            
             try {
                 const credentials = getSafeCredentials();
                 let imgUrl = '';
@@ -217,12 +223,20 @@ function setupPostModal() {
                     body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'userPostExchange', lineUid: credentials.lineUid, postTitle: title, postContent: content, imgUrl: imgUrl }) 
                 });
                 
-                alert('發佈成功！'); postModal.classList.remove('active');
-                document.getElementById('post-title').value = ''; document.getElementById('post-content').value = ''; fileInput.value = '';
+                alert('發佈成功！');
+                postModal.classList.remove('active');
+                document.getElementById('post-title').value = '';
+                document.getElementById('post-content').value = '';
+                fileInput.value = '';
                 
-                sessionStorage.removeItem('cia_cache_美業資訊交流'); loadPage();
-            } catch(e) { alert('發佈失敗：' + e.message); } 
-            finally { submitPostBtn.innerText = '確認發佈'; submitPostBtn.disabled = false; }
+                sessionStorage.removeItem('cia_cache_美業資訊交流');
+                loadPage();
+
+            } catch(e) { 
+                alert('發佈失敗：' + e.message); 
+            } finally { 
+                submitPostBtn.innerText = '確認發佈'; submitPostBtn.disabled = false; 
+            }
         });
     }
 }
@@ -232,13 +246,20 @@ function setupProfileCompletionForm() {
     if (!submitBtn) return;
     submitBtn.addEventListener('click', async () => {
         const profileData = {
-            nameZh: document.getElementById('p-name-zh').value.trim(), nameEn: document.getElementById('p-name-en').value.trim(),
-            gender: document.getElementById('p-gender').value, birth: document.getElementById('p-birth').value,
-            idNum: document.getElementById('p-id').value.trim(), phone: document.getElementById('p-phone').value.trim(),
-            line: document.getElementById('p-line').value.trim(), email: document.getElementById('p-email').value.trim(),
-            address: document.getElementById('p-address').value.trim(), edu: document.getElementById('p-edu').value,
-            fields: document.getElementById('p-fields').value.trim(), company: document.getElementById('p-company').value.trim(),
-            jobTitle: document.getElementById('p-jobtitle').value.trim(), membership: document.getElementById('p-membership').value
+            nameZh: document.getElementById('p-name-zh').value.trim(),
+            nameEn: document.getElementById('p-name-en').value.trim(),
+            gender: document.getElementById('p-gender').value,
+            birth: document.getElementById('p-birth').value,
+            idNum: document.getElementById('p-id').value.trim(),
+            phone: document.getElementById('p-phone').value.trim(),
+            line: document.getElementById('p-line').value.trim(),
+            email: document.getElementById('p-email').value.trim(),
+            address: document.getElementById('p-address').value.trim(),
+            edu: document.getElementById('p-edu').value,
+            fields: document.getElementById('p-fields').value.trim(),
+            company: document.getElementById('p-company').value.trim(),
+            jobTitle: document.getElementById('p-jobtitle').value.trim(),
+            membership: document.getElementById('p-membership').value
         };
 
         if (!profileData.nameZh || !profileData.birth || !profileData.idNum || !profileData.phone || !profileData.email) {
@@ -248,12 +269,19 @@ function setupProfileCompletionForm() {
         submitBtn.innerText = '送出審核中...'; submitBtn.disabled = true;
         try {
             const credentials = getSafeCredentials();
-            await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'updateMemberProfile', lineUid: credentials.lineUid, profileData: profileData }) });
+            await fetch(GAS_URL, { 
+                method: 'POST', 
+                body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'updateMemberProfile', lineUid: credentials.lineUid, profileData: profileData }) 
+            });
+            
             alert('入會申請送出成功！\n\n請前往「官方 LINE」聯繫客服人員，我們提供【現金 / 轉帳 / 刷卡】服務。\n繳費並經管理員審核通過後，即可為您開通會員權限！');
             
             let memberInfo = getSafeMemberInfo();
-            memberInfo.needsProfileCompletion = false; memberInfo.name = profileData.nameZh; memberInfo.memberStatus = '待審核';
+            memberInfo.needsProfileCompletion = false;
+            memberInfo.name = profileData.nameZh;
+            memberInfo.memberStatus = '待審核';
             localStorage.setItem('cia_member_info', JSON.stringify(memberInfo));
+            
             window.location.hash = '#member-zone';
         } catch(e) { alert('儲存失敗，請稍後再試。'); } 
         finally { submitBtn.innerText = '確認送出申請'; submitBtn.disabled = false; }
@@ -265,19 +293,28 @@ function setupEditProfileForm() {
     if (!submitBtn) return;
     submitBtn.addEventListener('click', async () => {
         const profileData = {
-            nameZh: document.getElementById('e-name-zh').value.trim(), nameEn: document.getElementById('e-name-en').value.trim(),
-            gender: document.getElementById('e-gender').value, birth: document.getElementById('e-birth').value,
-            idNum: document.getElementById('e-id').value.trim(), phone: document.getElementById('e-phone').value.trim(),
-            line: document.getElementById('e-line').value.trim(), email: document.getElementById('e-email').value.trim(),
-            address: document.getElementById('e-address').value.trim(), edu: document.getElementById('e-edu').value,
-            fields: document.getElementById('e-fields').value.trim(), company: document.getElementById('e-company').value.trim(),
+            nameZh: document.getElementById('e-name-zh').value.trim(),
+            nameEn: document.getElementById('e-name-en').value.trim(),
+            gender: document.getElementById('e-gender').value,
+            birth: document.getElementById('e-birth').value,
+            idNum: document.getElementById('e-id').value.trim(),
+            phone: document.getElementById('e-phone').value.trim(),
+            line: document.getElementById('e-line').value.trim(),
+            email: document.getElementById('e-email').value.trim(),
+            address: document.getElementById('e-address').value.trim(),
+            edu: document.getElementById('e-edu').value,
+            fields: document.getElementById('e-fields').value.trim(),
+            company: document.getElementById('e-company').value.trim(),
             jobTitle: document.getElementById('e-jobtitle').value.trim()
         };
 
         submitBtn.innerText = '更新資料中...'; submitBtn.disabled = true;
         try {
             const credentials = getSafeCredentials();
-            await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'editMemberProfile', lineUid: credentials.lineUid, profileData: profileData }) });
+            await fetch(GAS_URL, { 
+                method: 'POST', 
+                body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'editMemberProfile', lineUid: credentials.lineUid, profileData: profileData }) 
+            });
             
             let memberInfo = getSafeMemberInfo();
             Object.assign(memberInfo, {
@@ -287,7 +324,8 @@ function setupEditProfileForm() {
             });
             localStorage.setItem('cia_member_info', JSON.stringify(memberInfo));
             
-            alert('個人資料更新成功！'); window.location.hash = '#member-zone';
+            alert('個人資料更新成功！');
+            window.location.hash = '#member-zone';
         } catch(e) { alert('更新失敗'); } 
         finally { submitBtn.innerText = '儲存變更'; submitBtn.disabled = false; }
     });
