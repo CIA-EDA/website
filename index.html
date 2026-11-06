@@ -85,13 +85,12 @@
         .submit-btn-full { width: 100%; padding: 15px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; transition: 0.3s; font-size: 16px; font-weight: bold; margin-top: 10px; }
         .submit-btn-full:hover { background: #967a4a; box-shadow: 0 4px 15px rgba(184, 149, 90, 0.4); }
 
-        /* === 重大修復：回歸原版最穩定的向下推擠佈局，保證不跑版 === */
+        /* === 修復：確保手機版下拉選單能夠正確顯示 === */
         @media (max-width: 768px) {
             header { padding: 15px 20px; }
             .brand-logo-img { height: 40px; }
             .menu-toggle { display: block; }
             
-            /* 將導覽列改為靜態自然向下推擠，完全不使用 absolute 破壞版面 */
             .main-nav { 
                 display: none; 
                 flex-direction: column; 
@@ -113,7 +112,22 @@
             .dropdown > .candy-btn { width: 100%; margin: 0; } 
             .dropdown:hover .dropdown-content { visibility: hidden; opacity: 0; display: none; }
             
-            .dropdown-content { position: static; visibility: visible; opacity: 1; transform: none; box-shadow: none; border: none; background: rgba(255,255,255,0.6); padding: 5px; display: none; margin-top: 5px; border-radius: 8px; width: 100%; box-sizing: border-box; }
+            /* 修正此處的 visibility 與 opacity 讓選單能正確浮現 */
+            .dropdown-content { 
+                position: static; 
+                visibility: visible !important; 
+                opacity: 1 !important; 
+                transform: none; 
+                box-shadow: none; 
+                border: none; 
+                background: rgba(255,255,255,0.6); 
+                padding: 5px; 
+                display: none; 
+                margin-top: 5px; 
+                border-radius: 8px; 
+                width: 100%; 
+                box-sizing: border-box; 
+            }
             .dropdown.mobile-active .dropdown-content { display: block !important; }
             .dropdown-content a { padding: 12px; font-size: 14px; border-bottom: 1px solid rgba(0,0,0,0.05); }
             .dropdown-content a:last-child { border-bottom: none; }
@@ -250,7 +264,6 @@
                 </div>
             </div>
 
-            <!-- === 官網會員資料同步擴充 (確保移除會籍修改選單) === -->
             <div id="edit-profile-container" style="display: none; max-width: 800px; margin: 0 auto;">
                 <div class="form-section">
                     <button onclick="window.location.hash='#member-zone'" style="background:none; border:none; color:var(--taupe); cursor:pointer; font-size:14px; margin-bottom:15px; padding:0;">← 返回大廳</button>
