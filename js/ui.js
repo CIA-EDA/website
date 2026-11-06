@@ -195,7 +195,11 @@ async function loadPage() {
         if (dataObj.status === 'success' && dataObj.data.length > 1) {
             let dataArray = dataObj.data;
             const headers = dataArray.shift();
-            if (config.sheet === '美業資訊交流' || config.sheet === '最新消息') dataArray = dataArray.reverse();
+            
+            if (config.sheet === '美業資訊交流' || config.sheet === '最新消息') {
+                dataArray = dataArray.reverse();
+            }
+            
             dataArray.unshift(headers);
             renderData(dataArray, config.layout, dataContainer);
             
@@ -209,7 +213,9 @@ async function loadPage() {
     } catch (error) { 
         console.error("資料載入失敗:", error);
         dataContainer.innerHTML = '<p style="text-align:center; width:100%; color:red;">資料載入異常，請稍後重試。</p>'; 
-    } finally { hidePreloader(); }
+    } finally { 
+        hidePreloader(); 
+    }
 }
 
 function buildCommentsHtml(postTitle, postTime, dataIndex) {
@@ -221,7 +227,8 @@ function buildCommentsHtml(postTitle, postTime, dataIndex) {
             html += `
             <div style="font-size:13px; margin-bottom:10px; padding:10px; background:#f8f9fa; border-radius:8px; border-left:3px solid var(--champagne);">
                 <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                    <strong style="color:var(--ink-navy);">${c[2]}</strong><span style="color:#aaa; font-size:11px;">${c[3]}</span>
+                    <strong style="color:var(--ink-navy);">${c[2]}</strong>
+                    <span style="color:#aaa; font-size:11px;">${c[3]}</span>
                 </div>
                 <div style="color:var(--text-main); line-height:1.5;">${c[4].replace(/\n/g, '<br>')}</div>
             </div>`;
@@ -254,30 +261,10 @@ function renderData(rawData, layoutType, container) {
         currentViewDataCache.push(item);
         const dataIndex = currentViewDataCache.length - 1;
 
-        const title = item['課程名稱'] || item['講師姓名'] || item['顧問姓名'] || item['店家名稱'] || item['活動名稱'] || item['產品名稱'] || item['標題'] || item['職缺名稱'] || item['主旨/標題'] || '';
+        const title = item['課程名稱'] || item['講師姓名'] || item['顧問姓名'] || item['店家名稱'] || item['品牌名稱'] || item['活動名稱'] || item['產品名稱'] || item['標題'] || item['職缺名稱'] || item['主旨/標題'] || '';
         let desc = item['簡介'] || item['個人簡介'] || item['產品簡介'] || item['內容'] || item['交流內容'] || '';
         const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || item['產品logo及圖檔'] || item['公司Logo或環境照片'] || item['附圖網址'] || item['封面圖片網址'] || '';
-        const linkRaw = item['報名連結'] || item['專屬付款網址'] || item['連結'] || item['專屬報名網址'] || item['相關連結'] || ''; 
-        
-        if (layoutType === 'brand') {
-            if (imgRaw) {
-                const optimizedUrl = optimizeImageUrl(imgRaw.split(',')[0].trim());
-                if (linkRaw) {
-                    html += `
-                        <a href="${linkRaw}" target="_blank" style="display:block; border-radius:16px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.08); transition:0.3s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
-                            <img src="${optimizedUrl}" alt="${title}" style="width:100%; height:auto; display:block; object-fit:cover;">
-                        </a>
-                    `;
-                } else {
-                    html += `
-                        <div style="display:block; border-radius:16px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.08);">
-                            <img src="${optimizedUrl}" alt="${title}" style="width:100%; height:auto; display:block; object-fit:cover;">
-                        </div>
-                    `;
-                }
-            }
-            continue; 
-        }
+        const linkRaw = item['報名連結'] || item['專屬付款網址'] || item['連結'] || item['專屬報名網址'] || item['品牌官方連結'] || item['官方連結'] || item['相關連結'] || ''; 
         
         let extraHtml = ''; 
         if (item['發佈日期']) {
@@ -296,7 +283,7 @@ function renderData(rawData, layoutType, container) {
             extraHtml += buildCommentsHtml(title, item['發文時間'], dataIndex); 
         } else if (item['專長項目']) {
             desc = (item['專長項目'] ? `【專長項目】\n${item['專長項目']}\n\n` : '') + desc;
-        } else if (item['店家名稱']) {
+        } else if (item['店家名稱'] || item['品牌名稱']) { // ★ 支援品牌推廣的新欄位
             let parts = [];
             if (item['負責人']) parts.push(`👤 負責人：${item['負責人']}`);
             if (item['地址']) parts.push(`📍 地址：${item['地址']}`);
@@ -312,12 +299,13 @@ function renderData(rawData, layoutType, container) {
         
         let paymentBtnHtml = '';
         if (linkRaw && !item['發佈日期']) {
-            const btnText = item['店家名稱'] ? '前往該品牌' : '了解更多 / 報名';
-            paymentBtnHtml = `<a href="${linkRaw}" target="_blank" class="candy-btn payment-btn" onclick="event.stopPropagation();">${btnText}</a>`;
+            // ★ 動態判斷按鈕文字
+            const btnText = (item['店家名稱'] || item['品牌名稱']) ? '前往該品牌' : '了解更多 / 報名';
+            paymentBtnHtml = `<a href="${linkRaw}" target="_blank" class="candy-btn payment-btn" style="display:block; text-align:center;" onclick="event.stopPropagation();">${btnText}</a>`;
         }
         if (item['最低權限要求(例如:一般會員)'] !== undefined) {
             const reqLevel = item['最低權限要求(例如:一般會員)'] || '會員';
-            paymentBtnHtml = `<button class="candy-btn member-btn" onclick="playCourseVideo(event, '${title}', '${reqLevel}')">▶️ 播放線上課程 (${reqLevel}專屬)</button>`;
+            paymentBtnHtml = `<button class="candy-btn member-btn" style="display:block; width:100%; text-align:center;" onclick="playCourseVideo(event, '${title}', '${reqLevel}')">▶️ 播放線上課程 (${reqLevel}專屬)</button>`;
         }
         
         let shortDesc = desc.length > maxDescLength ? desc.substring(0, maxDescLength) + '...' : desc;
@@ -330,7 +318,7 @@ function renderData(rawData, layoutType, container) {
             html += paymentBtnHtml; 
             html += `</div>`;
         } else {
-            // ★ 修改點擊邏輯：若沒網址且是店家/課程，不產生 onclick，避免跳首頁
+            // 判斷是否可點擊
             const isClickable = Boolean(linkRaw) || Boolean(imgRaw); 
             const cursorStyle = isClickable ? 'cursor: pointer;' : '';
             const clickAction = isClickable ? `onclick="openDetailModal(${dataIndex})"` : '';
@@ -341,6 +329,7 @@ function renderData(rawData, layoutType, container) {
                         <div class="course-info" style="padding:20px;">
                             ${extraHtml}
                             <h3 class="course-title" style="margin-top:10px;">${title}</h3>
+                            <!-- ★ 強制輸出空標籤維持 flex 佈局 -->
                             <p class="course-desc">${shortDesc.replace(/\n/g, '<br>')}</p>
                             ${imgHtml}
                         </div>
@@ -352,8 +341,8 @@ function renderData(rawData, layoutType, container) {
                         ${imgHtml}
                         <div class="course-info">
                             ${title ? `<h3 class="course-title">${title}</h3>` : ''}
-                            <!-- ★ 強制保留 p.course-desc，讓 flex: 1 生效，把底下的 .card-actions 推到底部 -->
                             <p class="course-desc">${shortDesc.replace(/\n/g, '<br>')}</p>
+                            <!-- ★ 按鈕外包一層 div，用來利用 css (margin-top: auto) 置底對齊 -->
                             <div class="card-actions">
                                 ${paymentBtnHtml}
                             </div>
