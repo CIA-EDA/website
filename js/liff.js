@@ -1,6 +1,6 @@
 /**
  * 檔案名稱：js/liff.js
- * 職責：統一 4 欄網格排版、專屬 LINE 大廳全自動登入 (加入強制防呆與智慧按鈕邏輯)
+ * 職責：統一 4 欄網格排版、專屬 LINE 大廳全自動登入 (加入強制防呆、空值隱藏與按鈕置底邏輯)
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
@@ -250,7 +250,6 @@ async function loadListData(sheetName) {
                 } else if (sheetName === '課程介紹') {
                      if(linkUrl) extra += `<a href="${linkUrl}" target="_blank" class="btn-primary" style="margin-top:15px; padding:10px;">報名 / 了解更多</a>`;
                 } else if (item['店家名稱']) {
-                    // ★ 判斷空值
                     let parts = [];
                     if (item['負責人']) parts.push(`👤 負責人：${item['負責人']}`);
                     if (item['地址']) parts.push(`📍 地址：${item['地址']}`);
@@ -274,7 +273,25 @@ async function loadListData(sheetName) {
                 if (sheetName === '最新消息') {
                      html += `<div class="card">${extra}<div class="card-title">${title}</div><div class="card-desc">${shortDesc.replace(/\n/g, '<br>')}</div>${imgHtml}</div>`;
                 } else {
-                     html += `<div class="card" ${clickAction} style="${cursorStyle}"><div class="card-title">${title}</div><div class="card-desc">${shortDesc.replace(/\n/g, '<br>')}</div>${imgHtml}${extra}</div>`;
+                     let paymentBtnHtml = '';
+                     if (linkUrl && !item['發佈日期']) {
+                         const btnText = item['店家名稱'] ? '前往該品牌' : '了解更多 / 報名';
+                         paymentBtnHtml = `<a href="${linkUrl}" target="_blank" class="btn-primary" onclick="event.stopPropagation();">${btnText}</a>`;
+                     }
+                     if (item['最低權限要求(例如:一般會員)'] !== undefined) {
+                         const reqLevel = item['最低權限要求(例如:一般會員)'] || '會員';
+                         paymentBtnHtml = `<button class="btn-primary member-btn" onclick="playCourseVideo(event, '${title}', '${reqLevel}')">▶️ 播放線上課程 (${reqLevel}專屬)</button>`;
+                     }
+                     
+                     html += `
+                        <div class="card" ${clickAction} style="${cursorStyle}">
+                            <div class="card-title">${title}</div>
+                            <p class="card-desc">${shortDesc.replace(/\n/g, '<br>')}</p>
+                            ${imgHtml}
+                            <div class="card-actions">${paymentBtnHtml}</div>
+                            ${extra}
+                        </div>
+                     `;
                 }
             });
             html += '</div>';
@@ -354,7 +371,8 @@ window.openDetailModal = function(index) {
     const rawUrls = imgRaw.split(',').map(u => u.trim()).filter(u => u);
     if (rawUrls.length > 0) {
         rawUrls.forEach(url => {
-            imagesHtml += `<img src="${optimizeImageUrl(url)}" style="width: 100%; display: block; border-bottom: 1px solid #eee;">`;
+            const optimized = optimizeImageUrl(url);
+            imagesHtml += `<img src="${optimized}" style="width: 100%; display: block; border-bottom: 1px solid #eee;">`;
         });
     }
 
