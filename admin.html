@@ -4,220 +4,421 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CIA-EDA | Core Management System</title>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        :root { --admin-bg: #f4f6f9; --admin-dark: #1F2D4A; --admin-accent: #B8955A; --admin-text: #333; }
-        body { margin: 0; font-family: 'Noto Sans TC', sans-serif; background-color: var(--admin-bg); color: var(--admin-text); display: flex; height: 100vh; overflow: hidden; }
+        :root { --admin-bg: #f4f6f9; --admin-blue: #1a233a; --admin-light: #2c3e50; --admin-gold: #c5a47e; --text-main: #333; --border-color: #e1e5eb; }
+        body { margin: 0; padding: 0; font-family: 'Noto Sans TC', sans-serif; background: var(--admin-bg); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
         
-        .sidebar { width: 280px; background-color: var(--admin-dark); color: #fff; display: flex; flex-direction: column; box-shadow: 2px 0 15px rgba(0,0,0,0.1); z-index: 100; flex-shrink: 0; }
-        .sidebar-header { padding: 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .sidebar-header img { height: 40px; margin-bottom: 10px; filter: brightness(0) invert(1); }
-        .sidebar-header h2 { margin: 0; font-size: 14px; font-family: 'JetBrains Mono', monospace; color: var(--admin-accent); letter-spacing: 2px; }
-        .nav-menu { padding: 20px 0; flex: 1; overflow-y: auto; }
-        .nav-item { padding: 15px 25px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 15px; border-left: 4px solid transparent; transition: 0.3s; }
-        .nav-item:hover, .nav-item.active { background: rgba(255,255,255,0.05); border-left-color: var(--admin-accent); color: var(--admin-accent); font-weight: bold; }
+        .sidebar { width: 260px; background: var(--admin-blue); color: #fff; display: flex; flex-direction: column; transition: 0.3s; z-index: 1000; }
+        .sidebar-header { padding: 25px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sidebar-header img { max-width: 80px; margin-bottom: 10px; }
+        .sidebar-header h2 { margin: 0; font-size: 14px; letter-spacing: 2px; color: var(--admin-gold); font-family: monospace; }
+        .nav-menu { flex: 1; padding: 20px 0; overflow-y: auto; }
+        .nav-item { padding: 15px 25px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; font-size: 15px; color: #a0aec0; border-left: 3px solid transparent; }
+        .nav-item:hover, .nav-item.active { background: rgba(255,255,255,0.05); color: #fff; border-left-color: var(--admin-gold); }
         
-        .system-status { padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8ba2c4; }
-        .status-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
-        .status-bar-bg { width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-bottom: 15px; }
-        .status-bar-fill { height: 100%; background: #4caf50; border-radius: 2px; width: 92%; }
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .top-bar { height: 60px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.02); display: flex; align-items: center; padding: 0 30px; justify-content: space-between; z-index: 10; }
+        .top-bar h1 { margin: 0; font-size: 18px; color: var(--admin-blue); font-weight: bold; }
         
-        .main-content { flex: 1; overflow-y: auto; position: relative; background-color: var(--admin-bg); }
-        .topbar { background: #fff; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.02); position: sticky; top: 0; z-index: 50; }
-        .content-body { padding: 40px; }
+        .content-area { flex: 1; padding: 30px; overflow-y: auto; background: var(--admin-bg); }
         
-        .panel { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.03); display: none; }
+        .panel { background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); padding: 30px; display: none; animation: fadeIn 0.4s ease; max-width: 800px; margin: 0 auto; }
         .panel.active { display: block; }
-        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
         .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; font-size: 14px; margin-bottom: 8px; color: var(--admin-dark); font-weight: 600; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: bold; color: var(--admin-light); font-size: 14px; }
+        .form-control { width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 14px; box-sizing: border-box; transition: 0.3s; font-family: inherit; }
+        .form-control:focus { border-color: var(--admin-gold); outline: none; box-shadow: 0 0 0 3px rgba(197, 164, 126, 0.1); }
+        textarea.form-control { height: 120px; resize: vertical; }
+        select.form-control { cursor: pointer; appearance: none; background: url('data:image/svg+xml;utf8,<svg fill="%23333" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>') no-repeat right 10px center; background-color: #fff; }
         
-        .input-field, .select-field, .textarea-field { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; background-color: #fff; }
-        #member-search { border: 2px solid var(--admin-accent); padding: 15px; font-size: 16px; box-shadow: 0 4px 10px rgba(184,149,90,0.1); transition: 0.3s; }
-        #member-search:focus { outline: none; box-shadow: 0 4px 15px rgba(184,149,90,0.3); }
-        .textarea-field { resize: vertical; height: 100px; }
-        .btn-primary { background: var(--admin-accent); color: #fff; border: none; padding: 12px 25px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 15px; }
-        .btn-primary:hover { filter: brightness(0.9); }
+        .btn { padding: 12px 25px; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; transition: 0.3s; display: inline-flex; align-items: center; justify-content: center; }
+        .btn-primary { background: var(--admin-gold); color: #fff; width: 100%; margin-top: 10px; }
+        .btn-primary:hover { background: #b08d65; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(197, 164, 126, 0.3); }
         
-        .data-list { list-style: none; padding: 0; margin: 0; }
-        .data-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #eee; margin-bottom: 10px; border-radius: 8px; background: #fafafa; flex-wrap: wrap; gap: 10px; }
-        .data-item-title { font-weight: 600; color: var(--admin-dark); }
-        .action-btns { display: flex; gap: 10px; }
-        .btn-icon { background: #fff; border: 1px solid #ddd; padding: 6px 12px; border-radius: 4px; cursor: pointer; transition: 0.3s; font-size: 13px; font-weight:bold; color:var(--admin-dark); }
-        .btn-icon:hover { background: #eee; }
-        .btn-icon.danger { color: #d32f2f; border-color: #ffcdd2; }
-        .btn-icon.danger:hover { background: #ffebee; }
-        
-        #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--admin-dark); display: flex; justify-content: center; align-items: center; z-index: 9999; }
-        .login-box { background: #fff; padding: 40px; border-radius: 12px; text-align: center; width: 90%; max-width: 350px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
-        
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(31, 45, 74, 0.8); display: none; justify-content: center; align-items: center; z-index: 9999; opacity: 0; transition: opacity 0.3s ease; }
-        .modal-overlay.active { display: flex; opacity: 1; }
-        .modal-content { background: #ffffff; padding: 40px; border-radius: 12px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; position: relative; box-shadow: 0 15px 30px rgba(0,0,0,0.2); }
-        .modal-close-btn { position: absolute; top: 15px; right: 20px; background: none; border: none; font-size: 28px; color: #aaa; cursor: pointer; transition: 0.3s; }
+        #preloader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); display: none; justify-content: center; align-items: center; z-index: 9999; flex-direction: column; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--admin-gold); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        .member-card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin-bottom: 15px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
-        .member-card-header { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; justify-content: space-between;}
-        .member-info { flex: 1; min-width: 250px; }
-        .member-info h4 { margin: 0 0 5px 0; color: var(--admin-dark); font-size: 18px; }
-        .member-info p { margin: 0; font-size: 13px; color: #666; }
-        .member-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #eee; }
-        .control-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 120px; }
-        .control-group label { font-size: 12px; color: #888; font-weight: normal; margin: 0; }
-        
-        .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; margin-left: 10px; display: inline-block;}
-        .status-active { background: #e8f5e9; color: #2e7d32; }
-        .status-pending { background: #fff3cd; color: #856404; }
-        .status-inactive { background: #ffebee; color: #c62828; }
-        
-        .details-box { background: #f8f9fa; border-radius: 8px; padding: 15px; margin-top: 15px; width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 13px; color: #555; box-sizing: border-box; }
-        .details-box div span { font-weight: bold; color: var(--admin-dark); display: inline-block; width: 75px; }
+        .system-status { margin-top: auto; padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 11px; color: #6c7a89; }
+        .status-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .status-bar { height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+        .status-bar-inner { height: 100%; background: #4CAF50; width: 15%; }
+        .status-bar-inner.warn { background: #ff9800; width: 65%; }
 
-        .pagination-controls { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; }
-        .page-btn { background: #fff; border: 1px solid #ddd; padding: 8px 15px; border-radius: 6px; cursor: pointer; transition: 0.3s; font-weight: bold; color: var(--admin-dark); }
-        .page-btn:hover:not(:disabled) { background: var(--admin-bg); border-color: var(--admin-accent); color: var(--admin-accent); }
-        .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .page-info { font-size: 14px; color: #666; font-weight: bold; }
-
+        .image-preview-container { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+        .image-preview-box { width: 80px; height: 80px; border-radius: 8px; border: 1px solid #ddd; overflow: hidden; display: flex; justify-content: center; align-items: center; background: #fafafa; }
+        .image-preview-box img { max-width: 100%; max-height: 100%; object-fit: cover; }
+        
+        .mobile-toggle { display: none; font-size: 24px; background: none; border: none; color: var(--admin-blue); cursor: pointer; }
+        
         @media (max-width: 768px) {
-            body { flex-direction: column; height: auto; overflow: auto; }
-            .sidebar { width: 100%; height: auto; position: static; box-shadow: none; }
-            .nav-menu { display: flex; overflow-x: auto; white-space: nowrap; padding: 10px; background: #151e32; }
-            .nav-item { padding: 10px 15px; border-left: none; border-bottom: 3px solid transparent; font-size: 14px; }
-            .nav-item.active { border-left-color: transparent; border-bottom-color: var(--admin-accent); }
-            .system-status { display: none; }
-            .main-content { overflow-y: visible; }
-            .content-body { padding: 20px 15px; }
+            .sidebar { position: fixed; left: -260px; height: 100%; box-shadow: 2px 0 10px rgba(0,0,0,0.1); }
+            .sidebar.show { left: 0; }
+            .mobile-toggle { display: block; }
+            .content-area { padding: 15px; }
             .panel { padding: 20px; }
-            .member-controls { flex-direction: column; align-items: stretch; width: 100%; }
-            .control-group input, .control-group select { width: 100% !important; }
-            .control-group button { width: 100%; margin-top: 10px; }
         }
     </style>
 </head>
 <body>
-    <div id="login-overlay">
-        <div class="login-box">
-            <img src="images/CIAEDA_直式標準_標準彩色.png" alt="CIA-EDA" style="height:50px; margin-bottom:20px;">
-            <div class="form-group"><input type="password" id="admin-pwd" class="input-field" placeholder="System Password"></div>
-            <button id="btn-login" class="btn-primary" style="width:100%;">AUTH & ENTER</button>
-        </div>
-    </div>
 
-    <div id="edit-content-modal" class="modal-overlay">
-        <div class="modal-content">
-            <button class="modal-close-btn" onclick="document.getElementById('edit-content-modal').classList.remove('active')">&times;</button>
-            <h2 style="margin-top:0; color:var(--admin-dark);">編輯內容</h2>
-            <div id="edit-dynamic-form-container"></div>
-            <input type="hidden" id="edit-row-index">
-            <input type="hidden" id="edit-sheet-name">
-            <input type="hidden" id="edit-old-images">
-            <button id="btn-save-edit" class="btn-primary" style="width:100%; margin-top:20px;">儲存變更</button>
-        </div>
-    </div>
+    <div id="preloader"><div class="spinner"></div><div style="color:var(--admin-blue); font-weight:bold;" id="loader-text">處理中...</div></div>
 
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <img src="images/CIAEDA_直式標準_標準彩色.png" alt="Logo">
+            <img src="images/CIAEDA_直式標準_標準彩色.png" alt="Logo" style="background:#fff; padding:5px; border-radius:8px;">
             <h2>CORE SYSTEM v10.0</h2>
         </div>
-        <nav class="nav-menu">
-            <div class="nav-item active" data-target="panel-members">👥 會員系統管理</div>
-            <div class="nav-item" data-target="panel-add">＋ 統一發佈中心</div>
-            <div class="nav-item" data-target="panel-manage">≡ 內容編排與管理</div>
-            <div class="nav-item" onclick="window.open('index.html', '_blank')">↗ 前往網站前台</div>
-        </nav>
+        <div class="nav-menu">
+            <div class="nav-item" onclick="switchPanel('members')">👥 會員系統管理</div>
+            <div class="nav-item active" onclick="switchPanel('publish')">✨ 統一發佈中心</div>
+            <div class="nav-item" onclick="switchPanel('layout')">≡ 內容編排與管理</div>
+            <div class="nav-item" style="margin-top: 30px;" onclick="window.open('index.html', '_blank')">↗ 前往網站前台</div>
+        </div>
         <div class="system-status">
             <div class="status-row"><span>Server Load</span><span>4%</span></div>
-            <div class="status-bar-bg"><div class="status-bar-fill" style="width: 4%;"></div></div>
+            <div class="status-bar" style="margin-bottom:15px;"><div class="status-bar-inner"></div></div>
             <div class="status-row"><span>API Latency</span><span>12ms</span></div>
-            <div class="status-bar-bg"><div class="status-bar-fill" style="width: 12%; background: #2196f3;"></div></div>
+            <div class="status-bar"><div class="status-bar-inner" style="background:#03A9F4; width:30%;"></div></div>
         </div>
     </aside>
 
-    <main class="main-content">
-        <div class="topbar">
-            <h3 style="margin:0; color:var(--admin-dark);">CIA-EDA Management</h3>
-            <span style="font-size:12px; color:#888; display:none;">Encrypted Connection Active</span>
-        </div>
+    <div class="main-content">
+        <header class="top-bar">
+            <button class="mobile-toggle" onclick="document.getElementById('sidebar').classList.toggle('show')">☰</button>
+            <h1 id="top-title">統一發佈中心</h1>
+            <div style="font-size:12px; color:#888;">Admin Session Active</div>
+        </header>
 
-        <div class="content-body">
+        <div class="content-area">
             
-            <div id="panel-members" class="panel active">
-                <h2>會員系統管理 <span id="total-members-badge" style="font-size:14px; background:#eee; padding:4px 10px; border-radius:20px; color:#666;">總計: -</span></h2>
-                <p style="color:#888; font-size:14px;">強烈建議：請優先使用下方搜尋功能快速定位會員資料。</p>
-                <div style="margin-bottom: 25px;">
-                    <input type="text" id="member-search" class="input-field" placeholder="🔍 輸入姓名、電話、編號或任何關鍵字進行極速搜尋..." style="max-width: 100%;">
-                </div>
-                
-                <div id="members-container">
-                    <p style="text-align:center; color:#888;">正在載入會員名單...</p>
-                </div>
-
-                <div id="pagination-controls" class="pagination-controls" style="display:none;">
-                    <button id="btn-prev-page" class="page-btn">上一頁</button>
-                    <span id="page-info" class="page-info">第 1 頁 / 共 1 頁</span>
-                    <button id="btn-next-page" class="page-btn">下一頁</button>
-                </div>
-            </div>
-
-            <div id="panel-add" class="panel">
-                <h2>統一發佈中心</h2>
+            <!-- 發佈中心 Panel -->
+            <div id="panel-publish" class="panel active">
                 <div class="form-group">
                     <label>請選擇要發佈的單元類別</label>
-                    <select id="category-select" class="select-field">
-                        <option value="最新消息">⭐ 最新消息</option>
-                        <option disabled>────── 課程模組 ──────</option>
-                        <option value="課程介紹">課程介紹 (總表)</option>
-                        <option value="政府補助課程">政府補助課程</option>
-                        <option value="其他自費課程">其他自費課程</option>
-                        <option value="會員專屬影片">🎬 線上課程平台</option>
-                        <option disabled>────── 關於協會 ──────</option>
-                        <option value="關於我們">協會介紹 (關於我們)</option>
-                        <option value="活動花絮">活動花絮</option>
-                        <option value="專業師資">專業師資</option>
-                        <option value="專業顧問">專業顧問</option>
-                        <option disabled>────── 交流區 ──────</option>
-                        <option value="認證店家">認證店家</option>
-                        <option value="徵才專區">徵才專區</option>
-                        <option disabled>────── 其他 ──────</option>
-                        <option value="品牌推廣">品牌推廣</option>
+                    <select class="form-control" id="pub-category" onchange="changePublishForm()">
+                        <option value="news">最新消息 (公告/活動)</option>
+                        <option value="course_gov">政府補助課程</option>
+                        <option value="course_self">其他自費課程</option>
+                        <option value="course_video">會員專屬線上影片</option>
+                        <option value="teacher">專業師資</option>
+                        <option value="consultant">專業顧問</option>
+                        <option value="store">認證店家</option>
+                        <option value="brand">品牌推廣與合作</option>
+                        <option value="job">徵才專區</option>
                     </select>
                 </div>
-                <hr style="border:0; border-top:1px dashed #ddd; margin:30px 0;">
-                <div id="dynamic-form-container"></div>
-                <button id="btn-submit-data" class="btn-primary" style="margin-top:20px; width: 100%; max-width: 200px;">發佈資料</button>
+                
+                <hr style="border:0; border-top:1px dashed #eee; margin:25px 0;">
+                
+                <div id="dynamic-form-area">
+                    <!-- 表單欄位由 JS 動態生成 -->
+                </div>
+                
+                <div class="form-group" style="margin-top:20px;">
+                    <label>上傳圖片/照片/封面 (可選多張)</label>
+                    <input type="file" id="pub-images" class="form-control" accept="image/*" multiple onchange="previewImages()">
+                    <div style="font-size:12px; color:#999; margin-top:5px;">圖片將自動上傳並分類至專屬資料夾</div>
+                    <div class="image-preview-container" id="img-preview"></div>
+                </div>
+                
+                <button class="btn btn-primary" onclick="submitPublish()">發佈資料</button>
+            </div>
+            
+            <!-- 會員管理 Panel (保留擴充用) -->
+            <div id="panel-members" class="panel">
+                <h3 style="margin-top:0; color:var(--admin-blue);">會員系統管理</h3>
+                <p style="color:#666; font-size:14px;">此模組即將開放，目前請直接至 Google Sheet 進行審核與管理。</p>
+                <button class="btn btn-primary" style="width:auto; margin-top:20px;" onclick="window.open('https://docs.google.com/spreadsheets/d/1h4sd3xeaGiuuck1NdUE4Hrffg0GzaozkyUd00xVP8xA/edit', '_blank')">開啟後台資料庫 (Google Sheet)</button>
+            </div>
+            
+            <!-- 內容編排 Panel (保留擴充用) -->
+            <div id="panel-layout" class="panel">
+                <h3 style="margin-top:0; color:var(--admin-blue);">內容編排與管理</h3>
+                <p style="color:#666; font-size:14px;">此模組即將開放，目前請直接至 Google Sheet 編輯或刪除既有內容。</p>
+                <button class="btn btn-primary" style="width:auto; margin-top:20px;" onclick="window.open('https://docs.google.com/spreadsheets/d/1h4sd3xeaGiuuck1NdUE4Hrffg0GzaozkyUd00xVP8xA/edit', '_blank')">開啟後台資料庫 (Google Sheet)</button>
             </div>
 
-            <div id="panel-manage" class="panel">
-                <h2>內容編排與管理</h2>
-                <div class="form-group">
-                    <label>請選擇要管理的單元</label>
-                    <select id="manage-category-select" class="select-field">
-                        <option value="">請選擇...</option>
-                        <option value="最新消息">⭐ 最新消息</option>
-                        <option value="課程介紹">課程介紹 (總表)</option>
-                        <option value="政府補助課程">政府補助課程</option>
-                        <option value="其他自費課程">其他自費課程</option>
-                        <option value="會員專屬影片">線上課程平台 (影音)</option>
-                        <option value="關於我們">協會介紹 (關於我們)</option>
-                        <option value="活動花絮">活動花絮</option>
-                        <option value="專業師資">專業師資</option>
-                        <option value="專業顧問">專業顧問</option>
-                        <option value="認證店家">認證店家</option>
-                        <option value="徵才專區">徵才專區</option>
-                        <option value="品牌推廣">品牌推廣</option>
-                        <option value="美業資訊交流">美業資訊交流 (刪除違規文章)</option>
-                        <option value="交流留言">交流留言 (管理互動留言)</option>
-                    </select>
-                </div>
-                <div id="manage-list-container">
-                    <p style="color:#888; text-align:center; padding:30px 0;">請先由上方選擇單元載入資料</p>
-                </div>
-            </div>
         </div>
-    </main>
+    </div>
 
-    <script src="js/admin.js"></script>
+    <script>
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
+        const API_SECRET_TOKEN = 'cla-eda-secure-2026';
+        let currentBase64Images = [];
+
+        function switchPanel(panelId) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.getElementById('panel-' + panelId).classList.add('active');
+            
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            
+            const titles = { 'publish': '統一發佈中心', 'members': '會員系統管理', 'layout': '內容編排與管理' };
+            document.getElementById('top-title').innerText = titles[panelId];
+            
+            if(window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('show');
+        }
+
+        // 定義各單元所需的表單欄位 (品牌推廣已與認證店家一致)
+        const formConfigs = {
+            'news': [
+                { id: 'f-date', label: '發佈日期 *', type: 'date' },
+                { id: 'f-title', label: '標題 *', type: 'text' },
+                { id: 'f-content', label: '內容 *', type: 'textarea' },
+                { id: 'f-link', label: '相關連結', type: 'text', placeholder: 'https://...' }
+            ],
+            'course_gov': [
+                { id: 'f-title', label: '課程名稱 *', type: 'text' },
+                { id: 'f-teacher', label: '講師', type: 'text' },
+                { id: 'f-desc', label: '課程簡介 *', type: 'textarea' },
+                { id: 'f-link', label: '專屬報名網址', type: 'text', placeholder: 'https://...' }
+            ],
+            'course_self': [
+                { id: 'f-title', label: '課程名稱 *', type: 'text' },
+                { id: 'f-teacher', label: '講師', type: 'text' },
+                { id: 'f-desc', label: '課程簡介 *', type: 'textarea' },
+                { id: 'f-link', label: '專屬報名網址', type: 'text', placeholder: 'https://...' }
+            ],
+            'course_video': [
+                { id: 'f-title', label: '課程名稱 *', type: 'text' },
+                { id: 'f-req', label: '最低權限要求 *', type: 'select', options: ['一般會員','VIP會員','講師會員','顧問會員','企業會員'] },
+                { id: 'f-video', label: 'YouTube 影片網址 *', type: 'text', placeholder: 'https://www.youtube.com/watch?v=...' },
+                { id: 'f-desc', label: '課程簡介', type: 'textarea' }
+            ],
+            'teacher': [
+                { id: 'f-name', label: '講師姓名 *', type: 'text' },
+                { id: 'f-spec', label: '專長項目 *', type: 'text' },
+                { id: 'f-desc', label: '個人簡介 *', type: 'textarea' },
+                { id: 'f-link', label: '聯絡方式 (IG/Line 網址)', type: 'text' }
+            ],
+            'consultant': [
+                { id: 'f-name', label: '顧問姓名 *', type: 'text' },
+                { id: 'f-spec', label: '專長項目 *', type: 'text' },
+                { id: 'f-desc', label: '個人簡介 *', type: 'textarea' },
+                { id: 'f-link', label: '聯絡方式 (IG/Line 網址)', type: 'text' }
+            ],
+            'store': [
+                { id: 'f-name', label: '店家名稱 *', type: 'text' },
+                { id: 'f-boss', label: '負責人', type: 'text' },
+                { id: 'f-addr', label: '地址', type: 'text' },
+                { id: 'f-phone', label: '聯絡電話', type: 'text' },
+                { id: 'f-desc', label: '簡介', type: 'textarea' },
+                { id: 'f-link', label: '官方連結', type: 'text', placeholder: 'https://...' }
+            ],
+            'brand': [
+                { id: 'f-name', label: '品牌名稱 *', type: 'text' },
+                { id: 'f-boss', label: '負責人', type: 'text' },
+                { id: 'f-addr', label: '地址', type: 'text' },
+                { id: 'f-phone', label: '聯絡電話', type: 'text' },
+                { id: 'f-desc', label: '簡介', type: 'textarea' },
+                { id: 'f-link', label: '品牌官方連結', type: 'text', placeholder: 'https://...' }
+            ],
+            'job': [
+                { id: 'f-title', label: '職缺名稱 *', type: 'text' },
+                { id: 'f-company', label: '徵才機構 *', type: 'text' },
+                { id: 'f-loc', label: '工作地點 *', type: 'text' },
+                { id: 'f-salary', label: '薪資待遇 *', type: 'text' },
+                { id: 'f-req', label: '條件要求 *', type: 'textarea' },
+                { id: 'f-contact', label: '聯絡方式 *', type: 'text' }
+            ]
+        };
+
+        function changePublishForm() {
+            const cat = document.getElementById('pub-category').value;
+            const area = document.getElementById('dynamic-form-area');
+            const fields = formConfigs[cat];
+            let html = '';
+            
+            fields.forEach(f => {
+                html += `<div class="form-group"><label>${f.label}</label>`;
+                if (f.type === 'textarea') {
+                    html += `<textarea id="${f.id}" class="form-control" placeholder="請輸入${f.label.replace('*','').trim()}"></textarea>`;
+                } else if (f.type === 'select') {
+                    html += `<select id="${f.id}" class="form-control">`;
+                    f.options.forEach(opt => html += `<option value="${opt}">${opt}</option>`);
+                    html += `</select>`;
+                } else {
+                    html += `<input type="${f.type}" id="${f.id}" class="form-control" placeholder="${f.placeholder || '請輸入'+f.label.replace('*','').trim()}">`;
+                }
+                html += `</div>`;
+            });
+            
+            area.innerHTML = html;
+            
+            if (cat === 'news') {
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('f-date').value = today;
+            }
+            
+            document.getElementById('pub-images').value = '';
+            document.getElementById('img-preview').innerHTML = '';
+            currentBase64Images = [];
+        }
+
+        async function previewImages() {
+            const files = document.getElementById('pub-images').files;
+            const preview = document.getElementById('img-preview');
+            preview.innerHTML = '';
+            currentBase64Images = [];
+            
+            if (files.length > 5) {
+                alert('一次最多只能上傳 5 張圖片！');
+                document.getElementById('pub-images').value = '';
+                return;
+            }
+            
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                if (file.size > 5 * 1024 * 1024) {
+                    alert(`圖片 ${file.name} 超過 5MB，請壓縮後再上傳！`);
+                    continue;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const base64Str = e.target.result.split(',')[1];
+                    currentBase64Images.push({ name: file.name, mime: file.type, data: base64Str });
+                    preview.innerHTML += `<div class="image-preview-box"><img src="${e.target.result}"></div>`;
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function extractYoutubeId(url) {
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[2].length === 11) ? match[2] : null;
+        }
+
+        async function submitPublish() {
+            const cat = document.getElementById('pub-category').value;
+            const fields = formConfigs[cat];
+            
+            let rowData = [];
+            let isValid = true;
+            let targetSheet = '';
+            
+            const mapping = {
+                'news': '最新消息', 'course_gov': '政府補助課程', 'course_self': '其他自費課程',
+                'course_video': '會員專屬影片', 'teacher': '專業師資', 'consultant': '專業顧問',
+                'store': '認證店家', 'brand': '品牌推廣', 'job': '徵才專區'
+            };
+            targetSheet = mapping[cat];
+            
+            if (cat === 'news') {
+                const d = document.getElementById('f-date').value;
+                const t = document.getElementById('f-title').value.trim();
+                const c = document.getElementById('f-content').value.trim();
+                if(!d || !t || !c) isValid = false;
+                rowData = [d, t, c, '', document.getElementById('f-link').value.trim()];
+            } else if (cat === 'course_gov' || cat === 'course_self') {
+                const t = document.getElementById('f-title').value.trim();
+                const d = document.getElementById('f-desc').value.trim();
+                if(!t || !d) isValid = false;
+                rowData = [t, d, document.getElementById('f-teacher').value.trim(), '', document.getElementById('f-link').value.trim()];
+            } else if (cat === 'course_video') {
+                const t = document.getElementById('f-title').value.trim();
+                const v = document.getElementById('f-video').value.trim();
+                if(!t || !v) isValid = false;
+                const yid = extractYoutubeId(v);
+                if (!yid) { alert('無效的 YouTube 網址！'); return; }
+                rowData = [t, `https://www.youtube.com/embed/${yid}`, document.getElementById('f-req').value, document.getElementById('f-desc').value.trim()];
+            } else if (cat === 'teacher' || cat === 'consultant') {
+                const n = document.getElementById('f-name').value.trim();
+                const s = document.getElementById('f-spec').value.trim();
+                const d = document.getElementById('f-desc').value.trim();
+                if(!n || !s || !d) isValid = false;
+                rowData = [n, s, d, '', document.getElementById('f-link').value.trim()];
+            } else if (cat === 'store' || cat === 'brand') {
+                const n = document.getElementById('f-name').value.trim();
+                if(!n) isValid = false;
+                rowData = [
+                    n, 
+                    document.getElementById('f-boss').value.trim(),
+                    document.getElementById('f-addr').value.trim(),
+                    document.getElementById('f-phone').value.trim(),
+                    document.getElementById('f-desc').value.trim(),
+                    '', 
+                    document.getElementById('f-link').value.trim()
+                ];
+            } else if (cat === 'job') {
+                const t = document.getElementById('f-title').value.trim();
+                const c = document.getElementById('f-company').value.trim();
+                if(!t || !c) isValid = false;
+                const today = new Date().toISOString().split('T')[0];
+                rowData = [
+                    t, c, 
+                    document.getElementById('f-loc').value.trim(),
+                    document.getElementById('f-salary').value.trim(),
+                    document.getElementById('f-req').value.trim(),
+                    document.getElementById('f-contact').value.trim(),
+                    '', today
+                ];
+            }
+
+            if (!isValid) {
+                alert('請填寫所有標示星號 (*) 的必填欄位！');
+                return;
+            }
+
+            const loader = document.getElementById('preloader');
+            const loaderText = document.getElementById('loader-text');
+            loader.style.display = 'flex';
+            
+            try {
+                let imgUrls = [];
+                if (currentBase64Images.length > 0) {
+                    loaderText.innerText = '圖片上傳處理中...';
+                    for (let img of currentBase64Images) {
+                        const imgRes = await fetch(GAS_URL, {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                token: API_SECRET_TOKEN, action: 'uploadImage',
+                                sheetName: targetSheet, base64Data: img.data,
+                                mimeType: img.mime, fileName: img.name
+                            })
+                        });
+                        const imgData = await imgRes.json();
+                        if (imgData.status === 'success') imgUrls.push(imgData.url);
+                    }
+                }
+
+                // 填入圖片網址
+                if (cat === 'news') rowData[3] = imgUrls.join(',');
+                else if (cat === 'course_gov' || cat === 'course_self') rowData[3] = imgUrls.join(',');
+                else if (cat === 'teacher' || cat === 'consultant') rowData[3] = imgUrls.join(',');
+                else if (cat === 'store' || cat === 'brand') rowData[5] = imgUrls.join(',');
+                else if (cat === 'job') rowData[6] = imgUrls.join(',');
+
+                loaderText.innerText = '資料寫入資料庫...';
+                const finalRes = await fetch(GAS_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        token: API_SECRET_TOKEN, action: 'adminPublish',
+                        sheetName: targetSheet, newRowData: rowData
+                    })
+                });
+                
+                const finalData = await finalRes.json();
+                if (finalData.status === 'success') {
+                    alert('發佈成功！');
+                    changePublishForm(); 
+                } else {
+                    alert('發佈失敗：' + finalData.message);
+                }
+            } catch (err) {
+                alert('系統錯誤，請稍後重試。');
+                console.error(err);
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+
+        window.onload = changePublishForm;
+    </script>
 </body>
 </html>
