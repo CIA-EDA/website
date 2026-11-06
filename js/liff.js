@@ -196,8 +196,8 @@ async function loadListData(sheetName) {
             
             if (sheetName === '美業資訊交流' || sheetName === '徵才專區' || sheetName === '最新消息') dataArray = dataArray.reverse();
             
-            // ★ 使用與網頁版相同的 .responsive-grid
             let html = '<div class="responsive-grid">';
+            const maxDescLength = 50; 
             
             dataArray.forEach((row, idx) => {
                 let item = {};
@@ -209,14 +209,23 @@ async function loadListData(sheetName) {
                 let imgUrl = item['公司Logo或環境照片'] || item['附圖網址'] || item['封面圖片網址'] || item['圖片網址'] || item['產品logo及圖檔'] || '';
                 let linkUrl = item['專屬付款網址'] || item['連結'] || item['專屬報名網址'] || item['相關連結'] || '';
                 
+                // ★ 品牌推廣處理：無連結則不掛 <a> 標籤
                 if (sheetName === '品牌推廣') {
                     if (imgUrl) {
                         const optimizedUrl = imgUrl.split(',')[0].trim();
-                        html += `
-                            <a href="${linkUrl || '#'}" target="${linkUrl ? '_blank' : '_self'}" style="display:block; border-radius:16px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.08); transition:0.3s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
-                                <img src="${optimizedUrl}" alt="${title}" style="width:100%; height:auto; display:block; object-fit:cover;">
-                            </a>
-                        `;
+                        if(linkUrl) {
+                            html += `
+                                <a href="${linkUrl}" target="_blank" style="display:block; border-radius:16px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.08); transition:0.3s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                                    <img src="${optimizedUrl}" alt="${title}" style="width:100%; height:auto; display:block; object-fit:cover;">
+                                </a>
+                            `;
+                        } else {
+                             html += `
+                                <div style="display:block; border-radius:16px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.08);">
+                                    <img src="${optimizedUrl}" alt="${title}" style="width:100%; height:auto; display:block; object-fit:cover;">
+                                </div>
+                            `;
+                        }
                     }
                     return; 
                 }
@@ -244,11 +253,13 @@ async function loadListData(sheetName) {
                     const firstImg = imgUrl.split(',')[0].trim();
                     imgHtml = `<img src="${firstImg}" class="post-img">`;
                 }
+                
+                let shortDesc = desc.length > maxDescLength ? desc.substring(0, maxDescLength) + '...' : desc;
 
                 if (sheetName === '最新消息') {
-                     html += `<div class="card">${extra}<div class="card-title">${title}</div><div class="card-desc">${desc.replace(/\n/g, '<br>')}</div>${imgHtml}</div>`;
+                     html += `<div class="card">${extra}<div class="card-title">${title}</div><div class="card-desc">${shortDesc.replace(/\n/g, '<br>')}</div>${imgHtml}</div>`;
                 } else {
-                    html += `<div class="card"><div class="card-title">${title}</div><div class="card-desc">${desc.replace(/\n/g, '<br>')}</div>${imgHtml}${extra}</div>`;
+                    html += `<div class="card"><div class="card-title">${title}</div><div class="card-desc">${shortDesc.replace(/\n/g, '<br>')}</div>${imgHtml}${extra}</div>`;
                 }
             });
             html += '</div>';
