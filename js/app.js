@@ -1,6 +1,6 @@
 /**
  * 檔案名稱：js/app.js
- * 職責：快取引擎、前台路由、純按鈕觸發式 LINE 登入 (保障形象官網秒開)、全模組智能排版
+ * 職責：統一 4 欄網格排版、純按鈕觸發式 LINE 登入 (保障形象官網秒開)
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
@@ -27,7 +27,7 @@ const PAGE_CONFIG = {
     '#stores': { title: '認證店家', subtitle: 'CIA-EDA 嚴選認證，提供高品質的美業服務體驗。', sheet: '認證店家', layout: 'card' },
     '#jobs': { title: '徵才專區', subtitle: '網羅最新美業職缺與招募資訊，助您找到最適合的舞台。', sheet: '徵才專區', layout: 'card' },
     '#exchange': { title: '美業資訊交流', subtitle: '會員專屬交流天地，分享最新資訊與技術探討。', sheet: '美業資訊交流', layout: 'card' },
-    '#brands': { title: '品牌推廣與合作', subtitle: '嚴選業界頂尖品牌，共創美業生態圈。', sheet: '品牌推廣', layout: 'brand' }, // ★ 改用專屬 brand 版型
+    '#brands': { title: '品牌推廣與合作', subtitle: '嚴選業界頂尖品牌，共創美業生態圈。', sheet: '品牌推廣', layout: 'brand' }, 
     '#join': { title: '入會申請', subtitle: '歡迎加入中華國際美學教育發展協會。為保障您的權益，請詳實填寫以下資料。', isJoinIntent: true },
     '#member-zone': { title: '會員專屬大廳', subtitle: '掌握最新行業動態與您的專屬權限', isMember: true },
     '#edit-profile': { title: '修改個人設定', subtitle: '保持最新的聯絡資訊，確保會員權益', isEditProfile: true }
@@ -106,15 +106,12 @@ function hidePreloader() {
     if(p) { p.style.opacity = '0'; p.style.visibility = 'hidden'; setTimeout(() => { p.style.display = 'none'; }, 300); }
 }
 
-// === 核心調整：強制解鎖防呆 ===
 function initSystem() {
-    // 1. 無論如何，2.5 秒後強制隱藏載入動畫，保證不卡住
+    // 強制防呆解鎖
     setTimeout(hidePreloader, 2500);
     
-    // 2. 立即載入網頁內容
     loadPage();
 
-    // 3. 獨立處理計數器，失敗也不影響畫面
     fetch(`${GAS_URL}?action=getVisitorCount`)
         .then(res => res.json())
         .then(countData => {
@@ -122,9 +119,8 @@ function initSystem() {
                 const counterEl = document.getElementById('visitor-counter');
                 if (counterEl) counterEl.innerText = countData.count.toLocaleString();
             }
-        }).catch(e => console.error('計數器載入失敗', e));
+        }).catch(e => console.log('計數器跳過'));
 
-    // 4. 處理 LINE 登入回傳邏輯
     const urlSearch = window.location.search;
     if (urlSearch.includes('liff.state') || urlSearch.includes('code=')) {
         showPreloader();
@@ -136,21 +132,14 @@ function initSystem() {
                     } else {
                         hidePreloader();
                     }
-                }).catch((e) => {
-                    console.error('LIFF Init 失敗', e);
-                    hidePreloader();
-                });
+                }).catch((e) => { hidePreloader(); });
             } else {
                 hidePreloader();
             }
-        } catch (error) {
-            console.error('LIFF 處理錯誤', error);
-            hidePreloader();
-        }
+        } catch (error) { hidePreloader(); }
     }
 }
 
-// 點擊「LINE 一鍵登入」按鈕的事件處理
 function setupMemberLogin() {
     const lineBtns = document.querySelectorAll('.line-login-trigger');
     lineBtns.forEach(btn => {
@@ -174,7 +163,6 @@ function setupMemberLogin() {
                 }
             } catch(e) {
                 alert('登入程序發生錯誤，請重試。');
-                console.error(e);
                 hidePreloader();
             }
         });
@@ -198,7 +186,6 @@ async function handleLineLoginCallback(isSilent = false) {
             
             updateMemberUI();
             
-            // 清理網址
             if (window.location.search.includes('liff.state') || window.location.search.includes('code=')) {
                 window.history.replaceState(null, '', window.location.pathname + (window.location.hash || '#member-zone'));
             }
@@ -210,11 +197,10 @@ async function handleLineLoginCallback(isSilent = false) {
             }
             loadPage();
         } else {
-            if (!isSilent) alert('登入失敗：' + data.message);
+            if (!isSilent) alert('登入異常：' + data.message);
         }
     } catch(e) { 
-        if (!isSilent) alert('連線伺服器失敗，請檢查網路狀態。'); 
-        console.error(e);
+        if (!isSilent) alert('LINE 登入連線失敗。'); 
     } finally { 
         hidePreloader(); 
     }
@@ -281,7 +267,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initSystem(); 
 });
 
-
 function buildMemberDashboard(memberInfo) {
     let avatarHtml = memberInfo.avatar ? `<img src="${memberInfo.avatar}" style="width:60px; height:60px; border-radius:50%; vertical-align:middle; margin-right:15px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">` : '';
     let badgeHtml = memberInfo.level ? `<span style="background:var(--champagne); color:#fff; font-size:13px; padding:4px 12px; border-radius:20px; font-weight:bold;">${memberInfo.level}</span>` : '';
@@ -319,6 +304,7 @@ function buildHomeNavigation() {
 async function loadPage() {
     showPreloader(); 
     
+    // 強制解鎖保險
     setTimeout(hidePreloader, 3000);
     
     const hash = window.location.hash || '#news';
@@ -454,14 +440,8 @@ async function loadPage() {
         return;
     }
 
-    // ★ 如果是品牌推廣，改用 grid 排版，每列三個，不使用一般卡片
-    if (config.layout === 'brand') {
-        dataContainer.style.display = 'grid'; 
-        dataContainer.style.gridTemplateColumns = 'repeat(auto-fit, minmax(280px, 1fr))';
-        dataContainer.style.gap = '20px';
-    } else {
-        dataContainer.style.display = 'grid'; 
-    }
+    // ★ 取消手動注入 Grid 樣式，統一交由內層 .responsive-grid 處理
+    dataContainer.style.display = 'block'; 
 
     try {
         const credentials = JSON.parse(localStorage.getItem('cia_member_credentials'));
@@ -542,7 +522,8 @@ function renderData(rawData, layoutType, container) {
     const headers = rawData[0];
     currentViewDataCache = []; 
     
-    let html = layoutType === 'article' ? '<div style="max-width: 800px; margin: 0 auto; width:100%;">' : (layoutType === 'brand' ? '' : '<div class="course-grid" style="width:100%;">');
+    // ★ 統一使用 responsive-grid 來進行 4 欄或手機版單欄的排版
+    let html = layoutType === 'article' ? '<div style="max-width: 800px; margin: 0 auto; width:100%;">' : '<div class="responsive-grid">';
     
     for (let i = 1; i < rawData.length; i++) {
         let item = {};
@@ -556,7 +537,6 @@ function renderData(rawData, layoutType, container) {
         const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || item['產品logo及圖檔'] || item['公司Logo或環境照片'] || item['附圖網址'] || item['封面圖片網址'] || '';
         const linkRaw = item['報名連結'] || item['專屬付款網址'] || item['連結'] || item['專屬報名網址'] || item['相關連結'] || ''; 
         
-        // ★ 核心：針對品牌推廣 (brand) 只輸出純圖片圓角超連結
         if (layoutType === 'brand') {
             if (imgRaw) {
                 const optimizedUrl = optimizeImageUrl(imgRaw.split(',')[0].trim());
@@ -566,7 +546,7 @@ function renderData(rawData, layoutType, container) {
                     </a>
                 `;
             }
-            continue; // 跳過後續一般卡片的組裝
+            continue; 
         }
         
         let extraHtml = ''; 
@@ -634,7 +614,7 @@ function renderData(rawData, layoutType, container) {
             }
         }
     }
-    if (layoutType !== 'article' && layoutType !== 'brand') html += '</div>';
+    html += '</div>';
     container.innerHTML = html;
 }
 
