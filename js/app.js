@@ -6,7 +6,7 @@
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
 
-// 🔑 官方 LINE LIFF ID (供一般網頁登入使用)
+// 🔑 官方 LINE LIFF ID (供形象網頁點擊登入時使用)
 const LIFF_ID = '2012121201-DRHgrrOJ'; 
 
 const AUTH_EXPIRY_MS = 3 * 60 * 60 * 1000; 
@@ -48,10 +48,7 @@ function getSafeMemberInfo() {
         let info = localStorage.getItem('cia_member_info');
         if (info === 'undefined' || info === 'null') return null;
         return JSON.parse(info);
-    } catch(e) {
-        localStorage.removeItem('cia_member_info');
-        return null;
-    }
+    } catch(e) { localStorage.removeItem('cia_member_info'); return null; }
 }
 
 function getSafeCredentials() {
@@ -59,10 +56,7 @@ function getSafeCredentials() {
         let creds = localStorage.getItem('cia_member_credentials');
         if (creds === 'undefined' || creds === 'null') return null;
         return JSON.parse(creds);
-    } catch(e) {
-        localStorage.removeItem('cia_member_credentials');
-        return null;
-    }
+    } catch(e) { localStorage.removeItem('cia_member_credentials'); return null; }
 }
 
 function isAuthValid() {
@@ -102,15 +96,15 @@ const readFileAsBase64 = (file) => new Promise((res, rej) => {
     r.readAsDataURL(file); 
 });
 
-// === 核心修復：拔除 LIFF 啟動綁架，讓形象網站光速秒開 ===
+// === 核心調整：拔除自動初始化的綁架行為，保證網頁秒開 ===
 function initSystem() {
-    // 終極保險：2.5 秒後強制解除遮罩，保證不會卡在 Logo 畫面
+    // 1. 強制防呆，2.5秒後絕對解除遮罩
     setTimeout(hidePreloader, 2500);
     
-    // 1. 瞬間開始載入網頁資料，不等任何人
+    // 2. 瞬間開始載入網頁資料，不等任何人
     loadPage();
 
-    // 2. 在背景默默抓取造訪人次 (不影響主畫面)
+    // 3. 背景默默抓取造訪人次 (不影響主畫面)
     fetch(`${GAS_URL}?action=getVisitorCount`)
         .then(res => res.json())
         .then(countData => {
@@ -120,7 +114,7 @@ function initSystem() {
             }
         }).catch(e => console.log('計數器跳過'));
 
-    // 3. 只有當網址出現 LINE 的登入回傳碼時，才在背景處理登入，不阻擋網站
+    // 4. 只有當網址出現 LINE 的登入回傳碼 (代表剛登入完跳轉回來) 時，才啟動 LIFF 處理資料
     const urlSearch = window.location.search;
     if (urlSearch.includes('liff.state') || urlSearch.includes('code=')) {
         showPreloader();
@@ -138,7 +132,7 @@ function initSystem() {
     }
 }
 
-// 只有在使用者「手動點擊」登入按鈕時，才會觸發此函數
+// 核心調整：只有當會員點擊「LINE 一鍵登入」時，才動態呼叫 LINE
 function setupMemberLogin() {
     const lineBtns = document.querySelectorAll('.line-login-trigger');
     lineBtns.forEach(btn => {
@@ -157,6 +151,7 @@ function setupMemberLogin() {
                 }
                 
                 if (!liff.isLoggedIn()) {
+                    // 強制綁定回傳網址為形象網站 (過濾掉可能的參數)
                     liff.login({ redirectUri: window.location.href.split('?')[0] });
                 } else {
                     handleLineLoginCallback();
@@ -186,7 +181,7 @@ async function handleLineLoginCallback(isSilent = false) {
             
             updateMemberUI();
             
-            // 清除網址列上的 LINE 追蹤碼，保持乾淨並防止重新整理時卡頓
+            // 清除網址列上的 LINE 追蹤碼，保持乾淨
             if (window.location.search.includes('liff.state') || window.location.search.includes('code=')) {
                 window.history.replaceState(null, '', window.location.pathname + (window.location.hash || '#member-zone'));
             }
@@ -203,7 +198,7 @@ async function handleLineLoginCallback(isSilent = false) {
     } catch(e) { 
         if (!isSilent) alert('LINE 登入連線失敗。'); 
     } finally { 
-        hidePreloader(); // 確保一定解除遮罩
+        hidePreloader(); 
     }
 }
 
@@ -254,7 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupProfileCompletionForm(); 
     setupEditProfileForm();
     setupContactModal(); 
-    setupPostModal(); // 【重大修復】：補回所有完整功能，防止 JS 崩潰！
+    setupPostModal(); 
     
     window.addEventListener('hashchange', () => { 
         handlePageTransition(); 
@@ -315,7 +310,7 @@ function buildHomeNavigation() {
 async function loadPage() {
     showPreloader(); 
     
-    // 強制防呆，防止 fetch 掛掉
+    // 超級防呆：3秒後強制解鎖載入畫面
     setTimeout(hidePreloader, 3000);
     
     const hash = window.location.hash || '#news';
@@ -498,7 +493,6 @@ async function loadPage() {
     }
 }
 
-// 【重大修復】：補回 1/3 被刪除的功能 (留言、影片、發文表單等)
 function buildCommentsHtml(postTitle, postTime, dataIndex) {
     const comments = (window.currentCommentsCache || []).filter(c => c[0] === postTitle && c[1] === postTime);
     let html = '<div style="margin-top:15px; border-top:1px dashed #eee; padding-top:15px; text-align:left;">';
@@ -946,6 +940,48 @@ function setupEditProfileForm() {
         } catch(e) { alert('更新失敗'); } 
         finally { submitBtn.innerText = '儲存變更'; submitBtn.disabled = false; }
     });
+}
+
+function logoutMember() {
+    localStorage.removeItem('cia_member_credentials');
+    localStorage.removeItem('cia_member_info');
+    localStorage.removeItem('cia_auth_time');
+    sessionStorage.clear();
+    
+    try {
+        if (typeof liff !== 'undefined' && liff.id && liff.isLoggedIn()) { 
+            liff.logout(); 
+        }
+    } catch(e) {}
+    
+    alert('已登出。');
+    window.location.hash = '#news';
+    loadPage();
+}
+
+function setupMobileMenu() {
+    const mobileBtn = document.getElementById('mobile-menu-btn');
+    const mainNav = document.getElementById('main-nav-menu');
+    if (mobileBtn && mainNav) {
+        mobileBtn.addEventListener('click', () => {
+            mainNav.classList.toggle('show');
+            document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('mobile-active'));
+        });
+        
+        mainNav.querySelectorAll('a:not(.dropdown-toggle)').forEach(link => { 
+            link.addEventListener('click', () => mainNav.classList.remove('show')); 
+        });
+        
+        const dropdowns = document.querySelectorAll('.dropdown-toggle');
+        dropdowns.forEach(dropdown => {
+            dropdown.addEventListener('click', (e) => {
+                if (window.innerWidth <= 768) {
+                    dropdowns.forEach(d => { if (d !== dropdown) d.classList.remove('mobile-active'); });
+                    dropdown.classList.toggle('mobile-active');
+                }
+            });
+        });
+    }
 }
 
 function optimizeImageUrl(url) {
