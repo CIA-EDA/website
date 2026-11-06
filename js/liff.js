@@ -5,7 +5,9 @@
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
-const LIFF_ID_MEMBER = '2012121201-DRHgrrOJ'; 
+
+// 🔑 官方 LINE LIFF ID (供行動版會員大廳使用) - 依照要求更新為對應的 ID
+const LIFF_ID_MEMBER = '2012121201-JKa4hPdF'; 
 
 let currentTab = 'dashboard';
 window.currentCommentsCache = []; 
@@ -43,23 +45,25 @@ async function switchNav(target) {
         if(target === 'news') { sheetName = '最新消息'; setHeader('最新消息'); } 
         if(target === 'exchange') { sheetName = '美業資訊交流'; setHeader('美業資訊交流'); }
         if(target === 'jobs') { sheetName = '徵才專區'; setHeader('徵才專區'); }
+        if(target === 'brands') { sheetName = '品牌推廣'; setHeader('品牌推廣與合作'); } // ★ 新增品牌推廣路由
         
         showView('list');
         await loadListData(sheetName);
     }
 }
 
-// === 核心調整：完全自動化登入，零點擊 ===
 async function initApp() {
     showPreloader();
+    
+    // ★ 加入終極防呆，2.5秒後必定解鎖畫面，防止任何情況的死當
+    setTimeout(hidePreloader, 2500);
+    
     try {
         await liff.init({ liffId: LIFF_ID_MEMBER });
         
         if (liff.isLoggedIn()) {
-            // 已登入：直接向後端驗證身分並進入大廳
             await processLogin(true);
         } else {
-            // 未登入：強制全自動跳轉 LINE 授權，不顯示任何登入按鈕畫面！
             liff.login({ redirectUri: window.location.href }); 
         }
     } catch (err) { 
@@ -68,7 +72,6 @@ async function initApp() {
     }
 }
 
-// 保留作為 fallback，但正常情況下不會再被點擊到
 async function triggerLineLogin() {
     if (!liff.isLoggedIn()) liff.login({ redirectUri: window.location.href });
     else await processLogin();
@@ -183,6 +186,32 @@ async function loadListData(sheetName) {
             const headers = dataArray.shift();
             
             if (sheetName === '美業資訊交流' || sheetName === '徵才專區' || sheetName === '最新消息') dataArray = dataArray.reverse();
+            
+            // ★ 若為品牌推廣，加上網格排版的容器樣式
+            if (sheetName === '品牌推廣') {
+                container.innerHTML = '<div class="brand-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:20px;"></div>';
+                const gridContainer = container.querySelector('.brand-grid');
+                
+                let html = '';
+                dataArray.forEach((row) => {
+                    let item = {};
+                    headers.forEach((h, i) => item[h] = row[i]);
+                    const title = item['產品名稱'] || item['標題'] || '';
+                    const imgRaw = item['產品logo及圖檔'] || item['圖片網址'] || '';
+                    const linkRaw = item['相關連結'] || item['連結'] || '#'; 
+                    
+                    if (imgRaw) {
+                        const optimizedUrl = imgRaw.split(',')[0].trim();
+                        html += `
+                            <a href="${linkRaw}" target="${linkRaw !== '#' ? '_blank' : '_self'}" style="display:block; border-radius:16px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.08); transition:0.3s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <img src="${optimizedUrl}" alt="${title}" style="width:100%; height:auto; display:block; object-fit:cover;">
+                            </a>
+                        `;
+                    }
+                });
+                gridContainer.innerHTML = html;
+                return; // 品牌推廣處理完畢，提早返回
+            }
             
             let html = '';
             dataArray.forEach((row, idx) => {
