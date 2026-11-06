@@ -23,10 +23,14 @@
             .responsive-grid { grid-template-columns: 1fr; gap: 20px; } 
         }
 
-        .card { background: #fff; border-radius: 16px; padding: 25px 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 15px; border: 1px solid rgba(184, 149, 90, 0.1); }
+        .card { background: #fff; border-radius: 16px; padding: 25px 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 15px; border: 1px solid rgba(184, 149, 90, 0.1); display: flex; flex-direction: column; }
         .card-title { font-size: 18px; font-weight: bold; color: var(--app-blue); margin: 0 0 10px 0; display: flex; align-items: center; justify-content: space-between;}
-        .card-desc { font-size: 14px; color: var(--text-sub); line-height: 1.5; margin: 0; }
+        /* 保證簡介區塊具備彈性空間 */
+        .card-desc { font-size: 14px; color: var(--text-sub); line-height: 1.5; margin: 0 0 15px 0; flex: 1; }
         
+        /* ★ 新增：強制大廳卡片內的按鈕區塊置底 */
+        .card-actions { margin-top: auto; width: 100%; }
+
         .grid-menu { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
         .grid-item { background: #fff; border-radius: 16px; padding: 25px 10px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.03); cursor: pointer; transition: 0.2s; border: 1px solid transparent; }
         .grid-item:active { transform: scale(0.96); border-color: var(--app-gold); }
@@ -45,7 +49,7 @@
         .input-field:focus { border-color: var(--app-gold); box-shadow: 0 0 0 2px rgba(184,149,90,0.1); }
         .textarea-field { height: 120px; resize: none; }
         
-        .btn-primary { background: linear-gradient(135deg, var(--app-gold) 0%, #967a4a 100%); color: #fff; border: none; border-radius: 25px; padding: 15px; width: 100%; font-size: 16px; font-weight: bold; box-shadow: 0 4px 15px rgba(184, 149, 90, 0.3); cursor: pointer; text-align: center; display: block; text-decoration: none; box-sizing: border-box;}
+        .btn-primary { background: linear-gradient(135deg, var(--app-gold) 0%, #967a4a 100%); color: #fff; border: none; border-radius: 25px; padding: 15px; width: 100%; font-size: 16px; font-weight: bold; box-shadow: 0 4px 15px rgba(184, 149, 90, 0.3); cursor: pointer; text-align: center; display: block; text-decoration: none; box-sizing: border-box; margin-top: auto;}
         .btn-primary:active { transform: scale(0.98); }
         .btn-danger { background: #fff; color: #FF3B30; border: 1px solid #FF3B30; border-radius: 25px; padding: 12px; width: 100%; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 15px; }
         .line-login-btn { background: #06C755; color: #fff; border: none; border-radius: 25px; padding: 15px; width: 100%; font-size: 16px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; }
@@ -126,7 +130,7 @@
         </div>
 
         <div id="view-dashboard" class="view-panel">
-            <div class="card" style="display:flex; align-items:center; gap:15px; padding:20px; background:linear-gradient(135deg, #fff 0%, var(--mist-rose) 100%);">
+            <div class="card" style="display:flex; align-items:center; gap:15px; padding:20px; background:linear-gradient(135deg, #fff 0%, var(--mist-rose) 100%); margin-bottom: 0;">
                 <img id="dash-avatar" src="" style="width:60px; height:60px; border-radius:50%; background:#fff; padding:2px; border:2px solid var(--app-gold);">
                 <div>
                     <div style="font-size:20px; font-weight:bold; color:var(--app-blue);" id="dash-name">使用者</div>
