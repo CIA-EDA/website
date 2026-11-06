@@ -259,7 +259,7 @@ function renderData(rawData, layoutType, container) {
         const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || item['產品logo及圖檔'] || item['公司Logo或環境照片'] || item['附圖網址'] || item['封面圖片網址'] || '';
         const linkRaw = item['報名連結'] || item['專屬付款網址'] || item['連結'] || item['專屬報名網址'] || item['相關連結'] || ''; 
         
-        // ★ 品牌推廣模式：處理沒有連結的狀況
+        // ★ 品牌推廣模式：處理沒有連結的狀況，純顯示圖片
         if (layoutType === 'brand') {
             if (imgRaw) {
                 const optimizedUrl = optimizeImageUrl(imgRaw.split(',')[0].trim());
@@ -320,9 +320,10 @@ function renderData(rawData, layoutType, container) {
             html += paymentBtnHtml; 
             html += `</div>`;
         } else {
-            // ★ 修改卡片點擊邏輯：若沒提供網址，且是店家資訊，可不顯示手勢提示或阻擋跳首頁
-            const cursorStyle = (linkRaw || layoutType !== 'brand') ? 'cursor: pointer;' : '';
-            const clickAction = (linkRaw || layoutType !== 'brand') ? `onclick="openDetailModal(${dataIndex})"` : '';
+            // ★ 修改卡片點擊邏輯：若沒提供網址，且是店家或課程，不產生 onlclick 以避免跳回首頁
+            const isClickable = Boolean(linkRaw) || Boolean(imgRaw); // 如果有連結或有圖片才可點 (有些需開 Modal 看大圖)
+            const cursorStyle = isClickable ? 'cursor: pointer;' : '';
+            const clickAction = isClickable ? `onclick="openDetailModal(${dataIndex})"` : '';
             
             if (item['發佈日期']) {
                 html += `
@@ -337,7 +338,7 @@ function renderData(rawData, layoutType, container) {
                 `;
             } else {
                 html += `
-                    <div class="course-card" ${clickAction} style="${cursorStyle}" title="點擊查看詳細資料">
+                    <div class="course-card" ${clickAction} style="${cursorStyle}" title="${isClickable ? '點擊查看詳細資料' : ''}">
                         ${imgHtml}
                         <div class="course-info">
                             ${title ? `<h3 class="course-title">${title}</h3>` : ''}
