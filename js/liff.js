@@ -1,6 +1,6 @@
 /**
  * 檔案名稱：js/liff.js
- * 職責：統一 4 欄網格排版、專屬 LINE 大廳全自動登入 (加入強制防呆、空值隱藏與按鈕置底邏輯)
+ * 職責：統一 4 欄網格排版、專屬 LINE 大廳全自動登入 (加入空值自動隱藏、智慧按鈕與按鈕置底邏輯)
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
@@ -164,7 +164,7 @@ function logout() {
     showView('login');
 }
 
-async function loadListData(sheetName) {
+window.loadListData = async function(sheetName) {
     const container = document.getElementById('list-container');
     container.innerHTML = '<div style="text-align:center; padding:30px; color:var(--app-gold); font-weight:bold;">載入中...</div>';
     try {
@@ -191,7 +191,6 @@ async function loadListData(sheetName) {
         if (dataObj.status === 'success' && dataObj.data.length > 1) {
             let dataArray = dataObj.data;
             const headers = dataArray.shift();
-            
             if (sheetName === '美業資訊交流' || sheetName === '徵才專區' || sheetName === '最新消息') dataArray = dataArray.reverse();
             
             let html = '<div class="responsive-grid">';
@@ -201,32 +200,12 @@ async function loadListData(sheetName) {
                 let item = {};
                 headers.forEach((h, i) => item[h] = row[i]);
                 
-                const title = item['職缺名稱'] || item['主旨/標題'] || item['課程名稱'] || item['標題'] || item['產品名稱'] || '無標題';
+                const title = item['職缺名稱'] || item['主旨/標題'] || item['課程名稱'] || item['標題'] || item['產品名稱'] || item['品牌名稱'] || '無標題';
                 let desc = item['交流內容'] || item['課程簡介'] || item['內容'] || '';
                 let extra = '';
-                let imgUrl = item['公司Logo或環境照片'] || item['附圖網址'] || item['封面圖片網址'] || item['圖片網址'] || item['產品logo及圖檔'] || '';
-                let linkUrl = item['專屬付款網址'] || item['連結'] || item['專屬報名網址'] || item['相關連結'] || '';
+                let imgUrl = item['公司Logo或環境照片'] || item['附圖網址'] || item['封面圖片網址'] || item['圖片網址'] || item['產品logo及圖檔'] || item['照片網址'] || '';
+                let linkUrl = item['專屬付款網址'] || item['連結'] || item['專屬報名網址'] || item['相關連結'] || item['品牌官方連結'] || item['官方連結'] || '';
                 
-                if (sheetName === '品牌推廣') {
-                    if (imgUrl) {
-                        const optimizedUrl = imgUrl.split(',')[0].trim();
-                        if(linkUrl) {
-                            html += `
-                                <a href="${linkUrl}" target="_blank" style="display:block; border-radius:16px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.08); transition:0.3s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
-                                    <img src="${optimizedUrl}" alt="${title}" style="width:100%; height:auto; display:block; object-fit:cover;">
-                                </a>
-                            `;
-                        } else {
-                             html += `
-                                <div style="display:block; border-radius:16px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.08);">
-                                    <img src="${optimizedUrl}" alt="${title}" style="width:100%; height:auto; display:block; object-fit:cover;">
-                                </div>
-                            `;
-                        }
-                    }
-                    return; 
-                }
-
                 if (sheetName === '徵才專區') {
                     let parts = [];
                     if (item['徵才機構']) parts.push(`🏢 機構：${item['徵才機構']}`);
@@ -249,7 +228,7 @@ async function loadListData(sheetName) {
                     }
                 } else if (sheetName === '課程介紹') {
                      if(linkUrl) extra += `<a href="${linkUrl}" target="_blank" class="btn-primary" style="margin-top:15px; padding:10px;">報名 / 了解更多</a>`;
-                } else if (item['店家名稱']) {
+                } else if (item['店家名稱'] || item['品牌名稱']) {
                     let parts = [];
                     if (item['負責人']) parts.push(`👤 負責人：${item['負責人']}`);
                     if (item['地址']) parts.push(`📍 地址：${item['地址']}`);
@@ -265,17 +244,17 @@ async function loadListData(sheetName) {
                 }
                 
                 let shortDesc = desc.length > maxDescLength ? desc.substring(0, maxDescLength) + '...' : desc;
-
+                
                 const isClickable = Boolean(linkUrl) || Boolean(imgUrl);
                 const cursorStyle = isClickable ? 'cursor: pointer;' : '';
                 const clickAction = isClickable ? `onclick="openDetailModal(${idx})"` : '';
 
                 if (sheetName === '最新消息') {
-                     html += `<div class="card">${extra}<div class="card-title">${title}</div><div class="card-desc">${shortDesc.replace(/\n/g, '<br>')}</div>${imgHtml}</div>`;
+                     html += `<div class="card">${extra}<div class="card-title">${title}</div><p class="card-desc">${shortDesc.replace(/\n/g, '<br>')}</p>${imgHtml}</div>`;
                 } else {
                      let paymentBtnHtml = '';
                      if (linkUrl && !item['發佈日期']) {
-                         const btnText = item['店家名稱'] ? '前往該品牌' : '了解更多 / 報名';
+                         const btnText = (item['店家名稱'] || item['品牌名稱']) ? '前往該品牌' : '了解更多 / 報名';
                          paymentBtnHtml = `<a href="${linkUrl}" target="_blank" class="btn-primary" onclick="event.stopPropagation();">${btnText}</a>`;
                      }
                      if (item['最低權限要求(例如:一般會員)'] !== undefined) {
@@ -337,10 +316,10 @@ window.openDetailModal = function(index) {
     const item = currentViewDataCache[index];
     if (!item) return;
 
-    const title = item['課程名稱'] || item['講師姓名'] || item['顧問姓名'] || item['店家名稱'] || item['活動名稱'] || item['產品名稱'] || item['標題'] || item['職缺名稱'] || item['主旨/標題'] || '';
+    const title = item['課程名稱'] || item['講師姓名'] || item['顧問姓名'] || item['店家名稱'] || item['品牌名稱'] || item['活動名稱'] || item['產品名稱'] || item['標題'] || item['職缺名稱'] || item['主旨/標題'] || '';
     let desc = item['簡介'] || item['個人簡介'] || item['產品簡介'] || item['內容'] || item['交流內容'] || '';
     const imgRaw = item['圖片網址'] || item['照片網址'] || item['活動照片網址'] || item['產品logo及圖檔'] || item['公司Logo或環境照片'] || item['附圖網址'] || item['封面圖片網址'] || '';
-    const linkRaw = item['報名連結'] || item['專屬付款網址'] || item['連結'] || item['專屬報名網址'] || item['相關連結'] || ''; 
+    const linkRaw = item['報名連結'] || item['專屬付款網址'] || item['連結'] || item['專屬報名網址'] || item['品牌官方連結'] || item['官方連結'] || item['相關連結'] || ''; 
 
     let extraHtml = '';
 
@@ -358,7 +337,7 @@ window.openDetailModal = function(index) {
         extraHtml = `<div style="font-size:12px; color:var(--champagne); margin-top:10px; text-align:center;">${item['發文者姓名']} • ${item['發文時間']}</div>`;
     } else if (item['專長項目']) {
         desc = (item['專長項目'] ? `【專長項目】\n${item['專長項目']}\n\n` : '') + desc;
-    } else if (item['店家名稱']) {
+    } else if (item['店家名稱'] || item['品牌名稱']) {
         let parts = [];
         if (item['負責人']) parts.push(`👤 負責人：${item['負責人']}`);
         if (item['地址']) parts.push(`📍 地址：${item['地址']}`);
@@ -371,12 +350,11 @@ window.openDetailModal = function(index) {
     const rawUrls = imgRaw.split(',').map(u => u.trim()).filter(u => u);
     if (rawUrls.length > 0) {
         rawUrls.forEach(url => {
-            const optimized = optimizeImageUrl(url);
-            imagesHtml += `<img src="${optimized}" style="width: 100%; display: block; border-bottom: 1px solid #eee;">`;
+            imagesHtml += `<img src="${optimizeImageUrl(url)}" style="width: 100%; display: block; border-bottom: 1px solid #eee;">`;
         });
     }
 
-    const btnText = item['店家名稱'] ? '前往該品牌' : '了解更多 / 報名';
+    const btnText = (item['店家名稱'] || item['品牌名稱']) ? '前往該品牌' : '了解更多 / 報名';
     let actionHtml = linkRaw ? `<a href="${linkRaw}" target="_blank" class="btn-primary" style="font-size: 18px; padding: 12px 30px; margin-top: 15px;">${btnText}</a>` : '';
     
     if (item['最低權限要求(例如:一般會員)'] !== undefined) {
