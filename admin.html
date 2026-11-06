@@ -31,11 +31,10 @@
 
         .form-group { margin-bottom: 20px; }
         .form-group label { display: block; font-size: 14px; margin-bottom: 8px; color: var(--admin-dark); font-weight: 600; }
+
         .input-field, .select-field, .textarea-field { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; background-color: #fff; }
-        
         #member-search { border: 2px solid var(--admin-accent); padding: 15px; font-size: 16px; box-shadow: 0 4px 10px rgba(184,149,90,0.1); transition: 0.3s; }
         #member-search:focus { outline: none; box-shadow: 0 4px 15px rgba(184,149,90,0.3); }
-        
         .textarea-field { resize: vertical; height: 100px; }
         .btn-primary { background: var(--admin-accent); color: #fff; border: none; padding: 12px 25px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 15px; }
         .btn-primary:hover { filter: brightness(0.9); }
@@ -44,7 +43,6 @@
         .data-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #eee; margin-bottom: 10px; border-radius: 8px; background: #fafafa; flex-wrap: wrap; gap: 10px; }
         .data-item-title { font-weight: 600; color: var(--admin-dark); }
         .action-btns { display: flex; gap: 10px; }
-        
         .btn-icon { background: #fff; border: 1px solid #ddd; padding: 6px 12px; border-radius: 4px; cursor: pointer; transition: 0.3s; font-size: 13px; font-weight:bold; color:var(--admin-dark); }
         .btn-icon:hover { background: #eee; }
         .btn-icon.danger { color: #d32f2f; border-color: #ffcdd2; }
@@ -63,7 +61,6 @@
         .member-info { flex: 1; min-width: 250px; }
         .member-info h4 { margin: 0 0 5px 0; color: var(--admin-dark); font-size: 18px; }
         .member-info p { margin: 0; font-size: 13px; color: #666; }
-        
         .member-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #eee; }
         .control-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 120px; }
         .control-group label { font-size: 12px; color: #888; font-weight: normal; margin: 0; }
@@ -153,9 +150,11 @@
                 <div style="margin-bottom: 25px;">
                     <input type="text" id="member-search" class="input-field" placeholder="🔍 輸入姓名、電話、編號或任何關鍵字進行極速搜尋..." style="max-width: 100%;">
                 </div>
+
                 <div id="members-container">
                     <p style="text-align:center; color:#888;">正在載入會員名單...</p>
                 </div>
+
                 <div id="pagination-controls" class="pagination-controls" style="display:none;">
                     <button id="btn-prev-page" class="page-btn">上一頁</button>
                     <span id="page-info" class="page-info">第 1 頁 / 共 1 頁</span>
@@ -185,6 +184,7 @@
                         <option value="徵才專區">徵才專區</option>
                         <option disabled>────── 其他 ──────</option>
                         <option value="品牌推廣">品牌推廣</option>
+                        <option value="會員專屬影片">🎬 線上課程平台 (原專屬影片)</option>
                     </select>
                 </div>
                 <hr style="border:0; border-top:1px dashed #ddd; margin:30px 0;">
@@ -200,6 +200,7 @@
                         <option value="">請選擇...</option>
                         <option value="課程介紹">課程介紹 (線下標準課程)</option>
                         <option value="最新消息">⭐ 最新消息</option>
+                        <option value="課程介紹">課程介紹 (總表)</option>
                         <option value="政府補助課程">政府補助課程</option>
                         <option value="其他自費課程">其他自費課程</option>
                         <option value="會員專屬影片">線上課程平台 (影音)</option>
@@ -212,6 +213,7 @@
                         <option value="品牌推廣">品牌推廣</option>
                         <option value="美業資訊交流">美業資訊交流 (刪除違規文章)</option>
                         <option value="交流留言">交流留言 (管理互動留言)</option>
+                        <option value="會員專屬影片">線上課程平台 (原專屬影片)</option>
                     </select>
                 </div>
                 <div id="manage-list-container">
@@ -221,7 +223,7 @@
 
         </div>
     </main>
-    
+
     <script src="js/admin.js"></script>
 </body>
 </html>
