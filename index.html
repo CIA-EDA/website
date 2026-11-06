@@ -43,7 +43,10 @@
         
         .hero-section { padding: 80px 40px; text-align: center; background-color: var(--secondary-color); }
         
-        .course-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; margin-top: 30px; }
+        /* === 核心調整：電腦與平板版，強制四等份 (一排四個) === */
+        .course-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 25px; width: 100%; }
+        .brand-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; width: 100%; }
+
         .course-card { border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.03); display: flex; flex-direction: column; height: 100%; }
         .course-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
         
@@ -85,7 +88,6 @@
         .submit-btn-full { width: 100%; padding: 15px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; transition: 0.3s; font-size: 16px; font-weight: bold; margin-top: 10px; }
         .submit-btn-full:hover { background: #967a4a; box-shadow: 0 4px 15px rgba(184, 149, 90, 0.4); }
 
-        /* === 徹底修復：手機版下拉選單回歸原生堆疊模式 === */
         @media (max-width: 768px) {
             header { padding: 15px 20px; position: sticky; top: 0; background-color: var(--mist-rose); z-index: 9999; }
             .brand-logo-img { height: 40px; }
@@ -112,7 +114,6 @@
             .dropdown > .candy-btn { width: 100%; margin: 0; } 
             .dropdown:hover .dropdown-content { display: none; }
             
-            /* 修正為 display: block 原生堆疊，絕對不跑版 */
             .dropdown-content { 
                 position: static; 
                 visibility: visible; 
@@ -135,7 +136,9 @@
             .hero-title { font-size: 24px !important; }
             .hero-section { padding: 40px 20px; }
             .content-section { padding: 20px 15px; }
-            .course-grid { grid-template-columns: 1fr; gap: 20px; } 
+            
+            /* === 核心調整：手機版單欄直排 (一排一個) === */
+            .course-grid, .brand-grid { grid-template-columns: 1fr; gap: 20px; } 
             
             .modal-content { padding: 25px 15px; width: 92%; }
             .form-row { flex-direction: column; gap: 10px; }
