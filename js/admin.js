@@ -1,12 +1,14 @@
 /**
  * 檔案名稱：js/admin.js
  * 職責：管理後台分頁、五大會員等級設定、全模組動態表單與資料寫入
+ * 更新：將「品牌推廣」的欄位擴充與「認證店家」完全一致
  */
 
 const ADMIN_PASSWORD = '6668888';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
 
+// ★ 核心升級：將「品牌推廣」擴充為與「認證店家」相同的完整 6 欄位
 const FORM_FIELDS = {
     '最新消息': [{name:'發佈日期(YYYY-MM-DD)', type:'text'}, {name:'標題', type:'text'}, {name:'內容', type:'textarea'}, {name:'相關連結', type:'text'}],
     '政府補助課程': [{name:'課程名稱', type:'text'}, {name:'簡介', type:'textarea'}, {name:'講師', type:'text'}, {name:'專屬報名網址', type:'text'}],
@@ -17,7 +19,7 @@ const FORM_FIELDS = {
     '認證店家': [{name:'店家名稱', type:'text'}, {name:'負責人', type:'text'}, {name:'地址', type:'text'}, {name:'聯絡電話', type:'text'}, {name:'簡介', type:'textarea'}, {name:'連結', type:'text'}],
     '活動花絮': [{name:'活動名稱', type:'text'}, {name:'日期', type:'text'}],
     '關於我們': [{name:'標題', type:'text'}, {name:'內容', type:'textarea'}],
-    '品牌推廣': [{name:'產品名稱', type:'text'}, {name:'產品簡介', type:'textarea'}],
+    '品牌推廣': [{name:'品牌名稱', type:'text'}, {name:'負責人', type:'text'}, {name:'地址', type:'text'}, {name:'聯絡電話', type:'text'}, {name:'簡介', type:'textarea'}, {name:'連結', type:'text'}], // ★ 擴充為與認證店家相同
     '徵才專區': [{name:'職缺名稱', type:'text'}, {name:'徵才機構', type:'text'}, {name:'工作地點', type:'text'}, {name:'薪資待遇', type:'text'}, {name:'聯絡方式', type:'text'}, {name:'條件要求', type:'textarea'}],
     '美業資訊交流': [{name:'發文者姓名', type:'text'}, {name:'主旨/標題', type:'text'}, {name:'交流內容', type:'textarea'}],
     '交流留言': [{name:'文章標題', type:'text'}, {name:'文章發布時間', type:'text'}, {name:'留言者姓名', type:'text'}, {name:'留言時間', type:'text'}, {name:'留言內容', type:'textarea'}],
@@ -268,10 +270,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if(cat === '課程介紹') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, imgUrls, inputs[3].value);
             if(cat === '專業師資') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, imgUrls, inputs[3].value);
             if(cat === '專業顧問') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, imgUrls, inputs[3].value);
-            if(cat === '認證店家') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, inputs[4].value, imgUrls, inputs[5].value);
+            if(cat === '認證店家' || cat === '品牌推廣') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, inputs[4].value, imgUrls, inputs[5].value); // ★ 品牌推廣改為跟店家一致
             if(cat === '活動花絮') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
             if(cat === '關於我們') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
-            if(cat === '品牌推廣') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
             if(cat === '徵才專區') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, inputs[5].value, inputs[4].value, imgUrls, new Date().toISOString().split('T')[0]);
             if(cat === '會員專屬影片') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, imgUrls);
 
@@ -346,10 +347,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let oldImg = '';
         if (sheetName === '課程介紹' || sheetName === '專業師資' || sheetName === '專業顧問' || sheetName === '政府補助課程' || sheetName === '其他自費課程') oldImg = dataRow[3];
-        else if (sheetName === '活動花絮' || sheetName === '關於我們' || sheetName === '品牌推廣') oldImg = dataRow[2];
+        else if (sheetName === '活動花絮' || sheetName === '關於我們') oldImg = dataRow[2];
         else if (sheetName === '最新消息') oldImg = dataRow[3];
         else if (sheetName === '徵才專區') oldImg = dataRow[6];
-        else if (sheetName === '認證店家') oldImg = dataRow[5];
+        else if (sheetName === '認證店家' || sheetName === '品牌推廣') oldImg = dataRow[5]; // ★ 同步抓取圖片欄位
         else if (sheetName === '美業資訊交流') oldImg = dataRow[4];
         else if (sheetName === '會員專屬影片') oldImg = dataRow[4];
 
@@ -372,7 +373,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     document.getElementById('btn-save-edit').addEventListener('click', async (e) => {
-        const btn = e.target;
+        const btn = document.getElementById('btn-save-edit');
         const sheetName = document.getElementById('edit-sheet-name').value;
         const rowIndex = document.getElementById('edit-row-index').value;
         const inputs = Array.from(document.querySelectorAll('.edit-data-input'));
@@ -403,10 +404,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if(sheetName === '課程介紹') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, imgUrls, inputs[3].value);
             if(sheetName === '專業師資') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, imgUrls, inputs[3].value);
             if(sheetName === '專業顧問') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, imgUrls, inputs[3].value);
-            if(sheetName === '認證店家') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, inputs[4].value, imgUrls, inputs[5].value);
+            if(sheetName === '認證店家' || sheetName === '品牌推廣') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, inputs[4].value, imgUrls, inputs[5].value); // ★ 更新編輯邏輯
             if(sheetName === '活動花絮') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
             if(sheetName === '關於我們') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
-            if(sheetName === '品牌推廣') newRowData.push(inputs[0].value, inputs[1].value, imgUrls);
             if(sheetName === '徵才專區') newRowData.push(inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, inputs[5].value, inputs[4].value, imgUrls, new Date().toISOString().split('T')[0]);
             
             if(sheetName === '美業資訊交流') {
