@@ -1,10 +1,11 @@
 /**
  * 檔案名稱：js/liff.js
- * 職責：統一 4 欄網格排版、專屬 LINE 大廳全自動登入 (加入空值自動隱藏、智慧按鈕與按鈕置底邏輯)
+ * 職責：統一 4 欄網格排版、專屬 LINE 大廳全自動登入 (已深度修復登入空白與迴圈問題)
  */
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzEMZYK-hDp7SAjNRdBTzgrtXuYqnSejl8a-BPu7-EobxyEvjOrTlTkD8fcSCEGyUeC1Q/exec';
 const API_SECRET_TOKEN = 'cla-eda-secure-2026';
+// 🔑 官方 LINE LIFF ID (供行動版會員大廳使用)
 const LIFF_ID_MEMBER = '2012121201-JKa4hPdF'; 
 
 let currentTab = 'dashboard';
@@ -12,7 +13,6 @@ window.currentCommentsCache = [];
 
 function showPreloader() { document.getElementById('preloader').style.display = 'flex'; }
 function hidePreloader() { document.getElementById('preloader').style.display = 'none'; }
-
 function setHeader(title) { document.getElementById('app-title').innerText = title; }
 
 function showView(viewId) {
@@ -50,53 +50,97 @@ async function switchNav(target) {
     }
 }
 
-function initApp() {
+// === 核心修復：處理 LINE 登入回傳邏輯與防呆 ===
+async function initApp() {
     showPreloader();
-    setTimeout(hidePreloader, 2500);
+    
+    // 終極防呆：3 秒後不管發生什麼事，強制解鎖畫面
+    setTimeout(hidePreloader, 3000);
     
     try {
         if (typeof liff !== 'undefined') {
-            liff.init({ liffId: LIFF_ID_MEMBER }).then(() => {
+            await liff.init({ liffId: LIFF_ID_MEMBER });
+            
+            // 檢查網址是否帶有授權參數 (代表剛剛完成授權跳轉回來)
+            const urlSearch = window.location.search;
+            if (urlSearch.includes('liff.state') || urlSearch.includes('code=')) {
                 if (liff.isLoggedIn()) {
-                    processLogin(true);
+                    // 已登入且帶參數：進行回呼處理
+                    await processLogin(true);
                 } else {
-                    liff.login({ redirectUri: window.location.href }); 
+                    hidePreloader();
                 }
-            }).catch((err) => {
-                console.error(err);
-                hidePreloader();
-            });
+            } else {
+                // 一般進入狀態
+                if (liff.isLoggedIn()) {
+                    // 已經登入過，直接驗證身分
+                    await processLogin(true);
+                } else {
+                    // 從未登入過，強制跳轉授權 (這就是會產生「點擊繼續」的動作)
+                    liff.login({ redirectUri: window.location.href.split('?')[0] }); 
+                }
+            }
         } else {
+            alert('無法載入 LINE 核心套件，請確認網路狀態。');
             hidePreloader();
         }
     } catch (err) { 
-        console.error(err);
+        console.error('LIFF 初始化失敗:', err);
+        alert('系統初始化失敗，請在 LINE 中開啟');
         hidePreloader(); 
     }
 }
 
+// 保留作為 fallback 的手動登入按鈕功能
 async function triggerLineLogin() {
-    if (!liff.isLoggedIn()) liff.login({ redirectUri: window.location.href });
-    else await processLogin();
+    showPreloader();
+    try {
+        if (!liff.isLoggedIn()) {
+            liff.login({ redirectUri: window.location.href.split('?')[0] });
+        } else {
+            await processLogin();
+        }
+    } catch(e) {
+        console.error(e);
+        hidePreloader();
+    }
 }
 
 async function processLogin(isSilent = false) {
     if(!isSilent) showPreloader();
     try {
         const profile = await liff.getProfile();
-        const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'lineLogin', lineUid: profile.userId, displayName: profile.displayName, pictureUrl: profile.pictureUrl }) });
+        
+        const res = await fetch(GAS_URL, { 
+            method: 'POST', 
+            body: JSON.stringify({ 
+                token: API_SECRET_TOKEN, 
+                action: 'lineLogin', 
+                lineUid: profile.userId, 
+                displayName: profile.displayName, 
+                pictureUrl: profile.pictureUrl 
+            }) 
+        });
+        
         const data = await res.json();
         
         if (data.status === 'success') {
             localStorage.setItem('cia_member_credentials', JSON.stringify({ lineUid: profile.userId }));
             localStorage.setItem('cia_member_info', JSON.stringify(data.member));
+            
+            // 清理網址列參數，避免重新整理時重複觸發
+            if (window.location.search.includes('liff.state') || window.location.search.includes('code=')) {
+                window.history.replaceState(null, '', window.location.pathname);
+            }
+            
             checkMemberState(data.member);
         } else {
-            alert('登入失敗：' + data.message);
+            if(!isSilent) alert('登入失敗：' + data.message);
             showView('login');
         }
     } catch(e) { 
-        console.error(e);
+        console.error('處理登入資料時發生異常:', e);
+        if(!isSilent) alert('連線伺服器異常，請檢查網路'); 
         showView('login'); 
     } finally { 
         hidePreloader(); 
@@ -164,6 +208,25 @@ function logout() {
     showView('login');
 }
 
+function optimizeImageUrl(url) {
+    if (url.includes('drive.google.com') && !url.includes('thumbnail')) {
+        const idMatch = url.match(/id=([^&]+)/);
+        if (idMatch && idMatch[1]) return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w800`;
+    }
+    return url;
+}
+
+function generateImageHTML(imgString) {
+    const rawUrls = imgString.split(',').map(u => u.trim()).filter(u => u);
+    if (rawUrls.length === 0) return '';
+    const urls = rawUrls.map(url => optimizeImageUrl(url));
+    if (urls.length === 1) return `<div class="img-wrapper"><img src="${urls[0]}" alt="Image"></div>`;
+    let html = `<div class="img-wrapper"><div class="carousel-container">`;
+    urls.forEach(url => { html += `<img src="${url}" alt="Image">`; });
+    html += `</div></div><div class="carousel-hint">← 左右滑動查看多圖 →</div>`;
+    return html;
+}
+
 window.loadListData = async function(sheetName) {
     const container = document.getElementById('list-container');
     container.innerHTML = '<div style="text-align:center; padding:30px; color:var(--app-gold); font-weight:bold;">載入中...</div>';
@@ -191,6 +254,7 @@ window.loadListData = async function(sheetName) {
         if (dataObj.status === 'success' && dataObj.data.length > 1) {
             let dataArray = dataObj.data;
             const headers = dataArray.shift();
+            
             if (sheetName === '美業資訊交流' || sheetName === '徵才專區' || sheetName === '最新消息') dataArray = dataArray.reverse();
             
             let html = '<div class="responsive-grid">';
@@ -206,6 +270,26 @@ window.loadListData = async function(sheetName) {
                 let imgUrl = item['公司Logo或環境照片'] || item['附圖網址'] || item['封面圖片網址'] || item['圖片網址'] || item['產品logo及圖檔'] || item['照片網址'] || '';
                 let linkUrl = item['專屬付款網址'] || item['連結'] || item['專屬報名網址'] || item['相關連結'] || item['品牌官方連結'] || item['官方連結'] || '';
                 
+                if (sheetName === '品牌推廣') {
+                    if (imgUrl) {
+                        const optimizedUrl = optimizeImageUrl(imgUrl.split(',')[0].trim());
+                        if(linkUrl) {
+                            html += `
+                                <a href="${linkUrl}" target="_blank" style="display:block; border-radius:16px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.08); transition:0.3s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                                    <img src="${optimizedUrl}" alt="${title}" style="width:100%; height:auto; display:block; object-fit:cover;">
+                                </a>
+                            `;
+                        } else {
+                             html += `
+                                <div style="display:block; border-radius:16px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.08);">
+                                    <img src="${optimizedUrl}" alt="${title}" style="width:100%; height:auto; display:block; object-fit:cover;">
+                                </div>
+                            `;
+                        }
+                    }
+                    return; 
+                }
+
                 if (sheetName === '徵才專區') {
                     let parts = [];
                     if (item['徵才機構']) parts.push(`🏢 機構：${item['徵才機構']}`);
@@ -237,12 +321,7 @@ window.loadListData = async function(sheetName) {
                     desc = parts.join('\n').trim();
                 }
                 
-                let imgHtml = '';
-                if (imgUrl) {
-                    const firstImg = imgUrl.split(',')[0].trim();
-                    imgHtml = `<img src="${firstImg}" class="post-img">`;
-                }
-                
+                let imgHtml = generateImageHTML(imgUrl);
                 let shortDesc = desc.length > maxDescLength ? desc.substring(0, maxDescLength) + '...' : desc;
                 
                 const isClickable = Boolean(linkUrl) || Boolean(imgUrl);
@@ -313,7 +392,7 @@ function buildCommentsHtml(postTitle, postTime, dataIndex) {
 }
 
 window.openDetailModal = function(index) {
-    const item = currentViewDataCache[index];
+    const item = window.currentViewDataCache ? window.currentViewDataCache[index] : null;
     if (!item) return;
 
     const title = item['課程名稱'] || item['講師姓名'] || item['顧問姓名'] || item['店家名稱'] || item['品牌名稱'] || item['活動名稱'] || item['產品名稱'] || item['標題'] || item['職缺名稱'] || item['主旨/標題'] || '';
@@ -479,7 +558,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (fileInput.files.length > 0) {
             const file = fileInput.files[0];
             if (file.size > 5 * 1024 * 1024) { alert('照片超過 5MB 上限！'); return; }
-            base64Data = await new Promise(r => { const rd = new FileReader(); rd.onload = () => r(rd.result.split(',')[1]); rd.readAsDataURL(file); });
+            const readFileAsBase64 = (file) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.readAsDataURL(file); });
+            base64Data = await readFileAsBase64(file);
             mimeType = file.type; fileName = file.name;
         }
 
@@ -489,7 +569,8 @@ document.addEventListener('DOMContentLoaded', () => {
             let imgUrl = '';
             if (base64Data) {
                 const resImg = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'uploadImage', sheetName: '美業資訊交流', base64Data: base64Data, mimeType: mimeType, fileName: fileName }) });
-                imgUrl = (await resImg.json()).url;
+                const jsonImg = await resImg.json();
+                imgUrl = jsonImg.url;
             }
             await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ token: API_SECRET_TOKEN, action: 'userPostExchange', lineUid: credentials.lineUid, postTitle: title, postContent: content, imgUrl: imgUrl }) });
             alert('發佈成功！');
