@@ -43,10 +43,9 @@
         
         .hero-section { padding: 80px 40px; text-align: center; background-color: var(--secondary-color); }
         
-        /* === 核心調整：電腦與平板版，強制四等份 (一排四個) === */
-        .course-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 25px; width: 100%; }
-        .brand-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; width: 100%; }
-
+        /* === 全新 4 等分網格系統 === */
+        .responsive-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 30px; margin-top: 20px; width: 100%; box-sizing: border-box; }
+        
         .course-card { border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.03); display: flex; flex-direction: column; height: 100%; }
         .course-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
         
@@ -137,8 +136,8 @@
             .hero-section { padding: 40px 20px; }
             .content-section { padding: 20px 15px; }
             
-            /* === 核心調整：手機版單欄直排 (一排一個) === */
-            .course-grid, .brand-grid { grid-template-columns: 1fr; gap: 20px; } 
+            /* 手機版網格切換為單欄向下排列 */
+            .responsive-grid { grid-template-columns: 1fr; gap: 20px; } 
             
             .modal-content { padding: 25px 15px; width: 92%; }
             .form-row { flex-direction: column; gap: 10px; }
